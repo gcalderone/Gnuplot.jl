@@ -758,9 +758,9 @@ macro gp_(args...)
     for arg in args
         #println(typeof(arg), " ", arg)
 
-        if isa(arg, Expr)  &&  (arg.head == :quote)  &&  (arg.args[1] == :gp_next)
+        if isa(arg, Expr)  &&  (arg.head == :quote)  &&  (arg.args[1] == :next)
             push!(exprBlock.args, :(gp_next()))
-        elseif isa(arg, Expr)  &&  (arg.head == :quote)  &&  (arg.args[1] == :gp_plot)
+        elseif isa(arg, Expr)  &&  (arg.head == :quote)  &&  (arg.args[1] == :plot)
             callPlot = true
         elseif (isa(arg, Expr)  &&  (arg.head == :string))  ||  isa(arg, String)
             # Either a plot or cmd string
