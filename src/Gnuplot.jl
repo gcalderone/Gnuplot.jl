@@ -4,8 +4,8 @@ using AbbrvKW
 
 export gp_getStartup, gp_getCmd, gp_getVerbose, gp_setOption,
        gp_IDs, gp_current, gp_setCurrent, gp_new, gp_exit, gp_exitAll,
-       gp_send, @gp_str, gp_reset, gp_cmd, gp_data, gp_plot, gp_next, gp_run, 
-       @gp_, @gp, gp_dump, gp_load, gp_terminals, gp_terminal
+       gp_send, @gp_str, gp_reset, gp_cmd, gp_data, gp_plot, gp_multi, gp_next, gp_dump,
+       @gp_, @gp, gp_load, gp_terminals, gp_terminal
 
 
 ######################################################################
@@ -201,9 +201,9 @@ function gp_mkBlockName(prefix="")
         prefix = string("d", gp_current())
     end
 
-    s = main.states[main.curPos]
-    name = string(prefix, "_", s.blockCnt)
-    s.blockCnt += 1
+    cur = main.states[main.curPos]
+    name = string(prefix, "_", cur.blockCnt)
+    cur.blockCnt += 1
 
     return name
 end
@@ -355,6 +355,7 @@ function gp_new()
         gp_cmd(main.startup)
     end
 
+    gp_log(1, "New session started with ID $newID")
     return newID
 end
 
@@ -531,12 +532,12 @@ function gp_cmd(v::String=""; kw...)
                    ylog::Nullable{Bool}=nothing,
                    zlog::Nullable{Bool}=nothing)
 
-    p = gp_getProcOrStartIt()
-    s = main.states[main.curPos]
-    mID = isnull(multiID)  ?  s.multiID  :  get(multiID)
+    gp_getProcOrStartIt()
+    cur = main.states[main.curPos]
+    mID = isnull(multiID)  ?  cur.multiID  :  get(multiID)
 
     if v != ""
-        push!(s.cmds, MultiCmd(v, mID))
+        push!(cur.cmds, MultiCmd(v, mID))
         if mID == 0
             gp_send(v)
         end
@@ -595,8 +596,8 @@ The returned name can be used as input to `gp_plot`.
 function gp_data(data::Vararg{AbstractArray{T,1},N}; kw...) where {T,N}
     @AbbrvKW_check(kw, name::String="", prefix::String="")
 
-    p = gp_getProcOrStartIt()
-    s = main.states[main.curPos]
+    gp_getProcOrStartIt()
+    cur = main.states[main.curPos]
 
     if name == ""
         name = gp_mkBlockName(prefix)
@@ -608,21 +609,21 @@ function gp_data(data::Vararg{AbstractArray{T,1},N}; kw...) where {T,N}
     end
 
     v = "$name << EOD"
-    push!(s.data, v)
+    push!(cur.data, v)
     gp_send(v)
     for i in 1:length(data[1])
         v = ""
         for j in 1:length(data)
             v *= " " * string(data[j][i])
         end
-        push!(s.data, v)
+        push!(cur.data, v)
         gp_send(v)
     end
     v = "EOD"
-    push!(s.data, v)
+    push!(cur.data, v)
     gp_send(v)
 
-    s.lastDataName = name
+    cur.lastDataName = name
 
     return name
 end
@@ -630,9 +631,22 @@ end
 
 #---------------------------------------------------------------------
 function gp_next()
-    p = gp_getProcOrStartIt()
-    s = main.states[main.curPos]
-    s.multiID += 1
+    gp_getProcOrStartIt()
+    cur = main.states[main.curPos]
+    cur.multiID += 1
+end
+
+
+#---------------------------------------------------------------------
+function gp_multi(s::String="")
+    gp_getProcOrStartIt()
+    cur = main.states[main.curPos]
+    if cur.multiID != 0
+        error("Current multiplot ID is $cur.multiID, while it should be 0")
+    end
+
+    gp_next()
+    gp_cmd("set multiplot $s")
 end
 
 
@@ -657,7 +671,7 @@ gp_plot("\$src w l tit 'Pow 2.2'")
 # Re use the same data block
 gp_plot("\$src u 1:(\\\$2+10) w l tit 'Pow 2.2, offset=10'")
 
-gp_run() # Do the plot
+gp_dump() # Do the plot
 ```
 """
 function gp_plot(spec::String; kw...)
@@ -667,82 +681,25 @@ function gp_plot(spec::String; kw...)
                    multiID::Nullable{Int}=nothing,
                    splot::Nullable{Bool}=nothing)
 
-    p = gp_getProcOrStartIt()
-    s = main.states[main.curPos]
-    mID = isnull(multiID)  ?  s.multiID  :  get(multiID)
-    isnull(splot)  ||  (s.splot = splot)
+    gp_getProcOrStartIt()
+    cur = main.states[main.curPos]
+    mID = isnull(multiID)  ?  cur.multiID  :  get(multiID)
+    isnull(splot)  ||  (cur.splot = splot)
 
     src = ""
     if lastData
-        src = s.lastDataName
+        src = cur.lastDataName
     elseif !isnull(file)
         src = "'" * get(file) * "'"
     end
-    push!(s.plot, MultiCmd("$src $spec", mID))
-end
-          
-
-#---------------------------------------------------------------------
-"""
-Send the plot/splot command to gnuplot, and return it as a string.
-
-If the argument is `true` the commands are not sent to gnuplot (dry run).
-"""
-function gp_run(dryRun=false)
-    p = gp_getProcOrStartIt()
-    s = main.states[main.curPos]
-
-    if length(s.plot) == 0
-        return
-    end
-
-    out = Vector{String}()
-
-    for id in 0:s.multiID
-        # Handle commands (but skip those with multiID=0)
-        if id > 0
-            for m in s.cmds
-                if m.id == id
-                    push!(out, m.cmd)
-                    dryRun  ||  gp_send(m.cmd)
-                end
-            end
-        end
-
-        # Handle commands
-        tmp = Vector{String}()
-        for m in s.plot
-            if m.id == id
-                push!(tmp, m.cmd)
-            end
-        end
-
-        if length(tmp) > 0
-            v = s.splot  ?  "splot "  :  "plot "
-            v *= "\\\n  "
-            v *= join(tmp, ", \\\n  ")
-
-            push!(out, v)
-            dryRun  ||  gp_send(v)
-        end
-    end
-
-    if s.multiID > 0
-        v = "unset multiplot"
-        push!(out, v)
-        dryRun  ||  gp_send(v)
-    end
-
-    dryRun  ||  gp_send("print 1", capture=true)
-
-    return join(out, "\n")
+    push!(cur.plot, MultiCmd("$src $spec", mID))
 end
 
 
 #---------------------------------------------------------------------
 """
 Similar to `@gp`, but do not adds the calls to `gp_reset()` at the
-beginning and `gp_run()` at the end.
+beginning and `gp_dump()` at the end.
 """
 macro gp_(args...)
     if length(args) == 0
@@ -754,17 +711,20 @@ macro gp_(args...)
     exprData = Expr(:call)
     push!(exprData.args, :gp_data)
 
-    callPlot = false
+    pendingPlot = false
+    pendingMulti = false
     for arg in args
         #println(typeof(arg), " ", arg)
 
         if isa(arg, Expr)  &&  (arg.head == :quote)  &&  (arg.args[1] == :next)
             push!(exprBlock.args, :(gp_next()))
         elseif isa(arg, Expr)  &&  (arg.head == :quote)  &&  (arg.args[1] == :plot)
-            callPlot = true
+            pendingPlot = true
+        elseif isa(arg, Expr)  &&  (arg.head == :quote)  &&  (arg.args[1] == :multi)
+            pendingMulti = true
         elseif (isa(arg, Expr)  &&  (arg.head == :string))  ||  isa(arg, String)
             # Either a plot or cmd string
-            if callPlot
+            if pendingPlot
                 if length(exprData.args) > 1
                     push!(exprBlock.args, exprData)
                     exprData = Expr(:call)
@@ -772,7 +732,10 @@ macro gp_(args...)
                 end
 
                 push!(exprBlock.args, :(gp_plot(last=true, $arg)))
-                callPlot = false
+                pendingPlot = false
+            elseif pendingMulti
+                push!(exprBlock.args, :(gp_multi($arg)))
+                pendingMulti = false
             else
                 push!(exprBlock.args, :(gp_cmd($arg)))
             end
@@ -784,12 +747,12 @@ macro gp_(args...)
         else
             # A data set
             push!(exprData.args, arg)
-            callPlot = true
+            pendingPlot = true
         end
     end
     #dump(exprBlock)
 
-    if callPlot  &&  length(exprData.args) >= 2
+    if pendingPlot  &&  length(exprData.args) >= 2
         push!(exprBlock.args, exprData)
         push!(exprBlock.args, :(gp_plot(last=true, "")))
     end
@@ -803,7 +766,7 @@ end
 Main driver for the Gnuplot.jl package
 
 This macro expands into proper calls to `gp_reset`, `gp_cmd`,
-`gp_data`, `gp_plot` and `gp_run` in a single call, hence it is a very
+`gp_data`, `gp_plot` and `gp_dump` in a single call, hence it is a very
 simple and quick way to produce (even very complex) plots.
 
 The syntax is as follows:
@@ -842,7 +805,7 @@ begin
     gp_data(collect(1.0:10))
     gp_plot(last=true, "with lines tit 'Data'")
 end
-gp_run()
+gp_dump()
 ```
 
 
@@ -859,7 +822,7 @@ lw = 3
 @gp x x.^2 "w l lw \$lw"
 
 @gp("set grid", "set key left", xlog=true, ylog=true,
-    title="My title", xlab="X label", ylab="Y label", 
+    title="My title", xlab="X label", ylab="Y label",
     x, x.^0.5, "w l tit 'Pow 0.5' dt 2 lw 2 lc rgb 'red'",
     x, x     , "w l tit 'Pow 1'   dt 1 lw 3 lc rgb 'blue'",
     x, x.^2  , "w l tit 'Pow 2'   dt 3 lw 2 lc rgb 'purple'")
@@ -875,9 +838,81 @@ macro gp(args...)
     f = Expr(:block)
     push!(f.args, esc(:( gp_reset())))
     push!(f.args, e)
-    push!(f.args, esc(:( gp_run())))
+    push!(f.args, esc(:( gp_dump())))
 
     return f
+end
+
+
+"""
+Print all data and commands stored in the current session on STDOUT or
+on a file.
+"""
+function gp_dump(;kw...)
+    @AbbrvKW_check(kw,
+                   all::Bool=false,
+                   dry::Bool=false,
+                   data::Bool=false,
+                   file::Nullable{String}=nothing)
+
+    if main.curPos == 0
+        return ""
+    end
+
+    if !isnull(file)
+        all = true
+        dry = true
+    end
+
+    cur = main.states[main.curPos]
+    out = Vector{String}()
+
+    all  &&  (push!(out, "reset session"))
+
+    if data || all
+        for s in cur.data
+            push!(out, s)
+        end
+    end
+
+    for id in 0:cur.multiID
+        for m in cur.cmds
+            if (m.id == id)  &&  ((id > 0)  ||  all)
+                push!(out, m.cmd)
+            end
+        end
+
+        tmp = Vector{String}()
+        for m in cur.plot
+            if m.id == id
+                push!(tmp, m.cmd)
+            end
+        end
+
+        if length(tmp) > 0
+            s = cur.splot  ?  "splot "  :  "plot "
+            s *= "\\\n  "
+            s *= join(tmp, ", \\\n  ")
+            push!(out, s)
+        end
+    end
+
+    if cur.multiID > 0
+        push!(out, "unset multiplot")
+    end
+        
+    if !isnull(file)
+        sOut = open(get(file), "w")
+        for s in out; println(sOut, s); end
+        close(sOut)
+    end
+
+    if !dry
+        for s in out; gp_send(s); end
+        gp_send("", capture=true)
+    end
+
+    return join(out, "\n")
 end
 
 
@@ -885,41 +920,6 @@ end
 # Facilities
 ######################################################################
 
-"""
-Print all data and commands stored in the current session on STDOUT or
-on a file.
-"""
-function gp_dump(file::String="")
-    if main.curPos == 0
-        return
-    end
-
-    if file != ""
-        out = open(file, "w")
-    else
-        out = STDOUT
-    end
-
-    s = main.states[main.curPos]
-    for v in s.data
-        println(out, v)
-    end
-
-    for m in s.cmds
-        if m.id == 0
-            println(out, m.cmd)
-        end
-    end
-
-    println(out, gp_run(true))
-
-    if file != ""
-        close(out)
-    end
-end
-
-
-#---------------------------------------------------------------------
 gp_load(file::String) = gp_send("load '$file'", capture=true)
 gp_terminals() = gp_send("print GPVAL_TERMINALS", capture=true)
 gp_terminal()  = gp_send("print GPVAL_TERM", capture=true)

@@ -41,11 +41,11 @@ function gp_test(terminal="unknown")
     gp_reset()
     name = gp_data([1,2,3,5,8,13])
     gp_plot("$name w points ps 3")
-    gp_run()
+    gp_dump()
     terminal == "unknown"  ||  pressEnter()
 
     gp_plot(last=true, "w l lw 3")
-    gp_run()
+    gp_dump()
     terminal == "unknown"  ||  pressEnter()
 
     #-----------------------------------------------------------------
@@ -54,9 +54,8 @@ function gp_test(terminal="unknown")
     gp_cmd("set format y \"%.1f\"")
     gp_cmd("set key box opaque")
     gp_cmd("set xrange [-2*pi:2*pi]")
+    gp_multi("layout 2,2 columnsfirst title \"Multiplot title\"")
 
-    gp_next()
-    gp_cmd("set multiplot layout 2,2 columnsfirst title \"Multiplot title\"")
     gp_cmd(ylab="Y label")
     gp_plot("sin(x) lt 1")
 
@@ -74,7 +73,7 @@ function gp_test(terminal="unknown")
     gp_cmd(xlab="X label")
     gp_plot("cos(2*x) lt 4")
 
-    gp_run()
+    gp_dump()
     terminal == "unknown"  ||  pressEnter()
 
     #-----------------------------------------------------------------
@@ -82,8 +81,7 @@ function gp_test(terminal="unknown")
         "set format y \"%.1f\"",
         "set key box opaque",
         xr=(-2pi,2pi),
-        :next,
-        "set multiplot layout 2,2 columnsfirst title \"Multiplot title\"",
+        :multi, "layout 2,2 columnsfirst title \"Multiplot title\"",
         ylab="Y label",
         :plot, "sin(x) lt 1",
         :next,
@@ -96,31 +94,21 @@ function gp_test(terminal="unknown")
         :plot, "sin(2*x) lt 3",
         :next,
         xlab="X label",
-        :plot, "cos(2*x) lt 4",
+        :plot, "cos(2*x) lt 4"
         )
     terminal == "unknown"  ||  pressEnter()
 
     #-----------------------------------------------------------------
-    @gp(
-        "set format y \"%.1f\"",
-        "set key box opaque",
-        xr=(1,10), yr=(1,40),
-        :next,
-        "set multiplot layout 2,2 columnsfirst title \"Multiplot title\"",
-        ylab="Y label",
-        x, x, "lt 1",
-        :next,
-        xlab="X label",
-        x, 2x, "lt 2",
-        :next,
-        "unset ylabel",
-        "unset ytics",
-        "unset xlabel",
-        x, 3x, "lt 3",
-        :next,
-        xlab="X label",
-        x, 4x, "lt 4"
-        )
+    gp_reset()
+    @gp_("set key off",
+         xr=(1,10), yr=(1,100), xlog=true, ylog=true,
+         :multi, "layout 2,2 columnsfirst title \"Multiplot title\"")
+
+    for i in 1:4
+        @gp_(x, x.^i, "w l lw 3 lt $i")
+        @gp_(:next)
+    end
+    gp_dump()
     terminal == "unknown"  ||  pressEnter()
 
     #-----------------------------------------------------------------
@@ -135,6 +123,7 @@ function gp_test(terminal="unknown")
         )
     terminal == "unknown"  ||  pressEnter()
 
+    gp_exitAll()
     return true
 end
 
