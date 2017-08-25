@@ -196,8 +196,8 @@ end
 """
 Return a unique data block name
 """
-function gp_mkBlockName(prefix="")
-    if prefix == ""
+@AbbrvKW function gp_mkBlockName(;prefix::Union{Void,String}=nothing)
+    if prefix == nothing
         prefix = string("d", gp_current())
     end
 
@@ -251,24 +251,21 @@ Example:
 gp_setOption(cmd="/path/to/gnuplot", verb=2, startup="set term wxt")
 ```
 """
-function gp_setOption(;kw...)
-    @AbbrvKW_check(kw,
-                   cmd::Nullable{String}=nothing,
-                   startup::Nullable{String}=nothing,
-                   verbose::Nullable{Int}=nothing)
-
-    if !isnull(startup)
-        main.startup = get(startup)
+@AbbrvKW function gp_setOption(;cmd::Union{Void,String}=nothing,
+                               startup::Union{Void,String}=nothing,
+                               verbose::Union{Void,Int}=nothing)
+    if startup != nothing
+        main.startup = startup
     end
 
-    if !isnull(cmd)
-        main.gnuplotCmd = get(cmd)
+    if cmd != nothing
+        main.gnuplotCmd = cmd
         checkGnuplotVersion()
     end
 
-    if !isnull(verbose)
-        @assert (0 <= get(verbose) <= 4)
-        main.verboseLev = get(verbose)
+    if verbose != nothing
+        @assert (0 <= verbose <= 4)
+        main.verboseLev = verbose
     end
 
     return nothing
@@ -517,24 +514,24 @@ gp_cmd("set key left", xrange=(1,3))
 gp_cmd(title="My title", xlab="X label", xla="Y label")
 ```
 """
-function gp_cmd(v::String=""; kw...)
-    #@show kw
-    @AbbrvKW_check(kw,
-                   multiID::Nullable{Int}=nothing,
-                   xrange::Nullable{NTuple{2, Float64}}=nothing,
-                   yrange::Nullable{NTuple{2, Float64}}=nothing,
-                   zrange::Nullable{NTuple{2, Float64}}=nothing,
-                   title::Nullable{String}=nothing,
-                   xlabel::Nullable{String}=nothing,
-                   ylabel::Nullable{String}=nothing,
-                   zlabel::Nullable{String}=nothing,
-                   xlog::Nullable{Bool}=nothing,
-                   ylog::Nullable{Bool}=nothing,
-                   zlog::Nullable{Bool}=nothing)
+@AbbrvKW function gp_cmd(v::String=""; 
+                         splot::Union{Void,Bool}=nothing,
+                         multiID::Union{Void,Int}=nothing,
+                         xrange::Union{Void,NTuple{2, Number}}=nothing,
+                         yrange::Union{Void,NTuple{2, Number}}=nothing,
+                         zrange::Union{Void,NTuple{2, Number}}=nothing,
+                         title::Union{Void,String}=nothing,
+                         xlabel::Union{Void,String}=nothing,
+                         ylabel::Union{Void,String}=nothing,
+                         zlabel::Union{Void,String}=nothing,
+                         xlog::Union{Void,Bool}=nothing,
+                         ylog::Union{Void,Bool}=nothing,
+                         zlog::Union{Void,Bool}=nothing)
 
     gp_getProcOrStartIt()
     cur = main.states[main.curPos]
-    mID = isnull(multiID)  ?  cur.multiID  :  get(multiID)
+    splot == nothing  ||  (cur.splot = splot)
+    mID = multiID == nothing  ?  cur.multiID  :  multiID
 
     if v != ""
         push!(cur.cmds, MultiCmd(v, mID))
@@ -543,18 +540,18 @@ function gp_cmd(v::String=""; kw...)
         end
     end
 
-    isnull(xrange) ||  gp_cmd(multiID=mID, "set xrange [" * join(get(xrange), ":") * "]")
-    isnull(yrange) ||  gp_cmd(multiID=mID, "set yrange [" * join(get(yrange), ":") * "]")
-    isnull(zrange) ||  gp_cmd(multiID=mID, "set zrange [" * join(get(zrange), ":") * "]")
+    xrange == nothing ||  gp_cmd(multiID=mID, "set xrange [" * join(xrange, ":") * "]")
+    yrange == nothing ||  gp_cmd(multiID=mID, "set yrange [" * join(yrange, ":") * "]")
+    zrange == nothing ||  gp_cmd(multiID=mID, "set zrange [" * join(zrange, ":") * "]")
 
-    isnull(title)  ||  gp_cmd(multiID=mID, "set title  '" * get(title ) * "'")
-    isnull(xlabel) ||  gp_cmd(multiID=mID, "set xlabel '" * get(xlabel) * "'")
-    isnull(ylabel) ||  gp_cmd(multiID=mID, "set ylabel '" * get(ylabel) * "'")
-    isnull(zlabel) ||  gp_cmd(multiID=mID, "set zlabel '" * get(zlabel) * "'")
+    title  == nothing ||  gp_cmd(multiID=mID, "set title  '" * title  * "'")
+    xlabel == nothing ||  gp_cmd(multiID=mID, "set xlabel '" * xlabel * "'")
+    ylabel == nothing ||  gp_cmd(multiID=mID, "set ylabel '" * ylabel * "'")
+    zlabel == nothing ||  gp_cmd(multiID=mID, "set zlabel '" * zlabel * "'")
 
-    isnull(xlog)   ||  gp_cmd(multiID=mID, (get(xlog)  ?  ""  :  "un") * "set logscale x")
-    isnull(ylog)   ||  gp_cmd(multiID=mID, (get(ylog)  ?  ""  :  "un") * "set logscale y")
-    isnull(zlog)   ||  gp_cmd(multiID=mID, (get(zlog)  ?  ""  :  "un") * "set logscale z")
+    xlog   == nothing ||  gp_cmd(multiID=mID, (xlog  ?  ""  :  "un") * "set logscale x")
+    ylog   == nothing ||  gp_cmd(multiID=mID, (ylog  ?  ""  :  "un") * "set logscale y")
+    zlog   == nothing ||  gp_cmd(multiID=mID, (zlog  ?  ""  :  "un") * "set logscale z")
 end
 
 
@@ -593,14 +590,14 @@ name = gp_data(x, y, name="MyChosenName")
 
 The returned name can be used as input to `gp_plot`.
 """
-function gp_data(data::Vararg{AbstractArray{T,1},N}; kw...) where {T,N}
-    @AbbrvKW_check(kw, name::String="", prefix::String="")
-
+@AbbrvKW function gp_data(data::Vararg{AbstractArray{T,1},N};
+                          name::Union{Void,String}=nothing,
+                          prefix::Union{Void,String}=nothing) where {T,N}
     gp_getProcOrStartIt()
     cur = main.states[main.curPos]
 
-    if name == ""
-        name = gp_mkBlockName(prefix)
+    if name == nothing
+        name = gp_mkBlockName(pre=prefix)
     end
     name = "\$$name"
 
@@ -674,23 +671,20 @@ gp_plot("\$src u 1:(\\\$2+10) w l tit 'Pow 2.2, offset=10'")
 gp_dump() # Do the plot
 ```
 """
-function gp_plot(spec::String; kw...)
-    @AbbrvKW_check(kw,
-                   lastData::Bool=false,
-                   file::Nullable{String}=nothing,
-                   multiID::Nullable{Int}=nothing,
-                   splot::Nullable{Bool}=nothing)
+@AbbrvKW function gp_plot(spec::String;
+                          lastData::Bool=false,
+                          file::Union{Void,String}=nothing,
+                          multiID::Union{Void,Int}=nothing)
 
     gp_getProcOrStartIt()
     cur = main.states[main.curPos]
-    mID = isnull(multiID)  ?  cur.multiID  :  get(multiID)
-    isnull(splot)  ||  (cur.splot = splot)
+    mID = multiID == nothing  ?  cur.multiID  :  multiID
 
     src = ""
     if lastData
         src = cur.lastDataName
-    elseif !isnull(file)
-        src = "'" * get(file) * "'"
+    elseif file != nothing 
+        src = "'" * file * "'"
     end
     push!(cur.plot, MultiCmd("$src $spec", mID))
 end
@@ -698,7 +692,7 @@ end
 
 #---------------------------------------------------------------------
 """
-Similar to `@gp`, but do not adds the calls to `gp_reset()` at the
+Similar to `@gp`, but do not add calls to `gp_reset()` at the
 beginning and `gp_dump()` at the end.
 """
 macro gp_(args...)
@@ -848,18 +842,16 @@ end
 Print all data and commands stored in the current session on STDOUT or
 on a file.
 """
-function gp_dump(;kw...)
-    @AbbrvKW_check(kw,
-                   all::Bool=false,
-                   dry::Bool=false,
-                   data::Bool=false,
-                   file::Nullable{String}=nothing)
-
+@AbbrvKW function gp_dump(; all::Bool=false,
+                          dry::Bool=false,
+                          data::Bool=false,
+                          file::Union{Void,String}=nothing)
+    
     if main.curPos == 0
         return ""
     end
 
-    if !isnull(file)
+    if file != nothing 
         all = true
         dry = true
     end
@@ -901,8 +893,8 @@ function gp_dump(;kw...)
         push!(out, "unset multiplot")
     end
         
-    if !isnull(file)
-        sOut = open(get(file), "w")
+    if file != nothing 
+        sOut = open(file, "w")
         for s in out; println(sOut, s); end
         close(sOut)
     end
