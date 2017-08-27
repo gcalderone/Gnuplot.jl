@@ -1,79 +1,80 @@
 using Base.Test
 using Gnuplot
+const gp = Gnuplot
 
 function pressEnter()
     println("Press enter...")
     readline(STDIN)
 end
 
-function gp_test(terminal="unknown")
-    gp_setOption(verb=1)
-    gp_setOption(startup="set term $terminal")
+function gp_test(terminal="wxt")
+    gp.setOption(verb=1)
+    gp.setOption(startup="set term $terminal")
 
-    gp_reset()
+    gp.reset()
     x = collect(1.:100)
 
     #-----------------------------------------------------------------
-    gp_send("plot sin(x)")
+    gp.send("plot sin(x)")
     terminal == "unknown"  ||  pressEnter()
 
     #-----------------------------------------------------------------
-    id1 = gp_current()
-    id2 = gp_new()
-    id3 = gp_new()
+    id1 = gp.current()
+    id2 = gp.session()
+    id3 = gp.session()
 
     for i in 1:10
-        gp_setCurrent(id1)
-        gp_send("plot sin($i*x)")
+        gp.setCurrent(id1)
+        gp.send("plot sin($i*x)")
 
-        gp_setCurrent(id2)
-        gp_send("plot sin($i*x)")
+        gp.setCurrent(id2)
+        gp.send("plot sin($i*x)")
 
-        gp_setCurrent(id3)
-        gp_send("plot sin($i*x)")
+        gp.setCurrent(id3)
+        gp.send("plot sin($i*x)")
 
         sleep(0.3)
     end
     terminal == "unknown"  ||  pressEnter()
-    gp_exitAll()
+    gp.exitAll()
 
     #-----------------------------------------------------------------
-    gp_reset()
-    name = gp_data([1,2,3,5,8,13])
-    gp_plot("$name w points ps 3")
-    gp_dump()
+    gp.reset()
+    name = gp.data([1,2,3,5,8,13])
+    gp.plot("$name w points ps 3")
+    gp.dump()
     terminal == "unknown"  ||  pressEnter()
 
-    gp_plot(last=true, "w l lw 3")
-    gp_dump()
+    gp.plot(last=true, "w l lw 3")
+    gp.dump()
     terminal == "unknown"  ||  pressEnter()
 
     #-----------------------------------------------------------------
-    gp_reset()
+    gp.reset()
 
-    gp_cmd("set format y \"%.1f\"")
-    gp_cmd("set key box opaque")
-    gp_cmd("set xrange [-2*pi:2*pi]")
-    gp_multi("layout 2,2 columnsfirst title \"Multiplot title\"")
+    gp.cmd("set format y \"%.1f\"")
+    gp.cmd("set key box opaque")
+    gp.cmd("set xrange [-2*pi:2*pi]")
+    gp.multi("layout 2,2 columnsfirst title \"Multiplot title\"")
 
-    gp_cmd(ylab="Y label")
-    gp_plot("sin(x) lt 1")
+    gp.cmd(ylab="Y label")
+    gp.plot("sin(x) lt 1")
 
-    gp_next()
-    gp_cmd(xlab="X label")
-    gp_plot("cos(x) lt 2")
+    gp.next()
+    gp.cmd(xlab="X label")
+    gp.plot("cos(x) lt 2")
 
-    gp_next()
-    gp_cmd("unset ylabel")
-    gp_cmd("unset ytics")
-    gp_cmd("unset xlabel")
-    gp_plot("sin(2*x) lt 3")
+    gp.next()
+    gp.cmd("unset ylabel")
+    gp.cmd("unset ytics")
+    gp.cmd("unset xlabel")
+    gp.plot("sin(2*x) lt 3")
 
-    gp_next()
-    gp_cmd(xlab="X label")
-    gp_plot("cos(2*x) lt 4")
+    gp.next()
+    gp.cmd(xlab="X label")
+    gp.plot("cos(2*x) lt 4")
 
-    gp_dump()
+    gp.dump()
     terminal == "unknown"  ||  pressEnter()
 
     #-----------------------------------------------------------------
@@ -98,16 +99,14 @@ function gp_test(terminal="unknown")
     terminal == "unknown"  ||  pressEnter()
 
     #-----------------------------------------------------------------
-    gp_reset()
-    @gp_("set key off",
+    @gpi(:reset, "set key off",
          xr=(1,10), yr=(1,100), xlog=true, ylog=true,
          :multi, "layout 2,2 columnsfirst title \"Multiplot title\"")
-
+    
     for i in 1:4
-        @gp_(x, x.^i, "w l lw 3 lt $i")
-        @gp_(:next)
+        @gpi(x, x.^i, "w l lw 3 lt $i", :next)
     end
-    gp_dump()
+    @gpi()
     terminal == "unknown"  ||  pressEnter()
 
     #-----------------------------------------------------------------
@@ -186,7 +185,7 @@ function gp_test(terminal="unknown")
 	    :plot, "x8, v, (u<0.5) ? -1 : sinc(x8,v) notitle",
 	    :plot, "x9, v, (u<0.5) ? -1 : sinc(x9,v) notitle")
 
-    gp_exitAll()
+    gp.exitAll()
     return true
 end
 

@@ -2,269 +2,46 @@ module Gnuplot
 
 using AbbrvKW
 
-export gp_getStartup, gp_getSpawnCmd, gp_getVerbose, gp_setOption,
-       gp_handles, gp_current, gp_setCurrent, gp_new, gp_exit, gp_exitAll,
-       gp_send, gp_reset, gp_cmd, gp_data, gp_plot, gp_multi, gp_next, gp_dump
+include("GnuplotInternals.jl")
+importall ._priv_
 
 
 ######################################################################
-# Structure definitions
+# Get/set options
 ######################################################################
 
 """
-Structure containing the `Pipe` and `Process` objects associated to a
-Gnuplot process.
-"""
-mutable struct GnuplotProc
-    pin::Base.Pipe
-    pout::Base.Pipe
-    perr::Base.Pipe
-    proc::Base.Process
-    channel::Channel{String}
+# Gnuplot.getStartup
 
-"""
-Start a new gnuplot process using the command given in the `cmd` argument.
-"""
-    function GnuplotProc(cmd::String)
-        this = new()
-        this.pin  = Base.Pipe()
-        this.pout = Base.Pipe()
-        this.perr = Base.Pipe()
-        this.channel = Channel{String}(32)
-
-        # Start gnuplot process
-        this.proc = spawn(`$cmd`, (this.pin, this.pout, this.perr))
-
-        # Close unused sides of the pipes
-        Base.close_pipe_sync(this.pout.in)
-        Base.close_pipe_sync(this.perr.in)
-        Base.close_pipe_sync(this.pin.out)
-        Base.start_reading(this.pout.out)
-        Base.start_reading(this.perr.out)
-
-        return this
-	end
-end
-
-
-#---------------------------------------------------------------------
-"""
-Structure containing a single command and the associated multiplot index
-"""
-mutable struct MultiCmd
-  cmd::String    # command
-  id::Int        # multiplot index
-end
-
-"""
-Structure containing the state of a single gnuplot session.
-"""
-mutable struct GnuplotState
-  blockCnt::Int           # data blocks counter
-  cmds::Vector{MultiCmd}  # gnuplot commands
-  data::Vector{String}    # data blocks
-  plot::Vector{MultiCmd}  # plot specifications associated to each data block
-  splot::Bool             # plot / splot session
-  lastDataName::String    # name of the last data block
-  multiID::Int            # current multiplot index (0 if no multiplot)
-
-  GnuplotState() = new(1, Vector{MultiCmd}(), Vector{String}(), Vector{MultiCmd}(), false, "", 0)
-end
-
-
-#---------------------------------------------------------------------
-"""
-Structure containing the global package state.
-"""
-mutable struct MainState
-  colorOut::Symbol              # gnuplot STDOUT is printed with this color
-  colorIn::Symbol               # gnuplot STDIN is printed with this color
-  verboseLev::Int               # verbosity level (0 - 3), default: 3
-  gnuplotCmd::String            # command used to start the gnuplot process
-  startup::String               # commands automatically sent to each new gnuplot process
-  procs::Vector{GnuplotProc}    # array of currently active gnuplot process and pipes
-  states::Vector{GnuplotState}  # array of gnuplot sessions
-  handles::Vector{Int}          # handles of gnuplot sessions
-  curPos::Int                   # index in the procs, states and handles array of current session
-
-  MainState() = new(:cyan, :yellow, 2,
-                    "", "",
-                    Vector{GnuplotProc}(), Vector{GnuplotState}(), Vector{Int}(),
-                    0)
-end
-
-
-######################################################################
-# Private functions
-######################################################################
-
-"""
-Check gnuplot is runnable with the command given in `main.gnuplotCmd`.
-Also check that gnuplot version is >= 4.7 (required to use data
-blocks).
-"""
-function checkGnuplotVersion()
-    cmd = `$(main.gnuplotCmd) --version`
-    out, procs = open(`$cmd`, "r")
-    s = String(read(out))
-    if !success(procs)
-        error("An error occurred while running: " * string(cmd))
-    end
-
-    s = split(s, " ")
-    ver = ""
-    for token in s
-        try
-            ver = VersionNumber("$token")
-            break
-        catch
-        end
-    end
-
-    if ver < v"4.7"
-        error("gnuplot ver. >= 4.7 is required, but " * string(ver) * " was found.")
-    end
-    gp_log(1, "Found gnuplot version: " * string(ver))
-end
-
-
-#---------------------------------------------------------------------
-"""
-Logging facility (each line is prefixed with the session handle.)
-
-Printing occur only if the logging level is >= current verbosity
-level.
-"""
-function gp_log(level::Int, s::String; id=nothing, color=nothing)
-    if (main.verboseLev < level)
-        return
-    end
-
-    color == nothing  &&  (color = main.colorOut)
-
-    prefix = ""
-    if (id == nothing)  &&  (main.curPos > 0)
-        id = main.handles[main.curPos]
-    end
-    prefix = string("GP(", id, ")")
-
-    a = split(s, "\n")
-    for v in a
-        print_with_color(color, "$prefix $v\n")
-    end
-end
-
-
-#---------------------------------------------------------------------
-"""
-Read gnuplot outputs, and optionally redirect to a `Channel`.
-
-This fuction is supposed to be run in a `Task`.
-"""
-function gp_readTask(sIN, channel; kw...)
-    saveOutput::Bool = false
-    while isopen(sIN)
-        line = convert(String, readline(sIN))
-
-        if line == "GNUPLOT_JL_SAVE_OUTPUT"
-            saveOutput = true
-            gp_log(4, "|start of captured data =========================")
-        else
-            if saveOutput
-                put!(channel, line)
-            end
-
-            if line == "GNUPLOT_JL_SAVE_OUTPUT_END"
-                saveOutput = false
-                gp_log(4, "|end of captured data ===========================")
-            elseif line != ""
-                if saveOutput
-                    gp_log(3, "|  " * line; kw...)
-                else
-                    gp_log(2, "   " * line; kw...)
-                end
-            end
-        end
-    end
-
-    gp_log(1, "pipe closed"; kw...)
-end
-
-
-#---------------------------------------------------------------------
-"""
-Return a unique data block name
-"""
-@AbbrvKW function gp_mkBlockName(;prefix::Union{Void,String}=nothing)
-    if prefix == nothing
-        prefix = string("d", gp_current())
-    end
-
-    cur = main.states[main.curPos]
-    name = string(prefix, "_", cur.blockCnt)
-    cur.blockCnt += 1
-
-    return name
-end
-
-
-#---------------------------------------------------------------------
-"""
-Return the GnuplotProc structure of current session, or start a new
-gnuplot process if none is running.
-"""
-function gp_getProcOrStartIt()
-    if main.curPos == 0
-        gp_log(1, "Starting a new gnuplot process...")
-        id = gp_new()
-    end
-
-    p = main.procs[main.curPos]
-
-    if !Base.process_running(p.proc)
-        error("The current gnuplot process is no longer running.")
-    end
-
-    return p
-end
-
-
-######################################################################
-# Get/set package options
-######################################################################
-
-"""
-# Gnuplot.gp_getStartup
-
-Return the gnuplot command to be executed at the beginning of each
+Return the gnuplot command(s) to be executed at the beginning of each
 session.
 """
-gp_getStartup() = main.startup
+getStartup() = _priv_.main.startup
 
 """
-# Gnuplot.gp_getSpawnCmd
+# Gnuplot.getSpawnCmd
 
 Return the command to spawn a gnuplot process.
 """
-gp_getSpawnCmd() = main.gnuplotCmd
+getSpawnCmd() = _priv_.main.gnuplotCmd
 
 """
-# Gnuplot.gp_getVerbose
+# Gnuplot.getVerbose
 
 Return the verbosity level.
 """
-gp_getVerbose() = main.verboseLev
+getVerbose() = _priv_.main.verboseLev
 
 
 #---------------------------------------------------------------------
 """
-# Gnuplot.gp_setOption
+# Gnuplot.setOption
 
 Set package options.
 
 ## Example:
 ```
-gp_setOption(cmd="/path/to/gnuplot", verb=2, startup="set term wxt")
+gp.setOption(cmd="/path/to/gnuplot", verb=2, startup="set term wxt")
 ```
 
 ## Keywords:
@@ -273,23 +50,24 @@ gp_setOption(cmd="/path/to/gnuplot", verb=2, startup="set term wxt")
   of each session;
 - `verbose::Int`: verbosity level (in the range 0 ÷ 4)
 
-## See also: `gp_getStartup`, `gp_getSpawnCmd` and `gp_getVerbose`.
+The package options can beretrieved with: `gp.getStartup`,
+`gp.getSpawnCmd` and `gp.getVerbose`.
 """
-@AbbrvKW function gp_setOption(;cmd::Union{Void,String}=nothing,
-                               startup::Union{Void,String}=nothing,
-                               verbose::Union{Void,Int}=nothing)
+@AbbrvKW function setOption(;cmd::Union{Void,String}=nothing,
+                            startup::Union{Void,String}=nothing,
+                            verbose::Union{Void,Int}=nothing)
     if startup != nothing
-        main.startup = startup
+        _priv_.main.startup = startup
     end
 
     if cmd != nothing
-        main.gnuplotCmd = cmd
-        checkGnuplotVersion()
+        _priv_.main.gnuplotCmd = cmd
+        _priv_.checkGnuplotVersion()
     end
 
     if verbose != nothing
         @assert (0 <= verbose <= 4)
-        main.verboseLev = verbose
+        _priv_.main.verboseLev = verbose
     end
 
     return nothing
@@ -297,33 +75,34 @@ end
 
 
 ######################################################################
-# Handle multiple gnuplot instances
+# Functions to handle multiple gnuplot instances
 ######################################################################
 
+#---------------------------------------------------------------------
 """
-# Gnuplot.gp_handles
+# Gnuplot.handles
 
 Return a `Vector{Int}` of  available session handles.
 """
-function gp_handles()
-    return deepcopy(main.handles)
+function handles()
+    return deepcopy(_priv_.main.handles)
 end
 
 
-#---------------------------------------------------------------------
 """
-# Gnuplot.gp_current
+# Gnuplot.current
 
 Return the handle of the current session.
 """
-function gp_current()
-    return main.handles[main.curPos]
+function current()
+    _priv_.getProcOrStartIt()
+    return _priv_.main.handles[_priv_.main.curPos]
 end
 
 
 #---------------------------------------------------------------------
 """
-# Gnuplot.gp_setCurrent
+# Gnuplot.setCurrent
 
 Change the current session handle.
 
@@ -331,104 +110,105 @@ Change the current session handle.
 - `handle::Int`: the handle of the session to select as current.
 
 ## See also:
-- `gp_current`: return the current session handle;
-- `gp_handles`: return the list of available handles.
+- `gp.current`: return the current session handle;
+- `gp.handles`: return the list of available handles.
 """
-function gp_setCurrent(handle)
-    i = find(main.handles .== handle)
+function setCurrent(handle)
+    i = find(_priv_.main.handles .== handle)
     @assert length(i) == 1
     i = i[1]
-    @assert Base.process_running(main.procs[i].proc)
+    @assert Base.process_running(_priv_.main.procs[i].proc)
 
-    main.curPos = i
+    _priv_.main.curPos = i
 end
 
 
 #---------------------------------------------------------------------
 """
-# Gnuplot.gp_new
+# Gnuplot.session
 
 Create a new session (by starting a new gnuplot process), make it the
 current one, and return the new handle.
 
 E.g., to compare the look and feel of two terminals:
 ```
-id1 = gp_new()
-gp_send("set term qt")
-gp_send("plot sin(x)")
+id1 = gp.session()
+gp.send("set term qt")
+gp.send("plot sin(x)")
 
-id2 = gp_new()
-gp_send("set term wxt")
-gp_send("plot sin(x)")
+id2 = gp.session()
+gp.send("set term wxt")
+gp.send("plot sin(x)")
 
-gp_setCurrent(id1)
-gp_send("set title 'My title'")
-gp_send("replot")
+gp.setCurrent(id1)
+gp.send("set title 'My title'")
+gp.send("replot")
 
-gp_setCurrent(id2)
-gp_send("set title 'My title'")
-gp_send("replot")
+gp.setCurrent(id2)
+gp.send("set title 'My title'")
+gp.send("replot")
 
-gp_exitAll()
+gp.exitAll()
 ```
 """
-function gp_new()
-    if length(main.handles) > 0
-        newhandle = max(main.handles...) + 1
+function session()
+    if length(_priv_.main.handles) > 0
+        newhandle = max(_priv_.main.handles...) + 1
     else
         newhandle = 1
     end
 
-    if main.gnuplotCmd == ""
-        gp_setOption(cmd="gnuplot")
+    if _priv_.main.gnuplotCmd == ""
+        _priv_.main.gnuplotCmd = "gnuplot"
+        _priv_.checkGnuplotVersion()
     end
 
-    push!(main.procs,  GnuplotProc(main.gnuplotCmd))
-    push!(main.states, GnuplotState())
-    push!(main.handles, newhandle)
-    main.curPos = length(main.handles)
+    push!(_priv_.main.procs,  _priv_.GnuplotProc(_priv_.main.gnuplotCmd))
+    push!(_priv_.main.states, _priv_.GnuplotState())
+    push!(_priv_.main.handles, newhandle)
+    _priv_.main.curPos = length(_priv_.main.handles)
 
     # Start reading tasks for STDOUT and STDERR
-    @async gp_readTask(main.procs[end].pout, main.procs[end].channel, id=newhandle)
-    @async gp_readTask(main.procs[end].perr, main.procs[end].channel, id=newhandle)
+    @async _priv_.readTask(_priv_.main.procs[end].pout, _priv_.main.procs[end].channel, id=newhandle)
+    @async _priv_.readTask(_priv_.main.procs[end].perr, _priv_.main.procs[end].channel, id=newhandle)
 
-    if main.startup != ""
-        gp_cmd(main.startup)
+    if _priv_.main.startup != ""
+        cmd(_priv_.main.startup)
     end
 
-    gp_log(1, "New session started with handle $newhandle")
+    _priv_.log(1, "New session started with handle $newhandle")
     return newhandle
 end
 
 
 #---------------------------------------------------------------------
 """
-# Gnuplot.gp_exit
+# Gnuplot.exit
 
 Close current session and quit the corresponding gnuplot process.
 """
-function gp_exit()
-    if main.curPos == 0
-        return
+function exit()
+    if _priv_.main.curPos == 0
+        return 0
     end
 
-    p = main.procs[main.curPos]
+    p = _priv_.main.procs[_priv_.main.curPos]
     close(p.pin)
     close(p.pout)
     close(p.perr)
     wait(p.proc)
     @assert !Base.process_running(p.proc)
 
-    gp_log(1, string("Process exited with status ", p.proc.exitcode))
+    _priv_.log(1, string("Process exited with status ", p.proc.exitcode))
 
-    deleteat!(main.procs , main.curPos)
-    deleteat!(main.states, main.curPos)
-    deleteat!(main.handles   , main.curPos)
+    deleteat!(_priv_.main.procs  , _priv_.main.curPos)
+    deleteat!(_priv_.main.states , _priv_.main.curPos)
+    deleteat!(_priv_.main.handles, _priv_.main.curPos)
 
-    if length(main.handles) > 0
-        gp_setCurrent(max(main.handles...))
+    if length(_priv_.main.handles) > 0
+        setCurrent(max(_priv_.main.handles...))
     else
-        main.curPos = 0
+        _priv_.main.curPos = 0
     end
 
     return p.proc.exitcode
@@ -437,14 +217,15 @@ end
 
 #---------------------------------------------------------------------
 """
-# Gnuplot.gp_exitAll
+# Gnuplot.exitAll
 
-Repeatedly call `gp_exit` until all sessions are closed.
+Repeatedly call `gp.exit` until all sessions are closed.
 """
-function gp_exitAll()
-    while length(main.handles) > 0
-        gp_exit()
+function exitAll()
+    while length(_priv_.main.handles) > 0
+        exit()
     end
+    return nothing
 end
 
 
@@ -453,16 +234,16 @@ end
 ######################################################################
 
 """
-# Gnuplot.gp_send
+# Gnuplot.send
 
 Send a string to the current session's gnuplot STDIN.
 
-The commands sent through `gp_send` are not stored in the current
-session (use `gp_cmd` to save commands in the current session).
+The commands sent through `gp.send` are not stored in the current
+session (use `gp.cmd` to save commands in the current session).
 
 ## Example:
 ```
-println("Current terminal: ", gp_send("print GPVAL_TERM", capture=true))
+println("Current terminal: ", gp.send("print GPVAL_TERM", capture=true))
 ```
 
 ## Arguments:
@@ -473,23 +254,23 @@ println("Current terminal: ", gp_send("print GPVAL_TERM", capture=true))
   reply, and return it as a `Vector{String}`.  Otherwise return
   `nothing` immediately.
 """
-@AbbrvKW function gp_send(cmd::String; capture::Bool=false)
-    p = gp_getProcOrStartIt()
+@AbbrvKW function send(cmd::String; capture::Bool=false)
+    p = _priv_.getProcOrStartIt()
 
     if capture
         write(p.pin, "print 'GNUPLOT_JL_SAVE_OUTPUT'\n")
-        gp_log(4, "-> Start capture", color=main.colorIn)
+        _priv_.log(4, "-> Start capture", color=_priv_.main.colorIn)
     end
 
     for s in split(cmd, "\n")
         w = write(p.pin, strip(s) * "\n")
-        gp_log(2, "-> $s" , color=main.colorIn)
+        _priv_.log(2, "-> $s" , color=_priv_.main.colorIn)
         w <= 0  &&  error("Writing on gnuplot STDIN pipe returned $w")
     end
 
     if capture
         write(p.pin, "print 'GNUPLOT_JL_SAVE_OUTPUT_END'\n")
-        gp_log(4, "-> End capture", color=main.colorIn)
+        _priv_.log(4, "-> End capture", color=_priv_.main.colorIn)
     end
     flush(p.pin)
 
@@ -508,26 +289,30 @@ println("Current terminal: ", gp_send("print GPVAL_TERM", capture=true))
     return nothing
 end
 
+######################################################################
+# Handle session, and send data/commands to Gnuplot
+######################################################################
 
 #---------------------------------------------------------------------
 """
-# Gnuplot.gp_reset
+# Gnuplot.reset
 
 Send a 'reset session' command to gnuplot and delete all commands,
 data, and plots in the current session.
 """
-function gp_reset()
-    gp_send("reset session", capture=true)
-    main.states[main.curPos] = GnuplotState()
-    if main.startup != ""
-        gp_cmd(main.startup)
+function reset()
+    send("reset session", capture=true)
+    _priv_.main.states[_priv_.main.curPos] = _priv_.GnuplotState()
+    if _priv_.main.startup != ""
+        cmd(_priv_.main.startup)
     end
+    return nothing
 end
 
 
 #---------------------------------------------------------------------
 """
-# Gnuplot.gp_cmd
+# Gnuplot.cmd
 
 Send a command to gnuplot process and store it in the current session.
 A few, commonly used, commands may be specified through keywords (see
@@ -535,9 +320,9 @@ below).
 
 ## Examples:
 ```
-gp_cmd("set grid")
-gp_cmd("set key left", xrange=(1,3))
-gp_cmd(title="My title", xlab="X label", xla="Y label")
+gp.cmd("set grid")
+gp.cmd("set key left", xrange=(1,3))
+gp.cmd(title="My title", xlab="X label", xla="Y label")
 ```
 
 ## Arguments:
@@ -559,73 +344,75 @@ gp_cmd(title="My title", xlab="X label", xla="Y label")
 - `yrange::NTuple{2, Number}`: Y axis range;
 - `zrange::NTuple{2, Number}`: Z axis range;
 """
-@AbbrvKW function gp_cmd(cmd::String=""; 
-                         splot::Union{Void,Bool}=nothing,
-                         multiID::Union{Void,Int}=nothing,
-                         xrange::Union{Void,NTuple{2, Number}}=nothing,
-                         yrange::Union{Void,NTuple{2, Number}}=nothing,
-                         zrange::Union{Void,NTuple{2, Number}}=nothing,
-                         title::Union{Void,String}=nothing,
-                         xlabel::Union{Void,String}=nothing,
-                         ylabel::Union{Void,String}=nothing,
-                         zlabel::Union{Void,String}=nothing,
-                         xlog::Union{Void,Bool}=nothing,
-                         ylog::Union{Void,Bool}=nothing,
-                         zlog::Union{Void,Bool}=nothing)
+@AbbrvKW function cmd(s::String="";
+                      splot::Union{Void,Bool}=nothing,
+                      multiID::Union{Void,Int}=nothing,
+                      xrange::Union{Void,NTuple{2, Number}}=nothing,
+                      yrange::Union{Void,NTuple{2, Number}}=nothing,
+                      zrange::Union{Void,NTuple{2, Number}}=nothing,
+                      title::Union{Void,String}=nothing,
+                      xlabel::Union{Void,String}=nothing,
+                      ylabel::Union{Void,String}=nothing,
+                      zlabel::Union{Void,String}=nothing,
+                      xlog::Union{Void,Bool}=nothing,
+                      ylog::Union{Void,Bool}=nothing,
+                      zlog::Union{Void,Bool}=nothing)
 
-    gp_getProcOrStartIt()
-    cur = main.states[main.curPos]
+    _priv_.getProcOrStartIt()
+    cur = _priv_.main.states[_priv_.main.curPos]
     splot == nothing  ||  (cur.splot = splot)
     mID = multiID == nothing  ?  cur.multiID  :  multiID
 
-    if cmd != ""
-        push!(cur.cmds, MultiCmd(cmd, mID))
+    if s != ""
+        push!(cur.cmds, _priv_.MultiCmd(s, mID))
         if mID == 0
-            gp_send(cmd)
+            send(s)
         end
     end
 
-    xrange == nothing ||  gp_cmd(multiID=mID, "set xrange [" * join(xrange, ":") * "]")
-    yrange == nothing ||  gp_cmd(multiID=mID, "set yrange [" * join(yrange, ":") * "]")
-    zrange == nothing ||  gp_cmd(multiID=mID, "set zrange [" * join(zrange, ":") * "]")
+    xrange == nothing ||  cmd(multiID=mID, "set xrange [" * join(xrange, ":") * "]")
+    yrange == nothing ||  cmd(multiID=mID, "set yrange [" * join(yrange, ":") * "]")
+    zrange == nothing ||  cmd(multiID=mID, "set zrange [" * join(zrange, ":") * "]")
 
-    title  == nothing ||  gp_cmd(multiID=mID, "set title  '" * title  * "'")
-    xlabel == nothing ||  gp_cmd(multiID=mID, "set xlabel '" * xlabel * "'")
-    ylabel == nothing ||  gp_cmd(multiID=mID, "set ylabel '" * ylabel * "'")
-    zlabel == nothing ||  gp_cmd(multiID=mID, "set zlabel '" * zlabel * "'")
+    title  == nothing ||  cmd(multiID=mID, "set title  '" * title  * "'")
+    xlabel == nothing ||  cmd(multiID=mID, "set xlabel '" * xlabel * "'")
+    ylabel == nothing ||  cmd(multiID=mID, "set ylabel '" * ylabel * "'")
+    zlabel == nothing ||  cmd(multiID=mID, "set zlabel '" * zlabel * "'")
 
-    xlog   == nothing ||  gp_cmd(multiID=mID, (xlog  ?  ""  :  "un") * "set logscale x")
-    ylog   == nothing ||  gp_cmd(multiID=mID, (ylog  ?  ""  :  "un") * "set logscale y")
-    zlog   == nothing ||  gp_cmd(multiID=mID, (zlog  ?  ""  :  "un") * "set logscale z")
+    xlog   == nothing ||  cmd(multiID=mID, (xlog  ?  ""  :  "un") * "set logscale x")
+    ylog   == nothing ||  cmd(multiID=mID, (ylog  ?  ""  :  "un") * "set logscale y")
+    zlog   == nothing ||  cmd(multiID=mID, (zlog  ?  ""  :  "un") * "set logscale z")
+
+    return nothing
 end
 
 
 #---------------------------------------------------------------------
 """
-# Gnuplot.gp_data
+# Gnuplot.data
 
 Send data to the gnuplot process, store it in the current session, and
-return the name of the data block (to be later used with `gp_plot`).
+return the name of the data block (to be later used with `gp.plot`).
 
 ## Example:
 ```
 x = collect(1.:10)
 
 # Automatically generated data block name
-name1 = gp_data(x, x.^2)
+name1 = gp.data(x, x.^2)
 
 # Specify a prefix for the data block name, a sequential counter will
 # be appended to ensure the black names are unique
-name2 = gp_data(x, x.^2.2, prefix="MyPrefix")
+name2 = gp.data(x, x.^2.2, prefix="MyPrefix")
 
 # Specify the whole data block name.  NOTE: avoid using the same name
 # multiple times!
-name3 = gp_data(x, x.^1.8, name="MyChosenName")
+name3 = gp.data(x, x.^1.8, name="MyChosenName")
 
-gp_plot(name1)
-gp_plot(name2)
-gp_plot(name3)
-gp_dump()
+gp.plot(name1)
+gp.plot(name2)
+gp.plot(name3)
+gp.dump()
 ```
 
 ## Arguments:
@@ -638,14 +425,14 @@ gp_dump()
 - `prefix::String`: prefix for data block name (an automatic counter
   will be appended);
 """
-function gp_data(data::Vararg{AbstractArray{T,1},N};
+function data(data::Vararg{AbstractArray{T,1},N};
                  name::Union{Void,String}=nothing,
                  prefix::Union{Void,String}=nothing) where {T<:Number,N}
-    gp_getProcOrStartIt()
-    cur = main.states[main.curPos]
+    _priv_.getProcOrStartIt()
+    cur = _priv_.main.states[_priv_.main.curPos]
 
     if name == nothing
-        name = gp_mkBlockName(pre=prefix)
+        name = _priv_.mkBlockName(prefix=prefix)
     end
     name = "\$$name"
 
@@ -655,18 +442,18 @@ function gp_data(data::Vararg{AbstractArray{T,1},N};
 
     v = "$name << EOD"
     push!(cur.data, v)
-    gp_send(v)
+    send(v)
     for i in 1:length(data[1])
         v = ""
         for j in 1:length(data)
             v *= " " * string(data[j][i])
         end
         push!(cur.data, v)
-        gp_send(v)
+        send(v)
     end
     v = "EOD"
     push!(cur.data, v)
-    gp_send(v)
+    send(v)
 
     cur.lastDataName = name
 
@@ -676,7 +463,7 @@ end
 
 #---------------------------------------------------------------------
 """
-# Gnuplot.gp_plot
+# Gnuplot.plot
 
 Add a new plot/splot comand to the current session
 
@@ -684,16 +471,16 @@ Add a new plot/splot comand to the current session
 ```
 x = collect(1.:10)
 
-gp_data(x, x.^2)
-gp_plot(last=true, "w l tit 'Pow 2'")
+gp.data(x, x.^2)
+gp.plot(last=true, "w l tit 'Pow 2'")
 
-src = gp_data(x, x.^2.2)
-gp_plot("\$src w l tit 'Pow 2.2'")
+src = gp.data(x, x.^2.2)
+gp.plot("\$src w l tit 'Pow 2.2'")
 
 # Re use the same data block
-gp_plot("\$src u 1:(\\\$2+10) w l tit 'Pow 2.2, offset=10'")
+gp.plot("\$src u 1:(\\\$2+10) w l tit 'Pow 2.2, offset=10'")
 
-gp_dump() # Do the plot
+gp.dump() # Do the plot
 ```
 
 ## Arguments:
@@ -709,28 +496,29 @@ gp_dump() # Do the plot
 - `multiID::Int`: ID of the plot the command belongs to (only useful
   for multiplots);
 """
-@AbbrvKW function gp_plot(spec::String;
+@AbbrvKW function plot(spec::String;
                           lastData::Bool=false,
                           file::Union{Void,String}=nothing,
                           multiID::Union{Void,Int}=nothing)
 
-    gp_getProcOrStartIt()
-    cur = main.states[main.curPos]
+    _priv_.getProcOrStartIt()
+    cur = _priv_.main.states[_priv_.main.curPos]
     mID = multiID == nothing  ?  cur.multiID  :  multiID
 
     src = ""
     if lastData
         src = cur.lastDataName
-    elseif file != nothing 
+    elseif file != nothing
         src = "'" * file * "'"
     end
-    push!(cur.plot, MultiCmd("$src $spec", mID))
+    push!(cur.plot, _priv_.MultiCmd("$src $spec", mID))
+    return nothing
 end
 
 
 #---------------------------------------------------------------------
 """
-# Gnuplot.gp_multi
+# Gnuplot.multi
 
 Initialize a multiplot (through the "set multiplot" Gnuplot command).
 
@@ -739,36 +527,38 @@ Initialize a multiplot (through the "set multiplot" Gnuplot command).
 - `multiCmd::String`: multiplot command (see Gnuplot manual) without
   the leading "set multiplot" string;
 
-## See also: `gp_next`.
+## See also: `gp.next`.
 """
-function gp_multi(multiCmd::String="")
-    gp_getProcOrStartIt()
-    cur = main.states[main.curPos]
+function multi(multiCmd::String="")
+    _priv_.getProcOrStartIt()
+    cur = _priv_.main.states[_priv_.main.curPos]
     if cur.multiID != 0
         error("Current multiplot ID is $cur.multiID, while it should be 0")
     end
 
-    gp_next()
-    gp_cmd("set multiplot $multiCmd")
+    next()
+    cmd("set multiplot $multiCmd")
+    return nothing
 end
 
 
 #---------------------------------------------------------------------
 """
-# Gnuplot.gp_next
+# Gnuplot.next
 
 Select next slot for multiplot sessions.
 """
-function gp_next()
-    gp_getProcOrStartIt()
-    cur = main.states[main.curPos]
+function next()
+    _priv_.getProcOrStartIt()
+    cur = _priv_.main.states[_priv_.main.curPos]
     cur.multiID += 1
+    return nothing
 end
 
 
 #---------------------------------------------------------------------
 """
-# Gnuplot.gp_dump
+# Gnuplot.dump
 
 Send all necessary commands to gnuplot to actually do the plot.
 Optionally, the commands may be sent to a file.  In any case the
@@ -791,22 +581,22 @@ commands are returned as `Vector{String}`.
 - `file::String`: filename to redirect all outputs.  Implies
   `all=true, dry=true`.
 """
-@AbbrvKW function gp_dump(; all::Bool=false,
+@AbbrvKW function dump(; all::Bool=false,
                           dry::Bool=false,
                           cmd::Bool=false,
                           data::Bool=false,
                           file::Union{Void,String}=nothing)
-    
-    if main.curPos == 0
+
+    if _priv_.main.curPos == 0
         return ""
     end
 
-    if file != nothing 
+    if file != nothing
         all = true
         dry = true
     end
 
-    cur = main.states[main.curPos]
+    cur = _priv_.main.states[_priv_.main.curPos]
     out = Vector{String}()
 
     all  &&  (push!(out, "reset session"))
@@ -842,16 +632,16 @@ commands are returned as `Vector{String}`.
     if cur.multiID > 0
         push!(out, "unset multiplot")
     end
-        
-    if file != nothing 
+
+    if file != nothing
         sOut = open(file, "w")
         for s in out; println(sOut, s); end
         close(sOut)
     end
 
     if !dry
-        for s in out; gp_send(s); end
-        gp_send("", capture=true)
+        for s in out; send(s); end
+        send("", capture=true)
     end
 
     return join(out, "\n")
@@ -859,65 +649,73 @@ end
 
 
 ######################################################################
-# Submodule: Utils
+# Misc. functions
+######################################################################
+terminals() = send("print GPVAL_TERMINALS", capture=true)
+terminal()  = send("print GPVAL_TERM", capture=true)
+
+
+######################################################################
+# Exported symbols
 ######################################################################
 
-module Utils
-
-import Gnuplot
-
-export @gpi, @gp, @gp_str, @gp_cmd, gp_terminals, gp_terminal
+export @gpi, @gp, @gp_str, @gp_cmd
 
 #---------------------------------------------------------------------
 """
 # Gnuplot.@gpi
 
-Similar to `@gp`, but do not adds the `gp_reset()` and `gp_dump()`
-calls. See documentation for `@gp`.
+Similar to `@gp`, but the call to `Gnuplot.reset()` occur only when
+the `:reset` symbol is given, and the `Gnuplot.dump()` call occur only
+if no arguments are given.
+
+See `@gp` documentation for further information.
 """
 macro gpi(args...)
     if length(args) == 0
-        return :()
+        return :(Gnuplot.dump())
     end
 
     exprBlock = Expr(:block)
 
     exprData = Expr(:call)
-    push!(exprData.args, :(Gnuplot.gp_data))
+    push!(exprData.args, :(Gnuplot.data))
 
     pendingPlot = false
     pendingMulti = false
     for arg in args
         #println(typeof(arg), " ", arg)
 
-        if isa(arg, Expr)  &&  (arg.head == :quote)  &&  (arg.args[1] == :next)
-            push!(exprBlock.args, :(Gnuplot.gp_next()))
+        if isa(arg, Expr)  &&  (arg.head == :quote)  &&  (arg.args[1] == :reset)
+            push!(exprBlock.args, :(Gnuplot.reset()))
         elseif isa(arg, Expr)  &&  (arg.head == :quote)  &&  (arg.args[1] == :plot)
             pendingPlot = true
         elseif isa(arg, Expr)  &&  (arg.head == :quote)  &&  (arg.args[1] == :multi)
             pendingMulti = true
+        elseif isa(arg, Expr)  &&  (arg.head == :quote)  &&  (arg.args[1] == :next)
+            push!(exprBlock.args, :(Gnuplot.next()))
         elseif (isa(arg, Expr)  &&  (arg.head == :string))  ||  isa(arg, String)
             # Either a plot or cmd string
             if pendingPlot
                 if length(exprData.args) > 1
                     push!(exprBlock.args, exprData)
                     exprData = Expr(:call)
-                    push!(exprData.args, :(Gnuplot.gp_data))
+                    push!(exprData.args, :(Gnuplot.data))
                 end
 
-                push!(exprBlock.args, :(Gnuplot.gp_plot(last=true, $arg)))
+                push!(exprBlock.args, :(Gnuplot.plot(last=true, $arg)))
                 pendingPlot = false
             elseif pendingMulti
-                push!(exprBlock.args, :(Gnuplot.gp_multi($arg)))
+                push!(exprBlock.args, :(Gnuplot.multi($arg)))
                 pendingMulti = false
             else
-                push!(exprBlock.args, :(Gnuplot.gp_cmd($arg)))
+                push!(exprBlock.args, :(Gnuplot.cmd($arg)))
             end
         elseif (isa(arg, Expr)  &&  (arg.head == :(=)))
             # A cmd keyword
             sym = arg.args[1]
             val = arg.args[2]
-            push!(exprBlock.args, :(Gnuplot.gp_cmd($sym=$val)))
+            push!(exprBlock.args, :(Gnuplot.cmd($sym=$val)))
         else
             # A data set
             push!(exprData.args, arg)
@@ -928,7 +726,7 @@ macro gpi(args...)
 
     if pendingPlot  &&  length(exprData.args) >= 2
         push!(exprBlock.args, exprData)
-        push!(exprBlock.args, :(Gnuplot.gp_plot(last=true, "")))
+        push!(exprBlock.args, :(Gnuplot.plot(last=true, "")))
     end
 
     return esc(exprBlock)
@@ -942,18 +740,18 @@ end
 The `@gp` (and its companion `gpi`) allows to exploit almost all
 **Gnuplot.jl** package functionalities using an extremely efficient
 and concise syntax.  In the vast majority of cases you can use a
-single call to `@gpi` instead of many calls to `gp_cmd`, `gp_data`,
-`gp_plot`, etc... to produce (even very complex) plots.
+single call to `@gp` instead of many calls to `gp.cmd`, `gp.data`,
+`gp.plot`, etc... to produce (even very complex) plots.
 
 The syntax is as follows:
 ```
-@gp( ["a command"],            # passed to gp_cmd() as a command string
-     [Symbol=(Value | Expr)]   # passed to gp_cmd() as a keyword
-     [(one or more Expression | Array) "plot spec"],  # passed to gp_data() and
-                                                      # gp_plot(last=true) respectively
-     [:plot "plot spec"],      # passed to gp_plot()
-     [:multi "multi spec"],    # passed to gp_multi()
-     [:next]                   # calls gp_next()
+@gp( ["a command"],            # passed to gp.cmd() as a command string
+     [Symbol=(Value | Expr)]   # passed to gp.cmd() as a keyword
+     [(one or more Expression | Array) "plot spec"],  # passed to gp.data() and
+                                                      # gp.plot(last=true) respectively
+     [:plot "plot spec"],      # passed to gp.plot()
+     [:multi "multi spec"],    # passed to gp.multi()
+     [:next]                   # calls gp.next()
      etc...
 )
 ```
@@ -965,23 +763,23 @@ mandatory sequences are:
 
 A simple example will clarify the usage:
 ```
-@gp "set key left" title="My title" xr=(1,5) collect(1.:10) "with lines tit 'Data'"
+@gp "set key left" title="My title" xr=(1,12) 1:10 "with lines tit 'Data'"
 ```
 
 This call epands as follows:
 ```
-gp_reset()
-begin
-    gp_cmd("set key left")
-    gp_cmd(title="My title")
-    gp_cmd(xr=(1, 5))
-    gp_data(collect(1.0:10))
-    gp_plot(last=true, "with lines tit 'Data'")
+Gnuplot.reset()
+begin 
+    Gnuplot.cmd("set key left")
+    Gnuplot.cmd(title="My title")
+    Gnuplot.cmd(xr=(1, 12))
+    Gnuplot.data(1:10)
+    Gnuplot.plot(last=true, "with lines tit 'Data'")
 end
-gp_dump()
+Gnuplot.dump()
 ```
-A closely related macro is `@gpi` which do not adds the `gp_reset()`
-and `gp_dump()` calls.
+A closely related macro is `@gpi` which do not adds the `Gnuplot.reset()`
+and `Gnuplot.dump()` calls.
 
 ## Examples:
 ```
@@ -1010,13 +808,12 @@ lw = 3
     :plot, "sin(4*x)")
 
 # or equivalently
-gp_reset()
-@gpi(xr=(-2pi,2pi), "unset key", 
+@gpi(:reset, xr=(-2pi,2pi), "unset key",
      :multi, "layout 2,2 title 'Multiplot title'")
 for i in 1:4
   @gpi :plot "sin(\$i*x)" :next
 end
-gp_dump()
+@gpi()
 ```
 """
 macro gp(args...)
@@ -1027,9 +824,9 @@ macro gp(args...)
     e = :(@gpi($(esc_args...)))
 
     f = Expr(:block)
-    push!(f.args, esc(:( Gnuplot.gp_reset())))
+    push!(f.args, esc(:( Gnuplot.reset())))
     push!(f.args, e)
-    push!(f.args, esc(:( Gnuplot.gp_dump())))
+    push!(f.args, esc(:( Gnuplot.dump())))
 
     return f
 end
@@ -1037,7 +834,7 @@ end
 """
 # Gnuplot.@gp_str
 
-Call `gp_send` with a non-standard string literal.
+Call `gp.send` with a non-standard string literal.
 
 NOTE: this is supposed to be used interactively on the REPL, not in
 functions.
@@ -1066,7 +863,7 @@ splot '\$grid' matrix with lines notitle
 ```
 """
 macro gp_str(s::String)
-    return Gnuplot.gp_send(s, capture=true)
+    return Gnuplot.send(s, capture=true)
 end
 
 #---------------------------------------------------------------------
@@ -1082,25 +879,13 @@ functions.
 Example:
 ```
 @gp (1:10).^3 "w l notit lw 4"
-gp_dump(file="test.gp")
-gp_exitAll()
+gp.dump(file="test.gp")
+gp.exitAll()
 gp`test.gp`
 ```
 """
 macro gp_cmd(file::String)
-    return Gnuplot.gp_send("load '$file'", capture=true)
+    return Gnuplot.send("load '$file'", capture=true)
 end
-
-#---------------------------------------------------------------------
-gp_terminals() = Gnuplot.gp_send("print GPVAL_TERMINALS", capture=true)
-gp_terminal()  = Gnuplot.gp_send("print GPVAL_TERM", capture=true)
-
-end #module
-
-
-######################################################################
-# Module initialization
-######################################################################
-const main = MainState()
 
 end #module
