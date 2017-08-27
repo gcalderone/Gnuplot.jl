@@ -1,10 +1,10 @@
 ######################################################################
 # MODULE GnuplotInternals (private functions and definitions)
 ######################################################################
-module _priv_
+module p_
 
 importall Gnuplot
-const _pub_ = Gnuplot
+const P_ = Gnuplot
 
 ######################################################################
 # Structure definitions
@@ -59,7 +59,7 @@ end
 """
 Structure containing the state of a single gnuplot session.
 """
-mutable struct GnuplotState
+mutable struct GnuplotSession
   blockCnt::Int           # data blocks counter
   cmds::Vector{MultiCmd}  # gnuplot commands
   data::Vector{String}    # data blocks
@@ -68,7 +68,8 @@ mutable struct GnuplotState
   lastDataName::String    # name of the last data block
   multiID::Int            # current multiplot index (0 if no multiplot)
 
-  GnuplotState() = new(1, Vector{MultiCmd}(), Vector{String}(), Vector{MultiCmd}(), false, "", 0)
+  GnuplotSession() = new(1, Vector{MultiCmd}(), Vector{String}(), 
+                         Vector{MultiCmd}(), false, "", 0)
 end
 
 
@@ -77,20 +78,19 @@ end
 Structure containing the global package state.
 """
 mutable struct MainState
-  colorOut::Symbol              # gnuplot STDOUT is printed with this color
-  colorIn::Symbol               # gnuplot STDIN is printed with this color
-  verboseLev::Int               # verbosity level (0 - 3), default: 3
-  gnuplotCmd::String            # command used to start the gnuplot process
-  startup::String               # commands automatically sent to each new gnuplot process
-  procs::Vector{GnuplotProc}    # array of currently active gnuplot process and pipes
-  states::Vector{GnuplotState}  # array of gnuplot sessions
-  handles::Vector{Int}          # handles of gnuplot sessions
-  curPos::Int                   # index in the procs, states and handles array of current session
+  colorOut::Symbol               # gnuplot STDOUT is printed with this color
+  colorIn::Symbol                # gnuplot STDIN is printed with this color
+  verboseLev::Int                # verbosity level (0 - 3), default: 3
+  gnuplotCmd::String             # command used to start the gnuplot process
+  startup::String                # commands automatically sent to each new gnuplot process
+  procs::Vector{GnuplotProc}     # array of currently active gnuplot process and pipes
+  states::Vector{GnuplotSession} # array of gnuplot sessions
+  handles::Vector{Int}           # handles of gnuplot sessions
+  curPos::Int                    # index in the procs, states and handles array of current session
 
   MainState() = new(:cyan, :yellow, 1,
-                    "", "",
-                    Vector{GnuplotProc}(), Vector{GnuplotState}(), Vector{Int}(),
-                    0)
+                    "", "", Vector{GnuplotProc}(), Vector{GnuplotSession}(), 
+                    Vector{Int}(), 0)
 end
 
 
@@ -200,7 +200,7 @@ Return a unique data block name
 """
 function mkBlockName(;prefix::Union{Void,String}=nothing)
     if prefix == nothing
-        prefix = string("d", _pub_.current())
+        prefix = string("d", main.handles[main.curPos])
     end
 
     cur = main.states[main.curPos]
@@ -219,7 +219,7 @@ gnuplot process if none is running.
 function getProcOrStartIt()
     if main.curPos == 0
         log(1, "Starting a new gnuplot process...")
-        id = _pub_.session()
+        id = P_.session()
     end
 
     p = main.procs[main.curPos]

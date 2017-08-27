@@ -3,7 +3,7 @@ module Gnuplot
 using AbbrvKW
 
 include("GnuplotInternals.jl")
-importall ._priv_
+importall .p_
 
 
 ######################################################################
@@ -16,21 +16,21 @@ importall ._priv_
 Return the gnuplot command(s) to be executed at the beginning of each
 session.
 """
-getStartup() = _priv_.main.startup
+getStartup() = p_.main.startup
 
 """
 # Gnuplot.getSpawnCmd
 
 Return the command to spawn a gnuplot process.
 """
-getSpawnCmd() = _priv_.main.gnuplotCmd
+getSpawnCmd() = p_.main.gnuplotCmd
 
 """
 # Gnuplot.getVerbose
 
 Return the verbosity level.
 """
-getVerbose() = _priv_.main.verboseLev
+getVerbose() = p_.main.verboseLev
 
 
 #---------------------------------------------------------------------
@@ -57,17 +57,17 @@ The package options can beretrieved with: `gp.getStartup`,
                             startup::Union{Void,String}=nothing,
                             verbose::Union{Void,Int}=nothing)
     if startup != nothing
-        _priv_.main.startup = startup
+        p_.main.startup = startup
     end
 
     if cmd != nothing
-        _priv_.main.gnuplotCmd = cmd
-        _priv_.checkGnuplotVersion()
+        p_.main.gnuplotCmd = cmd
+        p_.checkGnuplotVersion()
     end
 
     if verbose != nothing
         @assert (0 <= verbose <= 4)
-        _priv_.main.verboseLev = verbose
+        p_.main.verboseLev = verbose
     end
 
     return nothing
@@ -85,7 +85,7 @@ end
 Return a `Vector{Int}` of  available session handles.
 """
 function handles()
-    return deepcopy(_priv_.main.handles)
+    return deepcopy(p_.main.handles)
 end
 
 
@@ -95,8 +95,8 @@ end
 Return the handle of the current session.
 """
 function current()
-    _priv_.getProcOrStartIt()
-    return _priv_.main.handles[_priv_.main.curPos]
+    p_.getProcOrStartIt()
+    return p_.main.handles[p_.main.curPos]
 end
 
 
@@ -114,12 +114,12 @@ Change the current session handle.
 - `gp.handles`: return the list of available handles.
 """
 function setCurrent(handle)
-    i = find(_priv_.main.handles .== handle)
+    i = find(p_.main.handles .== handle)
     @assert length(i) == 1
     i = i[1]
-    @assert Base.process_running(_priv_.main.procs[i].proc)
+    @assert Base.process_running(p_.main.procs[i].proc)
 
-    _priv_.main.curPos = i
+    p_.main.curPos = i
 end
 
 
@@ -152,31 +152,31 @@ gp.exitAll()
 ```
 """
 function session()
-    if length(_priv_.main.handles) > 0
-        newhandle = max(_priv_.main.handles...) + 1
+    if length(p_.main.handles) > 0
+        newhandle = max(p_.main.handles...) + 1
     else
         newhandle = 1
     end
 
-    if _priv_.main.gnuplotCmd == ""
-        _priv_.main.gnuplotCmd = "gnuplot"
-        _priv_.checkGnuplotVersion()
+    if p_.main.gnuplotCmd == ""
+        p_.main.gnuplotCmd = "gnuplot"
+        p_.checkGnuplotVersion()
     end
 
-    push!(_priv_.main.procs,  _priv_.GnuplotProc(_priv_.main.gnuplotCmd))
-    push!(_priv_.main.states, _priv_.GnuplotState())
-    push!(_priv_.main.handles, newhandle)
-    _priv_.main.curPos = length(_priv_.main.handles)
+    push!(p_.main.procs,  p_.GnuplotProc(p_.main.gnuplotCmd))
+    push!(p_.main.states, p_.GnuplotSession())
+    push!(p_.main.handles, newhandle)
+    p_.main.curPos = length(p_.main.handles)
 
     # Start reading tasks for STDOUT and STDERR
-    @async _priv_.readTask(_priv_.main.procs[end].pout, _priv_.main.procs[end].channel, id=newhandle)
-    @async _priv_.readTask(_priv_.main.procs[end].perr, _priv_.main.procs[end].channel, id=newhandle)
+    @async p_.readTask(p_.main.procs[end].pout, p_.main.procs[end].channel, id=newhandle)
+    @async p_.readTask(p_.main.procs[end].perr, p_.main.procs[end].channel, id=newhandle)
 
-    if _priv_.main.startup != ""
-        cmd(_priv_.main.startup)
+    if p_.main.startup != ""
+        cmd(p_.main.startup)
     end
 
-    _priv_.log(1, "New session started with handle $newhandle")
+    p_.log(1, "New session started with handle $newhandle")
     return newhandle
 end
 
@@ -188,27 +188,27 @@ end
 Close current session and quit the corresponding gnuplot process.
 """
 function exit()
-    if _priv_.main.curPos == 0
+    if p_.main.curPos == 0
         return 0
     end
 
-    p = _priv_.main.procs[_priv_.main.curPos]
+    p = p_.main.procs[p_.main.curPos]
     close(p.pin)
     close(p.pout)
     close(p.perr)
     wait(p.proc)
     @assert !Base.process_running(p.proc)
 
-    _priv_.log(1, string("Process exited with status ", p.proc.exitcode))
+    p_.log(1, string("Process exited with status ", p.proc.exitcode))
 
-    deleteat!(_priv_.main.procs  , _priv_.main.curPos)
-    deleteat!(_priv_.main.states , _priv_.main.curPos)
-    deleteat!(_priv_.main.handles, _priv_.main.curPos)
+    deleteat!(p_.main.procs  , p_.main.curPos)
+    deleteat!(p_.main.states , p_.main.curPos)
+    deleteat!(p_.main.handles, p_.main.curPos)
 
-    if length(_priv_.main.handles) > 0
-        setCurrent(max(_priv_.main.handles...))
+    if length(p_.main.handles) > 0
+        setCurrent(max(p_.main.handles...))
     else
-        _priv_.main.curPos = 0
+        p_.main.curPos = 0
     end
 
     return p.proc.exitcode
@@ -222,7 +222,7 @@ end
 Repeatedly call `gp.exit` until all sessions are closed.
 """
 function exitAll()
-    while length(_priv_.main.handles) > 0
+    while length(p_.main.handles) > 0
         exit()
     end
     return nothing
@@ -255,22 +255,22 @@ println("Current terminal: ", gp.send("print GPVAL_TERM", capture=true))
   `nothing` immediately.
 """
 @AbbrvKW function send(cmd::String; capture::Bool=false)
-    p = _priv_.getProcOrStartIt()
+    p = p_.getProcOrStartIt()
 
     if capture
         write(p.pin, "print 'GNUPLOT_JL_SAVE_OUTPUT'\n")
-        _priv_.log(4, "-> Start capture", color=_priv_.main.colorIn)
+        p_.log(4, "-> Start capture", color=p_.main.colorIn)
     end
 
     for s in split(cmd, "\n")
         w = write(p.pin, strip(s) * "\n")
-        _priv_.log(2, "-> $s" , color=_priv_.main.colorIn)
+        p_.log(2, "-> $s" , color=p_.main.colorIn)
         w <= 0  &&  error("Writing on gnuplot STDIN pipe returned $w")
     end
 
     if capture
         write(p.pin, "print 'GNUPLOT_JL_SAVE_OUTPUT_END'\n")
-        _priv_.log(4, "-> End capture", color=_priv_.main.colorIn)
+        p_.log(4, "-> End capture", color=p_.main.colorIn)
     end
     flush(p.pin)
 
@@ -302,9 +302,9 @@ data, and plots in the current session.
 """
 function reset()
     send("reset session", capture=true)
-    _priv_.main.states[_priv_.main.curPos] = _priv_.GnuplotState()
-    if _priv_.main.startup != ""
-        cmd(_priv_.main.startup)
+    p_.main.states[p_.main.curPos] = p_.GnuplotSession()
+    if p_.main.startup != ""
+        cmd(p_.main.startup)
     end
     return nothing
 end
@@ -358,13 +358,13 @@ gp.cmd(title="My title", xlab="X label", xla="Y label")
                       ylog::Union{Void,Bool}=nothing,
                       zlog::Union{Void,Bool}=nothing)
 
-    _priv_.getProcOrStartIt()
-    cur = _priv_.main.states[_priv_.main.curPos]
+    p_.getProcOrStartIt()
+    cur = p_.main.states[p_.main.curPos]
     splot == nothing  ||  (cur.splot = splot)
     mID = multiID == nothing  ?  cur.multiID  :  multiID
 
     if s != ""
-        push!(cur.cmds, _priv_.MultiCmd(s, mID))
+        push!(cur.cmds, p_.MultiCmd(s, mID))
         if mID == 0
             send(s)
         end
@@ -428,11 +428,11 @@ gp.dump()
 function data(data::Vararg{AbstractArray{T,1},N};
                  name::Union{Void,String}=nothing,
                  prefix::Union{Void,String}=nothing) where {T<:Number,N}
-    _priv_.getProcOrStartIt()
-    cur = _priv_.main.states[_priv_.main.curPos]
+    p_.getProcOrStartIt()
+    cur = p_.main.states[p_.main.curPos]
 
     if name == nothing
-        name = _priv_.mkBlockName(prefix=prefix)
+        name = p_.mkBlockName(prefix=prefix)
     end
     name = "\$$name"
 
@@ -501,8 +501,8 @@ gp.dump() # Do the plot
                           file::Union{Void,String}=nothing,
                           multiID::Union{Void,Int}=nothing)
 
-    _priv_.getProcOrStartIt()
-    cur = _priv_.main.states[_priv_.main.curPos]
+    p_.getProcOrStartIt()
+    cur = p_.main.states[p_.main.curPos]
     mID = multiID == nothing  ?  cur.multiID  :  multiID
 
     src = ""
@@ -511,7 +511,7 @@ gp.dump() # Do the plot
     elseif file != nothing
         src = "'" * file * "'"
     end
-    push!(cur.plot, _priv_.MultiCmd("$src $spec", mID))
+    push!(cur.plot, p_.MultiCmd("$src $spec", mID))
     return nothing
 end
 
@@ -530,8 +530,8 @@ Initialize a multiplot (through the "set multiplot" Gnuplot command).
 ## See also: `gp.next`.
 """
 function multi(multiCmd::String="")
-    _priv_.getProcOrStartIt()
-    cur = _priv_.main.states[_priv_.main.curPos]
+    p_.getProcOrStartIt()
+    cur = p_.main.states[p_.main.curPos]
     if cur.multiID != 0
         error("Current multiplot ID is $cur.multiID, while it should be 0")
     end
@@ -549,8 +549,8 @@ end
 Select next slot for multiplot sessions.
 """
 function next()
-    _priv_.getProcOrStartIt()
-    cur = _priv_.main.states[_priv_.main.curPos]
+    p_.getProcOrStartIt()
+    cur = p_.main.states[p_.main.curPos]
     cur.multiID += 1
     return nothing
 end
@@ -587,7 +587,7 @@ commands are returned as `Vector{String}`.
                           data::Bool=false,
                           file::Union{Void,String}=nothing)
 
-    if _priv_.main.curPos == 0
+    if p_.main.curPos == 0
         return ""
     end
 
@@ -596,7 +596,7 @@ commands are returned as `Vector{String}`.
         dry = true
     end
 
-    cur = _priv_.main.states[_priv_.main.curPos]
+    cur = p_.main.states[p_.main.curPos]
     out = Vector{String}()
 
     all  &&  (push!(out, "reset session"))
@@ -865,6 +865,7 @@ splot '\$grid' matrix with lines notitle
 macro gp_str(s::String)
     return Gnuplot.send(s, capture=true)
 end
+
 
 #---------------------------------------------------------------------
 """
