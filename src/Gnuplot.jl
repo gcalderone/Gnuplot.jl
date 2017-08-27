@@ -4,8 +4,7 @@ using AbbrvKW
 
 export gp_getStartup, gp_getSpawnCmd, gp_getVerbose, gp_setOption,
        gp_handles, gp_current, gp_setCurrent, gp_new, gp_exit, gp_exitAll,
-       gp_send, gp_reset, gp_cmd, gp_data, gp_plot, gp_multi, gp_next, gp_dump,
-       @gp_str, @gpi, @gp, gp_load, gp_terminals, gp_terminal
+       gp_send, gp_reset, gp_cmd, gp_data, gp_plot, gp_multi, gp_next, gp_dump
 
 
 ######################################################################
@@ -88,7 +87,7 @@ mutable struct MainState
   handles::Vector{Int}          # handles of gnuplot sessions
   curPos::Int                   # index in the procs, states and handles array of current session
 
-  MainState() = new(:cyan, :yellow, 3,
+  MainState() = new(:cyan, :yellow, 2,
                     "", "",
                     Vector{GnuplotProc}(), Vector{GnuplotState}(), Vector{Int}(),
                     0)
@@ -860,44 +859,14 @@ end
 
 
 ######################################################################
-# Facilities
+# Submodule: Utils
 ######################################################################
 
-"""
-# Gnuplot.@gp_str
+module Utils
 
-Call `gp_send` with a non-standard string literal.
+import Gnuplot
 
-NOTE: this is supposed to be used interactively on the REPL, not in
-functions.
-
-Example:
-```
-println("Current terminal: ", gp"print GPVAL_TERM")
-gp"plot sin(x)"
-
-gp"
-set title \\"3D surface from a grid (matrix) of Z values\\"
-set xrange [-0.5:4.5]
-set yrange [-0.5:4.5]
-
-set grid
-set hidden3d
-\$grid << EOD
-5 4 3 1 0
-2 2 0 0 1
-0 0 0 1 0
-0 0 0 2 3
-0 1 2 4 3
-EOD
-splot '\$grid' matrix with lines notitle
-"
-```
-"""
-macro gp_str(s::String)
-    gp_send(s)
-end
-
+export @gpi, @gp, @gp_str, @gp_cmd, gp_terminals, gp_terminal
 
 #---------------------------------------------------------------------
 """
@@ -914,7 +883,7 @@ macro gpi(args...)
     exprBlock = Expr(:block)
 
     exprData = Expr(:call)
-    push!(exprData.args, :gp_data)
+    push!(exprData.args, :(Gnuplot.gp_data))
 
     pendingPlot = false
     pendingMulti = false
@@ -922,7 +891,7 @@ macro gpi(args...)
         #println(typeof(arg), " ", arg)
 
         if isa(arg, Expr)  &&  (arg.head == :quote)  &&  (arg.args[1] == :next)
-            push!(exprBlock.args, :(gp_next()))
+            push!(exprBlock.args, :(Gnuplot.gp_next()))
         elseif isa(arg, Expr)  &&  (arg.head == :quote)  &&  (arg.args[1] == :plot)
             pendingPlot = true
         elseif isa(arg, Expr)  &&  (arg.head == :quote)  &&  (arg.args[1] == :multi)
@@ -933,22 +902,22 @@ macro gpi(args...)
                 if length(exprData.args) > 1
                     push!(exprBlock.args, exprData)
                     exprData = Expr(:call)
-                    push!(exprData.args, :gp_data)
+                    push!(exprData.args, :(Gnuplot.gp_data))
                 end
 
-                push!(exprBlock.args, :(gp_plot(last=true, $arg)))
+                push!(exprBlock.args, :(Gnuplot.gp_plot(last=true, $arg)))
                 pendingPlot = false
             elseif pendingMulti
-                push!(exprBlock.args, :(gp_multi($arg)))
+                push!(exprBlock.args, :(Gnuplot.gp_multi($arg)))
                 pendingMulti = false
             else
-                push!(exprBlock.args, :(gp_cmd($arg)))
+                push!(exprBlock.args, :(Gnuplot.gp_cmd($arg)))
             end
         elseif (isa(arg, Expr)  &&  (arg.head == :(=)))
             # A cmd keyword
             sym = arg.args[1]
             val = arg.args[2]
-            push!(exprBlock.args, :(gp_cmd($sym=$val)))
+            push!(exprBlock.args, :(Gnuplot.gp_cmd($sym=$val)))
         else
             # A data set
             push!(exprData.args, arg)
@@ -959,7 +928,7 @@ macro gpi(args...)
 
     if pendingPlot  &&  length(exprData.args) >= 2
         push!(exprBlock.args, exprData)
-        push!(exprBlock.args, :(gp_plot(last=true, "")))
+        push!(exprBlock.args, :(Gnuplot.gp_plot(last=true, "")))
     end
 
     return esc(exprBlock)
@@ -1058,23 +1027,75 @@ macro gp(args...)
     e = :(@gpi($(esc_args...)))
 
     f = Expr(:block)
-    push!(f.args, esc(:( gp_reset())))
+    push!(f.args, esc(:( Gnuplot.gp_reset())))
     push!(f.args, e)
-    push!(f.args, esc(:( gp_dump())))
+    push!(f.args, esc(:( Gnuplot.gp_dump())))
 
     return f
 end
 
+"""
+# Gnuplot.@gp_str
+
+Call `gp_send` with a non-standard string literal.
+
+NOTE: this is supposed to be used interactively on the REPL, not in
+functions.
+
+## Examples:
+```
+println("Current terminal: ", gp"print GPVAL_TERM")
+gp"plot sin(x)"
+
+gp"
+set title \\"3D surface from a grid (matrix) of Z values\\"
+set xrange [-0.5:4.5]
+set yrange [-0.5:4.5]
+
+set grid
+set hidden3d
+\$grid << EOD
+5 4 3 1 0
+2 2 0 0 1
+0 0 0 1 0
+0 0 0 2 3
+0 1 2 4 3
+EOD
+splot '\$grid' matrix with lines notitle
+"
+```
+"""
+macro gp_str(s::String)
+    return Gnuplot.gp_send(s, capture=true)
+end
+
 #---------------------------------------------------------------------
 """
-# Gnuplot.gp_load
+# Gnuplot.@gp_cmd
 
-Execute the gnuplot "load" command with a file as parameter.
+Call the gnuplot "load" command passing the filename given as
+non-standard string literal.
 
-## Arguments
-`file::String`: the filename to be loaded.
+NOTE: this is supposed to be used interactively on the REPL, not in
+functions.
+
+Example:
+```
+@gp (1:10).^3 "w l notit lw 4"
+gp_dump(file="test.gp")
+gp_exitAll()
+gp`test.gp`
+```
 """
-gp_load(file::String) = gp_send("load '$file'", capture=true)
+macro gp_cmd(file::String)
+    return Gnuplot.gp_send("load '$file'", capture=true)
+end
+
+#---------------------------------------------------------------------
+gp_terminals() = Gnuplot.gp_send("print GPVAL_TERMINALS", capture=true)
+gp_terminal()  = Gnuplot.gp_send("print GPVAL_TERM", capture=true)
+
+end #module
 
 
 ######################################################################
