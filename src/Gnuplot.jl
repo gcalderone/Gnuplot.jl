@@ -1,10 +1,8 @@
 module Gnuplot
 
-using AbbrvKW
-
 include("GnuplotInternals.jl")
 importall .p_
-
+import .p_.@AbbrvKW
 
 ######################################################################
 # Get/set options
