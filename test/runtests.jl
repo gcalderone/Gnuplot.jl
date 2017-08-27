@@ -7,7 +7,7 @@ function pressEnter()
     readline(STDIN)
 end
 
-function gp_test(terminal="wxt")
+function gp_test(terminal="unknown")
     gp.setOption(verb=1)
     gp.setOption(startup="set term $terminal")
 
