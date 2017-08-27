@@ -53,9 +53,9 @@ e = 0.5 * ones(x)
 
 # ...and show them using gnuplot.
 @gp("set key horizontal", "set grid",
-	xrange=(-7,7), ylab="Y label",
-	x, y, "w l t 'Real model' dt 2 lw 2 lc rgb 'red'",
-	x, y+noise, e, "w errorbars t 'Data'")
+    xrange=(-7,7), ylab="Y label",
+    x, y, "w l t 'Real model' dt 2 lw 2 lc rgb 'red'",
+    x, y+noise, e, "w errorbars t 'Data'")
 ```
 That's it for the first plot, the syntax should be familiar to most
 gnuplot users.  With this code we:
@@ -68,10 +68,10 @@ gnuplot users.  With this code we:
 Note that this simple example already covers the vast majority of use
 cases, since the remaining details of the plot can be easily tweaked
 by adding the appropriate gnuplot command.  Also note that you would
-barely recognize the Julia language by just looking at the `@gp` macro
-since **Gnuplot.jl** aims to be the mostly transparent: the user is
+barely recognize the Julia language by just looking at the `@gp` call
+since **Gnuplot.jl** aims to be mostly transparent: the user is
 supposed to focus only on the data and on the gnuplot commands, rather
-than the **Gnuplot.jl** package details.
+than the package details.
 
 Before proceeding we will brief discuss the four symbols exported
 by the package:
@@ -95,17 +95,14 @@ The last two macros are supposed to be used only in the REPL, not in
 Julia function.  As you can see there is not much more to know before
 starting *gnuplotting*!
 
-Clearly, the **Gnuplot.jl** hides much more under the hood.  The
-documentation for each of this function can be retrieved with the
-`@doc` macro or by typing `?` in the REPL followed by the function
-name.
+Clearly, the **Gnuplot.jl** package hides much more under the hood.
 
 Now let's discuss some more advanced usage: fit the data (with
 gnuplot) and overplot the results.
 ``` Julia
 const gp = Gnuplot  # use an alias for the package name to quickly
                     # access non exported symbols.
-					
+                    
 # Define the fitting function and set guess param.
 gp.cmd("f(x) = a * sin(b + c*x); a = 1; b = 1; c = 1;")
 
@@ -118,12 +115,27 @@ gp.plot("f(x) w l lw 2 t 'Fit'")
 # Get param values
 (a, b, c) = parse.(Float64, gp.getVal("a", "b", "c"))
 
-# Add param. values in the title and the Y label
+# Add param. values in the title
 gp.cmd(title="Fit param: " * @sprintf("a=%5.2f, b=%5.2f, c=%5.2f", a, b ,c))
-	   
+       
 # Refresh the plot
 gp.dump()
 ```
+Here we introduced a few new functions:
+- `Gnuplot.cmd`: send gnuplot commands;
+- `Gnuplot.lastData`: returns the name of the last data block
+  sent to gnuplot;
+- `Gnuplot.plot`: add a new plot;
+- `Gnuplot.getVal`: retrieve values from gnuplot;
+- `Gnuplot.dump`: send the required commands to refresh the plot.
+
+The documentation for each of these functions can be retrieved with
+the `@doc` macro or by typing `?` in the REPL followed by the function
+name.
+
+Besides these functions however, the syntax is still the the gnuplot one.
+
+
 
 ```
 gp.multi("layout 2,1")
@@ -139,15 +151,15 @@ m = a * sin.(b + c * x)
 
 # Start a new gnuplot process and plot again using the @gp macro.
 @gp("set key horizontal", "set grid",
-	:multi, "layout 2,1",
-	title="Fit param: " * @sprintf("a=%5.2f, b=%5.2f, c=%5.2f", a, b ,c),
-	ylab="Y label",
-	x, y, "w l dt 1 lw 2 t 'Real model'",
-	x, y+noise, e, "w errorbars t 'Data'",
-	x, m, "w l lw 2 t 'Fit'",
-	:next,
-	tit="", xlab="X label", ylab="Residuals",
-	x, (m-y-noise)./e, ones(e), "w errorbars notit")
+    :multi, "layout 2,1",
+    title="Fit param: " * @sprintf("a=%5.2f, b=%5.2f, c=%5.2f", a, b ,c),
+    ylab="Y label",
+    x, y, "w l dt 1 lw 2 t 'Real model'",
+    x, y+noise, e, "w errorbars t 'Data'",
+    x, m, "w l lw 2 t 'Fit'",
+    :next,
+    tit="", xlab="X label", ylab="Residuals",
+    x, (m-y-noise)./e, ones(e), "w errorbars notit")
 
 # Save the gnuplot session in a file
 gp.dump(file="test.gp");
