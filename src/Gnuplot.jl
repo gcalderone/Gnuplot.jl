@@ -463,6 +463,42 @@ end
 
 #---------------------------------------------------------------------
 """
+# Gnuplot.lastData
+
+Return the name of the last data block.
+"""
+function lastData()
+    p_.getProcOrStartIt()
+    cur = p_.main.states[p_.main.curPos]
+    return cur.lastDataName
+end
+
+
+#---------------------------------------------------------------------
+"""
+# Gnuplot.getVal
+
+Return the value of one (or more) gnuplot variables.
+
+## Example
+- argtuple of strings with gnuplot variable 
+"""
+function getVal(args...)
+    out = Vector{String}()
+    for arg in args
+        push!(out, string(send("print $arg", capture=true)...))
+    end
+
+    if length(out) == 1
+        out = out[1]
+    end
+
+    return out
+end
+
+
+#---------------------------------------------------------------------
+"""
 # Gnuplot.plot
 
 Add a new plot/splot comand to the current session
@@ -497,9 +533,9 @@ gp.dump() # Do the plot
   for multiplots);
 """
 @AbbrvKW function plot(spec::String;
-                          lastData::Bool=false,
-                          file::Union{Void,String}=nothing,
-                          multiID::Union{Void,Int}=nothing)
+                       lastData::Bool=false,
+                       file::Union{Void,String}=nothing,
+                       multiID::Union{Void,Int}=nothing)
 
     p_.getProcOrStartIt()
     cur = p_.main.states[p_.main.curPos]
@@ -536,8 +572,14 @@ function multi(multiCmd::String="")
         error("Current multiplot ID is $cur.multiID, while it should be 0")
     end
 
-    next()
+    cur.multiID += 1
     cmd("set multiplot $multiCmd")
+
+    # Ensure all plot commands have ID >= 1
+    for p in cur.plot
+        p.id < 1  &&  (p.id = 1)
+    end
+
     return nothing
 end
 
@@ -888,5 +930,6 @@ gp`test.gp`
 macro gp_cmd(file::String)
     return Gnuplot.send("load '$file'", capture=true)
 end
+
 
 end #module
