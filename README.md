@@ -95,10 +95,9 @@ The last two macros are supposed to be used only in the REPL, not in
 Julia function.  As you can see there is not much more to know before
 starting *gnuplotting*!
 
-Clearly, the **Gnuplot.jl** package hides much more under the hood.
-
-Now let's discuss some more advanced usage: fit the data (with
-gnuplot) and overplot the results.
+Clearly, the **Gnuplot.jl** package hides much more under the hood as
+we will show below.  Let's discuss some more advanced usage: fit the
+data (with gnuplot) and overplot the results.
 ``` Julia
 const gp = Gnuplot  # use an alias for the package name to quickly
                     # access non exported symbols.
@@ -132,6 +131,9 @@ Here we introduced a few new functions:
 The documentation for each of these functions can be retrieved with
 the `@doc` macro or by typing `?` in the REPL followed by the function
 name.
+
+Note that 
+
 
 Besides these functions however, the syntax is still the the gnuplot one.
 
