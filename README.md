@@ -48,16 +48,16 @@ Here we will show a very basic usage:
 using Gnuplot
 
 # Create some noisy data...
-x = collect(linspace(-2pi, 2pi, 100))
-y = 1.5 * sin.(0.3 + 0.7x) 
-noise = randn(length(x))./2
-e = 0.5 * ones(x)
+x = collect(linspace(-2pi, 2pi, 100));
+y = 1.5 * sin.(0.3 + 0.7x) ;
+noise = randn(length(x))./2;
+e = 0.5 * ones(x);
 
 # ...and show them using gnuplot.
 @gp("set key horizontal", "set grid",
     xrange=(-7,7), ylabel="Y label",
     x, y, "w l t 'Real model' dt 2 lw 2 lc rgb 'red'",
-    x, y+noise, e, "w errorbars t 'Data'")
+    x, y+noise, e, "w errorbars t 'Data'");
 ```
 That's it for the first plot, the syntax should be familiar to most
 gnuplot users.  With this code we:
@@ -74,6 +74,51 @@ barely recognize the Julia language by just looking at the `@gp` call
 since **Gnuplot.jl** aims to be mostly transparent: the user is
 supposed to focus only on the data and on the gnuplot commands, rather
 than the package details.
+
+Let's have a look to the REPL output of the above command (this may
+differ on your computer since we used random numbers):
+```Julia
+GP(nothing) Starting a new gnuplot process...
+GP(nothing) Found gnuplot version: 5.0.0
+GP(1) New session started with handle 1
+GP(1) -> reset session
+GP(1) -> set key horizontal
+GP(1) -> set grid
+GP(1) -> set xrange [-7:7]
+GP(1) -> set ylabel 'Y label'
+GP(1) -> $d1_1 << EOD
+GP(1) ->  -6.283185307179586 1.225887340796837
+GP(1) ->  -6.156252270670907 1.1443471266509504
+GP(1) ->  -6.029319234162229 1.05377837392046
+GP(1) ...
+GP(1) ->  6.029319234162229 -1.4724753107714488
+GP(1) ->  6.156252270670907 -1.4920483708151848
+GP(1) ->  6.283185307179586 -1.4998496389154883
+GP(1) -> EOD
+GP(1) -> $d1_2 << EOD
+GP(1) ->  -6.283185307179586 2.5763863845120527 0.5
+GP(1) ->  -6.156252270670907 1.1957471376063518 0.5
+GP(1) ->  -6.029319234162229 1.1841824882108178 0.5
+GP(1) ...
+GP(1) ->  6.029319234162229 -1.186685251966976 0.5
+GP(1) ->  6.156252270670907 -0.4268692113198256 0.5
+GP(1) ->  6.283185307179586 -1.4503668565815566 0.5
+GP(1) -> EOD
+GP(1) -> plot \
+GP(1) ->   $d1_1 w l t 'Real model' dt 2 lw 2 lc rgb 'red', \
+GP(1) ->   $d1_2 w errorbars t 'Data'
+GP(1) -> 
+```
+
+The **Gnuplot.jl** (note the leading `GP`...) package tells us that it
+is starting a new gnuplot process (version 5.0.0) and the number of
+the handle for the current session.  It also shows several lines
+starting with ` -> `, meaning "sent to gnuplot", with all the commands
+and almost all the data being sent.  The gnuplot replies are also
+printed, but they lack the ` -> ` string.  To change the amount of
+lines being printed you may set a different verbosity level (see
+documentation for `Gnuplot.setOption`) as an integer between 0 (no log
+at all) and 4 (lots of lines printed).  The default value is 2.
 
 Before proceeding we will brief discuss the four symbols exported
 by the package:

@@ -89,7 +89,7 @@ mutable struct MainState
   handles::Vector{Int}           # handles of gnuplot sessions
   curPos::Int                    # index in the procs, states and handles array of current session
 
-  MainState() = new(:cyan, :yellow, 1,
+  MainState() = new(:cyan, :yellow, 2,
                     "", "", Vector{GnuplotProc}(), Vector{GnuplotSession}(), 
                     Vector{Int}(), 0)
 end
@@ -171,7 +171,7 @@ function readTask(sIN, channel; kw...)
 
         if line == "GNUPLOT_JL_SAVE_OUTPUT"
             saveOutput = true
-            log(4, "|start of captured data =========================")
+            log(4, "|begin of captured data =========================")
         else
             if saveOutput
                 put!(channel, line)

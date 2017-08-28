@@ -258,18 +258,16 @@ println("Current terminal: ", gp.send("print GPVAL_TERM", capture=true))
 
     if capture
         write(p.pin, "print 'GNUPLOT_JL_SAVE_OUTPUT'\n")
-        p_.log(4, "-> Start capture", color=p_.main.colorIn)
     end
 
     for s in split(cmd, "\n")
         w = write(p.pin, strip(s) * "\n")
-        p_.log(2, "-> $s" , color=p_.main.colorIn)
+        p_.log(2, "-> $s", color=p_.main.colorIn)
         w <= 0  &&  error("Writing on gnuplot STDIN pipe returned $w")
     end
 
     if capture
         write(p.pin, "print 'GNUPLOT_JL_SAVE_OUTPUT_END'\n")
-        p_.log(4, "-> End capture", color=p_.main.colorIn)
     end
     flush(p.pin)
 
@@ -442,14 +440,26 @@ function data(data::Vararg{AbstractArray{T,1},N};
     v = "$name << EOD"
     push!(cur.data, v)
     send(v)
+
+    origVerb = p_.main.verboseLev
     for i in 1:length(data[1])
         v = ""
         for j in 1:length(data)
             v *= " " * string(data[j][i])
         end
         push!(cur.data, v)
+
+        if i>3  &&  i<=(length(data[1])-3)  &&   p_.main.verboseLev < 4
+            p_.log(2, "...", color=p_.main.colorIn)            
+            p_.main.verboseLev = 0
+        else
+            p_.main.verboseLev = origVerb
+        end
+
         send(v)
     end
+    p_.main.verboseLev = origVerb
+
     v = "EOD"
     push!(cur.data, v)
     send(v)
