@@ -158,32 +158,81 @@ gp.dump()
   the first plot;
 - `Gnuplot.next`: move to the next plot in the multiplot session.
   
-
+Although these functions provide great flexibility they can almost
+always be replaced by simpler (and shorter) `@gp` or `@gpi` calls.
+The whole plot can be reproduced with:
 
 ``` Julia
 # Compute the model in Julia
 m = a * sin.(b + c * x)
 
-# Start a new gnuplot process and plot again using the @gp macro.
+# Start a new gnuplot process (to see the output in another window)
+gp.session()
+
+# Plot again using the @gp macro.
+title = "Fit param: " * @sprintf("a=%5.2f, b=%5.2f, c=%5.2f", a, b ,c),
 @gp("set key horizontal", "set grid",
     :multi, "layout 2,1",
-    title="Fit param: " * @sprintf("a=%5.2f, b=%5.2f, c=%5.2f", a, b ,c),
-    ylab="Y label",
+    title=title, ylab="Y label",
     x, y, "w l dt 1 lw 2 t 'Real model'",
     x, y+noise, e, "w errorbars t 'Data'",
     x, m, "w l lw 2 t 'Fit'",
     :next,
     tit="", xlab="X label", ylab="Residuals",
     x, (m-y-noise)./e, ones(e), "w errorbars notit")
+```
+It is often instructive to check how the macro expands to understand
+what's going on.  The expansion of the last `@gp` call is:
+``` Julia
+Gnuplot.reset()
+begin 
+    Gnuplot.cmd("set key horizontal")
+    Gnuplot.cmd("set grid")
+    Gnuplot.multi("layout 2,1")
+    Gnuplot.cmd(title=title)
+    Gnuplot.cmd(ylab="Y label")
+    Gnuplot.data(x, y)
+    Gnuplot.plot(last=true, "w l dt 1 lw 2 t 'Real model'")
+    Gnuplot.data(x, y + noise, e)
+    Gnuplot.plot(last=true, "w errorbars t 'Data'")
+    Gnuplot.data(x, m)
+    Gnuplot.plot(last=true, "w l lw 2 t 'Fit'")
+    Gnuplot.next()
+    Gnuplot.cmd(tit="")
+    Gnuplot.cmd(xlab="X label")
+    Gnuplot.cmd(ylab="Residuals")
+    Gnuplot.data(x, ((m - y) - noise) ./ e, ones(e))
+    Gnuplot.plot(last=true, "w errorbars notit")
+end
+Gnuplot.dump()
+```
+Here a few new functions appeared:
+- `Gnuplot.session`: start a new gnuplot process and initialize a new session;
+- `Gnuplot.reset`: reset the gnuplot session;
+- `Gnuplot.data`: send data to gnuplot in the form of a data block.
 
+The `@gpi` macro works exactly like the `@gp` one, but it doesn't add
+the wrapping `reset` and `dump` calls, hence it is suited to build a
+plot step by step.
+
+
+Finally, let's save all the data and commands on a gnuplot script, and
+close all the sessions:
+```
 # Save the gnuplot session in a file
 gp.dump(file="test.gp");
 
 # Quit all gnuplot sessions
 gp.exitAll()
 ```
-Now you can quit Julia, and load `test.gp` directly in gnuplot or
-any other program.
+Note that we used again the `Gnuplot.dump` function, but we added the
+`file=` keyword which tells `dump` to redirect all data and commands
+on a file rather than on the gnuplot pipe.
 
+Now you can quit Julia and load/modify `test.gp` directly in gnuplot or
+any other program.  If you want to load it again from the Julia REPL:
 
-
+``` Julia
+using Gnuplot
+gp`test.gp`
+```
