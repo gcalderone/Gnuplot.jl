@@ -18,13 +18,13 @@ matrix:
     - julia: nightly
 
 ## uncomment and modify the following lines to manually install system packages
-addons:
-  apt: # apt-get for linux
-    packages:
-    - gnuplot>=4.7
+#addons:
+#  apt: # apt-get for linux
+#    packages:
+#    - gnuplot>=4.7
 
 before_script: # homebrew for mac
-  - if [ $TRAVIS_OS_NAME = osx ]; then brew install gnuplot; fi
+  - if [ $TRAVIS_OS_NAME = osx ]; then brew install gnuplot; else; apt-get install gnuplot>=4.7; fi
 
 ## uncomment the following lines to override the default test script
 #script:
