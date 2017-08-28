@@ -17,6 +17,8 @@ Julia.  Its main features are:
 
 - support for multiplots;
 
+- save sessions into gnuplot scripts;
+
 - extremely concise syntax (see examples below), makes it ideal for
   interactive data exploration;
 
@@ -95,7 +97,7 @@ The last two macros are supposed to be used only in the REPL, not in
 Julia function.  As you can see there is not much more to know before
 starting *gnuplotting*!
 
-Clearly, the **Gnuplot.jl** package hides much more under the hood as
+Actually the **Gnuplot.jl** package hides much more under the hood as
 we will show below.  Let's discuss some more advanced usage: fit the
 data (with gnuplot) and overplot the results.
 ``` Julia
@@ -132,20 +134,31 @@ The documentation for each of these functions can be retrieved with
 the `@doc` macro or by typing `?` in the REPL followed by the function
 name.
 
-Note that 
+Besides these functions however, the strings still contain gnuplot
+syntax.
+
+Note that these functions operates on the data and status we set up in
+the previous example, i.e. we are operating in a **session**.  This
+allow to build a plot step by step and (optionally) to dump all data
+and commands on a gnuplot script file, to be edited/used outside
+Julia.
 
 
-Besides these functions however, the syntax is still the the gnuplot one.
-
-
-
+Now we will introduce a few more functions designed to produce
+multiplots:
 ```
 gp.multi("layout 2,1")
-gp.next()
+gp.next() 
 gp.cmd(tit="", xlab="X label", ylab="Residuals")
 gp.plot(gp.lastData() * " u 1:((f(x)-\$2)/\$3):(1) w errorbars notit")
 gp.dump()
 ```
+- `Gnuplot.multi`: initialize a multiplot session.  This is typically
+  used at the beginning of the session but it can also be used after
+  the first plot;
+- `Gnuplot.next`: move to the next plot in the multiplot session.
+  
+
 
 ``` Julia
 # Compute the model in Julia
