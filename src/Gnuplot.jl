@@ -102,7 +102,7 @@ end
 """
 # Gnuplot.setCurrent
 
-Change the current session handle.
+Change the current session.
 
 ## Arguments:
 - `handle::Int`: the handle of the session to select as current.
