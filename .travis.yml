@@ -5,7 +5,6 @@ os:
   - osx
 julia:
   - 0.6
-  - nightly
 notifications:
   email: false
 git:
@@ -22,8 +21,8 @@ addons:
   apt: # apt-get for linux
     packages:
     - gnuplot
-#before_script: # homebrew for mac
-#  - if [ $TRAVIS_OS_NAME = osx ]; then brew install gcc; fi
+before_script: # homebrew for mac
+  - if [ $TRAVIS_OS_NAME = osx ]; then brew install gnuplot; fi
 
 ## uncomment the following lines to override the default test script
 #script:
