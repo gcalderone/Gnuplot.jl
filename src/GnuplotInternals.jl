@@ -122,7 +122,7 @@ function checkGnuplotVersion()
         end
     end
 
-    if ver < v"4.7"
+    if ver < v"4.6"
         error("gnuplot ver. >= 4.7 is required, but " * string(ver) * " was found.")
     end
     log(1, "Found gnuplot version: " * string(ver))
