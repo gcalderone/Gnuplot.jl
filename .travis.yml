@@ -24,7 +24,7 @@ matrix:
 #    - gnuplot
 
 before_script: # homebrew for mac
-  - if [ $TRAVIS_OS_NAME = osx ]; then brew install gnuplot; else sudo apt-get install gnuplot5-x11; apt-cache search gnuplot; fi
+  - if [ $TRAVIS_OS_NAME = osx ]; then brew install gnuplot; else sudo apt-get install gnuplot-x11; fi
 
 ## uncomment the following lines to override the default test script
 #script:
