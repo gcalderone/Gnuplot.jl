@@ -13,13 +13,13 @@ Julia.  Its main features are:
 - fast data transmission to gnuplot through system pipes (no temporary
   files involved);
   
-- support for running multiple gnuplot process simulatneously;
+- handles multiple gnuplot process simultaneously;
 
 - support for multiplots;
 
 - save sessions into gnuplot scripts;
 
-- extremely concise syntax (see examples below), makes it ideal for
+- extremely concise syntax (see examples below) makes it ideal for
   interactive data exploration;
 
 - very easy to use: if you know gnuplot you're ready to go.
