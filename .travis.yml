@@ -21,10 +21,10 @@ matrix:
 #addons:
 #  apt: # apt-get for linux
 #    packages:
-#    - gnuplot>=4.7
+#    - gnuplot
 
 before_script: # homebrew for mac
-  - if [ $TRAVIS_OS_NAME = osx ]; then brew install gnuplot; else sudo apt-get install gnuplot>=4.7; fi
+  - if [ $TRAVIS_OS_NAME = osx ]; then brew install gnuplot; else sudo apt-get install gnuplot5; fi
 
 ## uncomment the following lines to override the default test script
 #script:
