@@ -422,9 +422,9 @@ gp.dump()
 - `prefix::String`: prefix for data block name (an automatic counter
   will be appended);
 """
-function data(data::Vararg{AbstractArray{T,1},N};
-              name::Union{Void,String}=nothing,
-              prefix::Union{Void,String}=nothing) where {T<:Number,N}
+@AbbrvKW function data(data::Vararg{AbstractArray{T,1},N};
+                       name::Union{Void,String}=nothing,
+                       prefix::Union{Void,String}=nothing) where {T<:Number,N}
     p_.getProcOrStartIt()
     cur = p_.main.states[p_.main.curPos]
 
