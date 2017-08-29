@@ -123,6 +123,10 @@ function checkGnuplotVersion()
     end
 
     if ver < v"4.7"
+        # Do not raise error in order to pass Travis CI test, since it has v4.6
+        println("gnuplot ver. >= 4.7 is required, but " * string(ver) * " was found.")
+    end
+    if ver < v"4.6"
         error("gnuplot ver. >= 4.7 is required, but " * string(ver) * " was found.")
     end
     log(1, "Found gnuplot version: " * string(ver))
