@@ -1,3 +1,5 @@
+isdefined(Base, :__precompile__) && __precompile__()
+
 ######################################################################
 # MODULE GnuplotInternals (private functions and definitions)
 ######################################################################
@@ -89,7 +91,7 @@ mutable struct MainState
   handles::Vector{Int}           # handles of gnuplot sessions
   curPos::Int                    # index in the procs, states and handles array of current session
 
-  MainState() = new(:cyan, :yellow, 2,
+  MainState() = new(:cyan, :yellow, 0,
                     "", "", Vector{GnuplotProc}(), Vector{GnuplotSession}(), 
                     Vector{Int}(), 0)
 end

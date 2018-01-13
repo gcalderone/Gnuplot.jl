@@ -1,3 +1,5 @@
+isdefined(Base, :__precompile__) && __precompile__()
+
 module Gnuplot
 
 using AbbrvKW
@@ -739,6 +741,8 @@ macro gpi(args...)
 
         if isa(arg, Expr)  &&  (arg.head == :quote)  &&  (arg.args[1] == :reset)
             push!(exprBlock.args, :(Gnuplot.reset()))
+        elseif isa(arg, Expr)  &&  (arg.head == :quote)  &&  (arg.args[1] == :dump)
+            push!(exprBlock.args, :(Gnuplot.dump()))
         elseif isa(arg, Expr)  &&  (arg.head == :quote)  &&  (arg.args[1] == :plot)
             pendingPlot = true
         elseif isa(arg, Expr)  &&  (arg.head == :quote)  &&  (arg.args[1] == :multi)

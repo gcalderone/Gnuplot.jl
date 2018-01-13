@@ -221,7 +221,7 @@ m = a * sin.(b + c * x)
 gp.session()
 
 # Plot again using the @gp macro.
-title = "Fit param: " * @sprintf("a=%5.2f, b=%5.2f, c=%5.2f", a, b ,c),
+title = "Fit param: " * @sprintf("a=%5.2f, b=%5.2f, c=%5.2f", a, b ,c)
 @gp("set key horizontal", "set grid",
     :multi, "layout 2,1",
     title=title, ylab="Y label",
