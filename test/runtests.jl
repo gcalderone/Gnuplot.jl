@@ -1,123 +1,59 @@
 using Base.Test
 using Gnuplot
 
-function pressEnter()
-    println("Press enter...")
-    readline(STDIN)
-end
-
-function gp_test(terminal="unknown")
-    gpOptions.startup = "set term $terminal"
-
-    gpReset()
+function gp_test()
     x = collect(1.:100)
 
     #-----------------------------------------------------------------
-    gpSend("plot sin(x)")
-    terminal == "unknown"  ||  pressEnter()
-
-    #-----------------------------------------------------------------
-    id1 = gpCurrentID()
-    id2 = gpNewSession()
-    id3 = gpNewSession()
+    gp1 = GnuplotProc()
+    gp2 = GnuplotProc()
+    gp3 = GnuplotProc()
 
     for i in 1:10
-        gpSetCurrentID(id1)
-        gpSend("plot sin($i*x)")
-
-        gpSetCurrentID(id2)
-        gpSend("plot sin($i*x)")
-
-        gpSetCurrentID(id3)
-        gpSend("plot sin($i*x)")
-
+        @gp gp1 "plot sin($i*x)"
+        @gp gp2 "plot sin($i*x)"
+        @gp gp3 "plot sin($i*x)"
         sleep(0.3)
     end
-    terminal == "unknown"  ||  pressEnter()
-    gpExitAll()
+    GnuplotQuitAll()
 
     #-----------------------------------------------------------------
-    gpReset()
-    name = gpData([1,2,3,5,8,13])
-    gpPlot("$name w points ps 3")
-    gpDump()
-    terminal == "unknown"  ||  pressEnter()
+    @gp "plot sin(x)"
+    @gp "plot sin(x)" "pl cos(x)"
+    @gp "plo sin(x)" "s cos(x)"
 
-    gpPlot(last=true, "w l lw 3")
-    gpDump()
-    terminal == "unknown"  ||  pressEnter()
+    @gpi 0 "plot sin(x)"
+    @gpi "plot cos(x)" :>
 
-    #-----------------------------------------------------------------
-    gpReset()
 
-    gpCmd("set format y \"%.1f\"")
-    gpCmd("set key box opaque")
-    gpCmd("set xrange [-2*pi:2*pi]")
-    gpMulti("layout 2,2 columnsfirst title \"Multiplot title\"")
-
-    gpCmd(ylab="Y label")
-    gpPlot("sin(x) lt 1")
-
-    gpNext()
-    gpCmd(xlab="X label")
-    gpPlot("cos(x) lt 2")
-
-    gpNext()
-    gpCmd("unset ylabel")
-    gpCmd("unset ytics")
-    gpCmd("unset xlabel")
-    gpPlot("sin(2*x) lt 3")
-
-    gpNext()
-    gpCmd(xlab="X label")
-    gpPlot("cos(2*x) lt 4")
-
-    gpDump()
-    terminal == "unknown"  ||  pressEnter()
-
-    #-----------------------------------------------------------------
-    @gp("set format y \"%.1f\"",
-        "set key box opaque",
-        xr=(-2pi,2pi),
-        :multi, "layout 2,2 columnsfirst title \"Multiplot title\"",
-        ylab="Y label",
-        :plot, "sin(x) lt 1",
-        :next,
-        xlab="X label",
-        :plot, "cos(x) lt 2",
-        :next,
-        "unset ylabel",
-        "unset ytics",
-        "unset xlabel",
-        :plot, "sin(2*x) lt 3",
-        :next,
-        xlab="X label",
-        :plot, "cos(2*x) lt 4"
-        )
-    terminal == "unknown"  ||  pressEnter()
-
-    #-----------------------------------------------------------------
-    @gpi(:reset, "set key off",
-         xr=(1,10), yr=(1,100), xlog=true, ylog=true,
-         :multi, "layout 2,2 columnsfirst title \"Multiplot title\"")
+    @gp "plot sin(x)" 2 xr=(-2pi,2pi) "pause 3" "plot cos(4*x)"
     
-    for i in 1:4
-        @gpi(x, x.^i, "w l lw 3 lt $i", :next)
-    end
-    @gpi()
-    terminal == "unknown"  ||  pressEnter()
+    x = linspace(-2pi, 2pi, 100);
+    y = 1.5 * sin.(0.3 + 0.7x) ;
+    noise = randn(length(x))./2;
+    e = 0.5 * ones(x);
 
-    #-----------------------------------------------------------------
-    lw = 5
-    @gp "set title 'My title'" x x.^2. "w l tit '{/Symbol L}_{/Symbol a}' lw $lw dt 2 lc rgb 'red'"
-    terminal == "unknown"  ||  pressEnter()
+    @gp x y
+    @gp x y "w l"
+    @gp x y :aa "plot \$aa w l" "pl \$aa u 1:(2*\$2) w l"
 
-    #-----------------------------------------------------------------
-    @gp("set title 'My title'",
-        x, x.^2  , "w l tit '{/Symbol L}_{/Symbol a}' lw $lw dt 2 lc rgb 'red'",
-        x, x.^2.2, "w l tit 'bbb'"
-        )
-    terminal == "unknown"  ||  pressEnter()
+    @gp randn(Float64, 30, 50)
+
+    @gp("set key horizontal", "set grid",
+        xrange=(-7,7), ylabel="Y label",
+        x, y, "w l t 'Real model' dt 2 lw 2 lc rgb 'red'",
+        x, y+noise, e, "w errorbars t 'Data'");
+
+    
+    @gpi 0 "f(x) = a * sin(b + c*x); a = 1; b = 1; c = 1;"
+    @gpi x y+noise e :aa
+    @gpi "fit f(x) \$aa u 1:2:3 via a, b, c;"
+    @gpi "set multiplot layout 2,1"
+    @gpi "plot \$aa w points" ylab="Data and model"
+    @gpi "plot \$aa u 1:(f(\$1)) w lines"
+    @gpi 2 xlab="X label" ylab="Residuals"
+    @gpi "plot \$aa u 1:((f(\$1)-\$2) / \$3):(1) w errorbars notit"  :>
+
 
     #-----------------------------------------------------------------
     @gp("""
@@ -139,12 +75,12 @@ function gp_test(terminal="unknown")
         set format y "%.1f"
         set samples 500
         set style fill solid 0.4 noborder""",
-        :plot, "'+' using 1:(sin(\$1)):(approx_1(\$1)) with filledcurve title label1 lt 3",
-        :plot, "'+' using 1:(sin(\$1)):(approx_2(\$1)) with filledcurve title label2 lt 2",
-        :plot, "'+' using 1:(sin(\$1)):(approx_3(\$1)) with filledcurve title label3 lt 1",
-        :plot, "sin(x) with lines lw 1 lc rgb 'black'")
+        "plot '+' using 1:(sin(\$1)):(approx_1(\$1)) with filledcurve title label1 lt 3",
+        "plot '+' using 1:(sin(\$1)):(approx_2(\$1)) with filledcurve title label2 lt 2",
+        "plot '+' using 1:(sin(\$1)):(approx_3(\$1)) with filledcurve title label3 lt 1",
+        "plot sin(x) with lines lw 1 lc rgb 'black'")
 
-        #-----------------------------------------------------------------
+    #-----------------------------------------------------------------
     @gp("""
         set zrange [-1:1]
         unset label
@@ -171,19 +107,18 @@ function gp_test(terminal="unknown")
         x7=xx; xx=xx+dx
         x8=xx; xx=xx+dx
         x9=xx; xx=xx+dx""",
-        splot=true,
-        :plot, "[u=0:1][v=-4.99:4.99]x0, v, (u<0.5) ? -1 : sinc(x0,v) notitle",
-	    :plot, "x1, v, (u<0.5) ? -1 : sinc(x1,v) notitle",
-	    :plot, "x2, v, (u<0.5) ? -1 : sinc(x2,v) notitle",
-	    :plot, "x3, v, (u<0.5) ? -1 : sinc(x3,v) notitle",
-	    :plot, "x4, v, (u<0.5) ? -1 : sinc(x4,v) notitle",
-	    :plot, "x5, v, (u<0.5) ? -1 : sinc(x5,v) notitle",
-	    :plot, "x6, v, (u<0.5) ? -1 : sinc(x6,v) notitle",
-	    :plot, "x7, v, (u<0.5) ? -1 : sinc(x7,v) notitle",
-	    :plot, "x8, v, (u<0.5) ? -1 : sinc(x8,v) notitle",
-	    :plot, "x9, v, (u<0.5) ? -1 : sinc(x9,v) notitle")
+        "splot [u=0:1][v=-4.99:4.99]x0, v, (u<0.5) ? -1 : sinc(x0,v) notitle",
+	    "splot x1, v, (u<0.5) ? -1 : sinc(x1,v) notitle",
+	    "splot x2, v, (u<0.5) ? -1 : sinc(x2,v) notitle",
+	    "splot x3, v, (u<0.5) ? -1 : sinc(x3,v) notitle",
+	    "splot x4, v, (u<0.5) ? -1 : sinc(x4,v) notitle",
+	    "splot x5, v, (u<0.5) ? -1 : sinc(x5,v) notitle",
+	    "splot x6, v, (u<0.5) ? -1 : sinc(x6,v) notitle",
+	    "splot x7, v, (u<0.5) ? -1 : sinc(x7,v) notitle",
+	    "splot x8, v, (u<0.5) ? -1 : sinc(x8,v) notitle",
+	    "splot x9, v, (u<0.5) ? -1 : sinc(x9,v) notitle")
 
-    gpExitAll()
+    GnuplotQuitAll()
     return true
 end
 
