@@ -23,7 +23,7 @@ function gp_test()
     @gp "plo sin(x)" "s cos(x)"
 
     @gpi 0 "plot sin(x)"
-    @gpi "plot cos(x)" :>
+    @gpi "plot cos(x)" :.
 
 
     @gp "plot sin(x)" 2 xr=(-2pi,2pi) "pause 3" "plot cos(4*x)"
@@ -52,7 +52,7 @@ function gp_test()
     @gpi "plot \$aa w points" ylab="Data and model"
     @gpi "plot \$aa u 1:(f(\$1)) w lines"
     @gpi 2 xlab="X label" ylab="Residuals"
-    @gpi "plot \$aa u 1:((f(\$1)-\$2) / \$3):(1) w errorbars notit"  :>
+    @gpi "plot \$aa u 1:((f(\$1)-\$2) / \$3):(1) w errorbars notit"  :.
 
 
     #-----------------------------------------------------------------

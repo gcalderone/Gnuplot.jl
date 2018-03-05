@@ -9,7 +9,7 @@ using AbbrvKW
 ######################################################################
 
 export CheckGnuplotVersion, GnuplotSession, GnuplotProc,
-    GnuplotQuit, GnuplotQuitAll, GnuplotGet, setDefault,
+    GnuplotQuit, GnuplotQuitAll, GnuplotGet, setCurrent, getCurrent,
     @gp, @gpi, @gp_str, @gp_cmd
 
 
@@ -79,16 +79,6 @@ function newID()
     @assert countProc <= 10 "Too many Gnuplot processes are running."
     newID += 1
     return newID
-end
-
-function getCurObj()
-    global g_state
-    if !(g_state.id in keys(g_state.obj))
-        info("Creating default Gnuplot process...")
-        out = GnuplotProc()
-        setDefault(out)
-    end
-    return g_state.obj[g_state.id]
 end
 
 
@@ -546,7 +536,7 @@ function gpDriver(args...)
         end
     end
     if gp == nothing
-        gp = getCurObj()
+        gp = getCurrent()
     end
 
     if length(args) == 0
@@ -601,7 +591,7 @@ function gpDriver(args...)
             typeof(arg) == GnuplotSession
             continue
         elseif typeof(arg) == Symbol
-            if arg == :>
+            if arg == :.
                 addDump = true
             else
                 dataName = string(arg)
@@ -714,10 +704,9 @@ The newly created session becomes the default sink for the @gp macro.
 function GnuplotSession(;default="")
     global g_state
     id = newID()
-    out = GnuplotSession(id, 0, Vector{inputData}(), 
+    out = GnuplotSession(id, 0, Vector{inputData}(),
                          [inputPlot()], 1, default)
     g_state.obj[id] = out
-    gpReset(out)
     return out
 end
 
@@ -742,8 +731,8 @@ function GnuplotProc(cmd="gnuplot"; default="")
 
     id = newID()
     out = GnuplotProc(id, pin, pout, perr, proc,
-                      Channel{String}(32), 4, 
-                      GnuplotSession(id, 0, Vector{inputData}(), 
+                      Channel{String}(32), 4,
+                      GnuplotSession(id, 0, Vector{inputData}(),
                                      [inputPlot()], 1, default)
                       )
     g_state.obj[id] = out
@@ -758,14 +747,13 @@ function GnuplotProc(cmd="gnuplot"; default="")
     # Start reading tasks
     @async readTask(out, false)
     @async readTask(out, true)
-    gpReset(out)
     return out
 end
 
 
 #---------------------------------------------------------------------
 """
-# quit
+# GnuplotQuit
 
 Close the current session and the associated gnuplot process (if any).
 """
@@ -784,6 +772,14 @@ function GnuplotQuit(gp::GnuplotProc)
     logOut(gp, string("Process exited with status ", exitCode))
     GnuplotQuit(gp.session)
     return exitCode
+end
+
+function GnuplotQuit(id::Int)
+    global g_state
+    if !(id in keys(g_state.obj))
+        error("Gnuplot ID $id do not exists")
+    end
+    return GnuplotQuit(g_state.obj[id])
 end
 
 
@@ -813,34 +809,44 @@ Return the value of one (or more) gnuplot variables.
 println("Current gnuplot terminal is: ", GnuplotGet("GPVAL_TERM"))
 ```
 """
-function GnuplotGet(gp::GnuplotProc, args...)
+function GnuplotGet(gp::GnuplotProc, var::String)
     out = Vector{String}()
-    for arg in args
-        v = string(arg)
-        answer = gpSend(gp, "print $v", true)
-        for check in answer
-            if length(search(check, "undefined variable:")) > 0
-                error(check)
-            end
+    answer = gpSend(gp, "print $var", true)
+    for line in answer
+        if length(search(line, "undefined variable:")) > 0
+            error(line)
         end
-        push!(out, answer...)
+        push!(out, line)
     end
-
-    if length(out) == 1
-        out = out[1]
-    end
-
-    return out
+    return join(out, "\n")
 end
+GnuplotGet(var::String) = GnuplotGet(getCurrent(), var)
 
 
 #---------------------------------------------------------------------
 """
-# setDefault
+# setCurrent
 """
-function setDefault(gp::GnuplotProc)
+function setCurrent(gp::GnuplotProc)
     @assert (gp.id in keys(g_state.obj)) "Invalid Gnuplot ID: $id"
     g_state.id = gp.id
+end
+
+function setCurrent(gp::GnuplotSession)
+    @assert (gp.id in keys(g_state.obj)) "Invalid Gnuplot ID: $id"
+    g_state.id = gp.id
+end
+
+
+#---------------------------------------------------------------------
+function getCurrent()
+    global g_state
+    if !(g_state.id in keys(g_state.obj))
+        info("Creating default Gnuplot process...")
+        out = GnuplotProc()
+        setCurrent(out)
+    end
+    return g_state.obj[g_state.id]
 end
 
 
@@ -858,7 +864,7 @@ The `@gp` accepts any number of arguments, with the following meaning:
 - a symbol: specifies the data set name;
 - an `Int`: if >0 set the current plot destination (if multiplot is
   enabled).  If 0 reset the whole session.
-- a keyword: set the keysowrd value (see below);
+- a keyword: set the keyword value (see below);
 - any other data type: data to be passed to Gnuplot.  Each dataset
   must be terminated by either: a symbol (i.e. the data set name) or a
   string with the plot specifications (e.g. "with lines").
@@ -916,7 +922,7 @@ the beginning and an automatic execution of all commands at then, you
 should use the `@gpi` macro instead, with exaclty the same syntax as
 `@gp`.  The `@gpi` macro also accepts the following arguments:
 - the `0` number to reset the whole session;
-- the `:>` symbol to send all commands to Gnuplot.
+- the `:.` symbol to send all commands to Gnuplot.
 
 
 ## Examples:
@@ -928,7 +934,7 @@ should use the `@gpi` macro instead, with exaclty the same syntax as
 
 # Split a `@gp` call in two
 @gpi 0 "plot sin(x)"
-@gpi "plot cos(x)" :>
+@gpi "plot cos(x)" :.
 
 # Insert a 3 second pause between one plot and the next
 @gp "plot sin(x)" 2 xr=(-2pi,2pi) "pause 3" "plot cos(4*x)"
@@ -965,7 +971,7 @@ lw = 3
 for i in 1:4
   @gpi i "p sin(\$i*x)"
 end
-@gpi :>
+@gpi :.
 
 
 # Multiple gnuplot instances
@@ -997,10 +1003,10 @@ e = 0.5 * ones(x);
 @gpi x y+noise e :aa
 @gpi "fit f(x) \\\$aa u 1:2:3 via a, b, c;"
 @gpi "set multiplot layout 2,1"
-@gpi "plot \\\$aa w points" ylab="Data and model"
-@gpi "plot \\\$aa u 1:(f(\\\$1)) w lines"
+@gpi "plot \\\$aa w points tit 'Data'" ylab="Data and model"
+@gpi "plot \\\$aa u 1:(f(\\\$1)) w lines tit 'Best fit'"
 @gpi 2 xlab="X label" ylab="Residuals"
-@gpi "plot \\\$aa u 1:((f(\\\$1)-\\\$2) / \\\$3):(1) w errorbars notit"  :>
+@gpi "plot \\\$aa u 1:((f(\\\$1)-\\\$2) / \\\$3):(1) w errorbars notit"  :.
 
 ```
 """
@@ -1009,7 +1015,7 @@ macro gp(args...)
     for arg in args
         push!(esc_args, esc(arg))
     end
-    e = :(@gpi(0, $(esc_args...), :>))
+    e = :(@gpi(0, $(esc_args...), :.))
 
     return e
 end
@@ -1071,7 +1077,7 @@ splot '\$grid' matrix with lines notitle
 """
 macro gp_str(s::String)
     for v in split(s, "\n")
-        gpSend(getCurObj(), string(v))
+        gpSend(getCurrent(), string(v))
     end
     return nothing
 end
@@ -1095,7 +1101,7 @@ gp`test.gp`
 ```
 """
 macro gp_cmd(file::String)
-    return gpSend(getCurObj(), "load '$file'")
+    return gpSend(getCurrent(), "load '$file'")
 end
 
 end #module

@@ -3,15 +3,11 @@
 
 [![Build Status](https://travis-ci.org/gcalderone/Gnuplot.jl.svg?branch=master)](https://travis-ci.org/gcalderone/Gnuplot.jl)
 
-**Gnuplot.jl** allows easy and fast use
-of [Gnuplot](http://gnuplot.info/) as data visualization tool in
-Julia.  Its main features are:
+**Gnuplot.jl** allows easy and fast use of [Gnuplot](http://gnuplot.info/) as data visualization tool in Julia.  Its main features are:
 
-- transparent interface between Julia and gnuplot to exploit all
-  functionalities of the latter, both present and future ones;
+- transparent interface between Julia and gnuplot to exploit all functionalities of the latter, both present and future ones;
   
-- fast data transmission to gnuplot through system pipes (no temporary
-  files involved);
+- fast data transmission to gnuplot through system pipes (no temporary files involved);
   
 - handles multiple gnuplot process simultaneously;
 
@@ -19,354 +15,180 @@ Julia.  Its main features are:
 
 - save sessions into gnuplot scripts;
 
-- extremely concise syntax (see examples below) makes it ideal for
-  interactive data exploration;
+- extremely concise syntax (see examples below) makes it ideal for interactive data exploration;
 
 - very easy to use: if you know gnuplot you're ready to go.
 
 
-The purpose is similar to
-the [Gaston](https://github.com/mbaz/Gaston.jl) package, but
-**Gnuplot.jl** main focus is on on the syntax conciseness and ease of
-use.
+The purpose is similar to the [Gaston](https://github.com/mbaz/Gaston.jl) package, but **Gnuplot.jl** main focus is on on the syntax conciseness and ease of use.
 
 
 ## Installation
 In the Julia REPL type:
 
 ``` julia
-Pkg.clone("https://github.com/gcalderone/Gnuplot.jl.git")
+Pkg.add("Gnuplot")
 ```
 
-You'll also need gnuplot (ver. >= 4.7) installed on your system.
+You'll also need [gnuplot](http://gnuplot.info/) (ver. >= 4.7) installed on your system.
 
 
 ## Usage:
-Here we will show a very basic usage:
+The simplemost plot ever can be generated with just 8 characters:
+``` Julia
+using Gnuplot
+@gp 1:10
+```
+
+A slightly more complicated one showing a parabola with a solid line and a title:
+``` Julia
+using Gnuplot
+x = 1:10
+@gp x x.^2 "w l tit 'Parabola'"
+```
+
+A real life example showing some random noise generated data:
 
 ``` Julia
 using Gnuplot
 
 # Create some noisy data...
-x = collect(linspace(-2pi, 2pi, 100));
+x = linspace(-2pi, 2pi, 100);
 y = 1.5 * sin.(0.3 + 0.7x) ;
 noise = randn(length(x))./2;
 e = 0.5 * ones(x);
 
 # ...and show them using gnuplot.
-@gp("set key horizontal", "set grid",
-    xrange=(-7,7), ylabel="Y label",
+@gp("set key horizontal", "set grid", title="My title",
+    xrange=(-7,7), ylabel="Y label", xlab="X label", 
     x, y, "w l t 'Real model' dt 2 lw 2 lc rgb 'red'",
     x, y+noise, e, "w errorbars t 'Data'");
 ```
-That's it for the first plot, the syntax should be familiar to most
-gnuplot users.  With this code we:
+
+That's it for the first plots. The syntax should be familiar to most gnuplot users, with this code we:
 - set a few gnuplot properties (`key` and `grid`);
 - set the X axis range and Y axis label;
 - passed the data to gnuplot;
-- plot two data sets specifying a few details (style, line
-  width, color, legend, etc...).
+- plot two data sets specifying a few details (style, line width, color, legend, etc...).
 
-Note that this simple example already covers the vast majority of use
-cases, since the remaining details of the plot can be easily tweaked
-by adding the appropriate gnuplot command.  Also note that you would
-barely recognize the Julia language by just looking at the `@gp` call
-since **Gnuplot.jl** aims to be mostly transparent: the user is
-supposed to focus only on the data and on the gnuplot commands, rather
-than the package details.
+Note that this simple example already covers the vast majority of use cases, since the remaining details of the plot can be easily tweaked by adding the appropriate gnuplot command.  Also note that you would barely recognize the Julia language by just looking at the `@gp` call since **Gnuplot.jl** aims to be mostly transparent: the user is supposed to focus only on the data and on the gnuplot commands, rather than the package details.
 
 Let's have a look to the REPL output of the above command (this may
 differ on your computer since we used random numbers):
 ```Julia
-GP(nothing) Starting a new gnuplot process...
-GP(nothing) Found gnuplot version: 5.0.0
-GP(1) New session started with handle 1
-GP(1) -> reset session
-GP(1) -> set key horizontal
-GP(1) -> set grid
-GP(1) -> set xrange [-7:7]
-GP(1) -> set ylabel 'Y label'
-GP(1) -> $d1_1 << EOD
-GP(1) ->  -6.283185307179586 1.225887340796837
-GP(1) ->  -6.156252270670907 1.1443471266509504
-GP(1) ->  -6.029319234162229 1.05377837392046
-GP(1) ...
-GP(1) ->  6.029319234162229 -1.4724753107714488
-GP(1) ->  6.156252270670907 -1.4920483708151848
-GP(1) ->  6.283185307179586 -1.4998496389154883
-GP(1) -> EOD
-GP(1) -> $d1_2 << EOD
-GP(1) ->  -6.283185307179586 2.5763863845120527 0.5
-GP(1) ->  -6.156252270670907 1.1957471376063518 0.5
-GP(1) ->  -6.029319234162229 1.1841824882108178 0.5
-GP(1) ...
-GP(1) ->  6.029319234162229 -1.186685251966976 0.5
-GP(1) ->  6.156252270670907 -0.4268692113198256 0.5
-GP(1) ->  6.283185307179586 -1.4503668565815566 0.5
-GP(1) -> EOD
-GP(1) -> plot \
-GP(1) ->   $d1_1 w l t 'Real model' dt 2 lw 2 lc rgb 'red', \
-GP(1) ->   $d1_2 w errorbars t 'Data'
-GP(1) -> 
+GNUPLOT (1) -> reset session
+GNUPLOT (1) -> 
+GNUPLOT (1) -> set key horizontal
+GNUPLOT (1) -> set grid
+GNUPLOT (1) -> set xrange [-7:7]
+GNUPLOT (1) -> set ylabel 'Y label'
+GNUPLOT (1) -> $data0 << EOD
+GNUPLOT (1) ->  -6.283185307179586 1.2258873407968363
+GNUPLOT (1) ->  -6.156252270670907 1.1443471266509504
+GNUPLOT (1) ->  -6.029319234162229 1.05377837392046
+GNUPLOT (1) -> ...
+GNUPLOT (1) -> EOD
+GNUPLOT (1) -> $data1 << EOD
+GNUPLOT (1) ->  -6.283185307179586 1.770587856071291 0.5
+GNUPLOT (1) ->  -6.156252270670907 0.9350095514668977 0.5
+GNUPLOT (1) ->  -6.029319234162229 0.8960704540397358 0.5
+GNUPLOT (1) -> ...
+GNUPLOT (1) -> EOD
+GNUPLOT (1) -> plot  \
+  $data0 w l t 'Real model' dt 2 lw 2 lc rgb 'red', \
+  $data1 w errorbars t 'Data'
 ```
-
-The **Gnuplot.jl** (note the leading `GP`...) package tells us that it
-is starting a new gnuplot process (version 5.0.0) and the number of
-the handle for the current session.  It also shows several lines
-starting with ` -> `, meaning "sent to gnuplot", with all the commands
-and almost all the data being sent.  The gnuplot replies are also
-printed, but they lack the ` -> ` string.  To change the amount of
-lines being printed you may set a different verbosity level (see
-documentation for `Gnuplot.setOption`) as an integer between 0 (no log
-at all) and 4 (lots of lines printed).  The default value is 2.
-
-Before proceeding we will brief discuss the four symbols exported
-by the package:
-- `@gp`: the *swiss army knife* of the package, it allows to send
-  command and data to gnuplot, and produce very complex plots;
-- `@gpi`: very similar to `@gp`, but it allows to build a plot in
-  several calls, rather than a single `@gp` call;
-- `@gp_str`: run simple gnuplot commands
-  using a
-  [non-standard string literal](https://docs.julialang.org/en/stable/manual/strings/#non-standard-string-literals-1),
-  e.g.
+The **Gnuplot.jl** package (note the leading `GNUPLOT`...) tells us which commands are being sent to the gnuplot process and the ID of the current gnuplot session (see below).  The **Gnuplot.jl** package will also print the replies from gnuplot, e.g.:
 ``` Julia
-gp"print GPVAL_TERM"
+julia> GnuplotGet("GPVAL_TERM");
+GNUPLOT (1) -> print GPVAL_TERM
+GNUPLOT (1)    qt
 ```
-- `@gp_cmd`: load a gnuplot script file using a non-standard string literal, e.g.
+Note the lack of ` -> ` and the different color in the reply (if your terminal is able to display colors).  You may tune the amount of lines being printed by the **Gnuplot.jl** package setting a specific verbosity level as an integer number between 0 and 4, e.g.:
 ``` Julia
-gp`test.gp`
+@gp verb=1
 ```
+The default verbosity level is 4.
 
-The last two macros are supposed to be used only in the REPL, not in
-Julia function.  As you can see there is not much more to know before
-starting *gnuplotting*!
 
-Actually the **Gnuplot.jl** package hides much more under the hood as
-we will show below.  Let's discuss some more advanced usage: fit the
-data (with gnuplot) and overplot the results.
+So far we have shown how to produce plots with a single command, however such task can also be break into multiple statements by using `@gpi` in place of `@gp`.  The syntax is exactly the same, but we should explicitly take care of resetting the gnuplot session (by using the `0` number) and send the final plot commands (using the `:.` symbol), e.g.:
 ``` Julia
-const gp = Gnuplot  # use an alias for the package name to quickly
-                    # access non exported symbols.
-                    
-# Define the fitting function and set guess param.
-gp.cmd("f(x) = a * sin(b + c*x); a = 1; b = 1; c = 1;")
+# Reset the gnuplot session and give the dataset the name :aa
+@gpi 0 x y+noise e :aa
 
-# Fit the data
-gp.cmd("fit f(x) $(gp.lastData()) u 1:2:3 via a, b, c;")
+# Define a model function to be fitted
+@gpi "f(x) = a * sin(b + c*x); a = 1; b = 1; c = 1;"
 
-# Overplot the fitted model
-gp.plot("f(x) w l lw 2 t 'Fit'")
+# Fit the function to the :aa dataset
+@gpi "fit f(x) \$aa u 1:2:3 via a, b, c;"
 
-# Get param values
-(a, b, c) = parse.(Float64, gp.getVal("a", "b", "c"))
+# Prepare a multiplot showing the data, the model...
+@gpi "set multiplot layout 2,1"
+@gpi "plot \$aa w points tit 'Data'" ylab="Data and model"
+@gpi "plot \$aa u 1:(f(\$1)) w lines tit 'Best fit'"
 
-# Add param. values in the title
-gp.cmd(title="Fit param: " * @sprintf("a=%5.2f, b=%5.2f, c=%5.2f", a, b ,c))
-       
-# Refresh the plot
-gp.dump()
+# ... and the residuals (the `2` here refer to the second plot in the multiplot.  Also note the `:.` symbol has last argument which triggers the actual plot generation.
+@gpi 2 xlab="X label" ylab="Residuals"
+@gpi "plot \$aa u 1:((f(\$1)-\$2) / \$3):(1) w errorbars notit"  :.
 ```
-Here we introduced a few new functions:
-- `Gnuplot.cmd`: send gnuplot commands;
-- `Gnuplot.lastData`: returns the name of the last data block
-  sent to gnuplot;
-- `Gnuplot.plot`: add a new plot;
-- `Gnuplot.getVal`: retrieve values from gnuplot;
-- `Gnuplot.dump`: send the required commands to refresh the plot.
 
-The documentation for each of these functions can be retrieved with
-the `@doc` macro or by typing `?` in the REPL followed by the function
-name.
+Further documentation for the `@gp` and `@gpi` macros is available in the REPL by means of the `@doc` macro or by typing `?` in the REPL followed by the macro name.
 
-Besides these functions however, the strings still contain gnuplot
-syntax.
 
-Note that these functions operates on the data and status we set up in
-the previous example, i.e. we are operating in a **session**.  This
-allow to build a plot step by step and (optionally) to dump all data
-and commands on a gnuplot script file, to be edited/used outside
-Julia.  All **Gnuplot.jl** functions always operate on the so-called
-*current* session, but users can change it using `Gnuplot.setCurrent`.
 
-Now we will introduce a few more functions designed to produce
-multiplots:
+### Multiple gnuplot istances
+
+The **Gnuplot.jl** package can handle multiple gnuplot istances simultaneously, each idenitified by a unique identifier (ID).  The purpose of such identifier, as shown on the log, is to distinguish which istance is producing the log.  The package, however,  will send commands to only one istance at a time, the so called *current* istance.  If there is no current istance a default one will be created.
+
+The commands to start a new gnuplot istance and make it the current one are:
+``` Julia
+gp = GnuplotProc()
+setCurrent(gp)
 ```
-gp.multi("layout 2,1")
-gp.next() 
-gp.cmd(tit="", xlab="X label", ylab="Residuals")
-gp.plot(gp.lastData() * " u 1:((f(x)-\$2)/\$3):(1) w errorbars notit")
-gp.dump()
-```
-- `Gnuplot.multi`: initialize a multiplot session.  This is typically
-  used at the beginning of the session but it can also be used after
-  the first plot;
-- `Gnuplot.next`: select to the next plot in the multiplot session.
-  
-Note that now we set the Y axis label with `ylab=...`, while we used
-`ylabel=...` in a previous example.  This is not a typo, but a desired
-behavior: all keywords in the **Gnuplot.jl** functions can
-be [abbreviated](https://github.com/gcalderone/AbbrvKW.jl) as long as
-the provided names allow complete disambiguation.  
-  
-Although these functions provide great flexibility they can almost
-always be replaced by simpler (and shorter) `@gp` or `@gpi` calls.
-The whole plot can be reproduced with:
+The current istance can be retrieved with `getCurrent()`.
+
+A gnuplot istance can be made temporarily current (for a single `@gp` call) by passing it as an argument, e.g.:
 
 ``` Julia
-# Compute the model in Julia
-m = a * sin.(b + c * x)
+# Plot using current istance
+x = 1:10
+@gp x x.^2
 
-# Start a new gnuplot process (to see the output in another window)
-gp.session()
+# Create a new istance and use it as "temporarily current"
+new = GnuplotProc()
+@gp new x x.^2
 
-# Plot again using the @gp macro.
-title = "Fit param: " * @sprintf("a=%5.2f, b=%5.2f, c=%5.2f", a, b ,c)
-@gp("set key horizontal", "set grid",
-    :multi, "layout 2,1",
-    title=title, ylab="Y label",
-    x, y, "w l dt 1 lw 2 t 'Real model'",
-    x, y+noise, e, "w errorbars t 'Data'",
-    x, m, "w l lw 2 t 'Fit'",
-    :next,
-    tit="", xlab="X label", ylab="Residuals",
-    x, (m-y-noise)./e, ones(e), "w errorbars notit")
+# Go back to the previous istance
+@gp x x.^2 "w l"
 ```
-It is often instructive to check how the macro expands to understand
-what's going on.  The expansion of the last `@gp` call is:
+
+
+The `GnuplotProc` accepts a string argument (to specify a custom location of the gnuplot executable) and a keyword (`default`, to specify a newline separated list of commands to be sent to the new istance).  E.g.
 ``` Julia
-Gnuplot.reset()
-begin 
-    Gnuplot.cmd("set key horizontal")
-    Gnuplot.cmd("set grid")
-    Gnuplot.multi("layout 2,1")
-    Gnuplot.cmd(title=title)
-    Gnuplot.cmd(ylab="Y label")
-    Gnuplot.data(x, y)
-    Gnuplot.plot(last=true, "w l dt 1 lw 2 t 'Real model'")
-    Gnuplot.data(x, y + noise, e)
-    Gnuplot.plot(last=true, "w errorbars t 'Data'")
-    Gnuplot.data(x, m)
-    Gnuplot.plot(last=true, "w l lw 2 t 'Fit'")
-    Gnuplot.next()
-    Gnuplot.cmd(tit="")
-    Gnuplot.cmd(xlab="X label")
-    Gnuplot.cmd(ylab="Residuals")
-    Gnuplot.data(x, ((m - y) - noise) ./ e, ones(e))
-    Gnuplot.plot(last=true, "w errorbars notit")
-end
-Gnuplot.dump()
+gp = GnuplotProc("/path/to/gnuplot/executable", default="set term wxt")
 ```
-Here a few new functions appeared:
-- `Gnuplot.session`: start a new gnuplot process and initialize a new session;
-- `Gnuplot.reset`: reset the gnuplot session;
-- `Gnuplot.data`: send data to gnuplot in the form of a data block.
+will run gnuplot from the specified path and will set the `wxt` terminal each time the session is initialized.
 
-The `@gpi` macro works exactly like the `@gp` one, but it doesn't add
-the wrapping `reset` and `dump` calls, hence it is suited to build a
-plot step by step.
-
-
-Finally, let's save all the data and commands on a gnuplot script, and
-close all the sessions:
+An istance and the associated gnuplot process can be terminated by a call to `GnuplotQuit`, specifying either its ID, e.g.:
+``` Julia
+julia> GnuplotQuit(1)
+GNUPLOT (1)    pipe closed
+GNUPLOT (1)    pipe closed
+GNUPLOT (1)    Process exited with status 0
+0
 ```
-# Save the gnuplot session in a file
-gp.dump(file="test.gp");
-
-# Quit all gnuplot sessions
-gp.exitAll()
-```
-Note that we used again the `Gnuplot.dump` function, but we added the
-`file=` keyword which tells `dump` to redirect all data and commands
-on a file rather than on the gnuplot pipe.
-
-Now you can quit Julia and load/modify `test.gp` directly in gnuplot or
-any other program.  If you want to load it again from the Julia REPL:
+or providing the istance object, e.g.:
 
 ``` Julia
-using Gnuplot
-gp`test.gp`
+julia> new = GnuplotProc()
+julia> @gp new x x.^2
+julia> GnuplotQuit(new)
+GNUPLOT (2)    pipe closed
+GNUPLOT (2)    pipe closed
+GNUPLOT (2)    Process exited with status 0
+0
 ```
-
-Further examples may be found in `test/runtests.jl`.
-
+Note that `GnuplotQuit` returns the exit code of the underlying gnuplot process.  Alternatively you can use `GnuplotQuitAll()`  to terminate all active istances.
 
 
-## List of functions in the package (by category):
 
-The documentation for each of these functions can be retrieved with
-the `@doc` macro or by typing `?` in the REPL followed by the function
-name.
-
-### Get/set options:
-
-- `Gnuplot.getStartup`: return the gnuplot command(s) to be executed
-at the beginning of each session;
-
-- `Gnuplot.getSpawnCmd`: return the command used to spawn a gnuplot
-process;
-
-- `Gnuplot.getVerbose`: return the verbosity level;
-
-- `Gnuplot.setOption: set package options.
-
-
-### Session handling:
-
-- `Gnuplot.handles`: return a `Vector{Int}` of  available session handles;
-- `Gnuplot.current`: return the handle of the current session;
-- `Gnuplot.setCurrent`: change the current session;
-- `Gnuplot.session`: create a new session (by starting a new gnuplot
-process) and make it the
-current one;
-- `Gnuplot.exit`: close current session and quit the corresponding gnuplot
-process;
-- `Gnuplot.exitAll`: repeatedly call `gp.exit` until all sessions are
-closed;
-
-
-### Send data and commands to Gnuplot:
-
-- `Gnuplot.send`: send a string to the current session's gnuplot pipe
-(without saving it in the current session);
-
-- `Gnuplot.reset`: send a "reset session" command to gnuplot and delete all commands,
-data, and plots in the current session;
-
-- `Gnuplot.cmd`: send a command to gnuplot process and store it in the
-current session;
-
-- `Gnuplot.data`: send data to the gnuplot process and store it in the
-current session;
-
-- `Gnuplot.lastData`: return the name of the last data block;
-
-- `Gnuplot.getVal`: return the value of one (or more) gnuplot variables;
-
-- `Gnuplot.plot`: add a new plot/splot comand to the current session;
-
-- `Gnuplot.multi`: initialize multiplot;
-
-- `Gnuplot.next`: select next slot for multiplot sessions;
-
-- `Gnuplot.dump`: send all necessary commands to gnuplot to do/refresh the
-plot.  Optionally, the commands and data can be sent to a file.
-
-
-### Misc.:
-- `Gnuplot.terminals`: return the list of available gnuplot terminal.
-- `Gnuplot.terminal`: return the current gnuplot terminal.
-
-
-### Symbols exported by **Gnuplot.jl**
-- `@gp`: the *swiss army knife* of the package, it allows to send
-  command and data to gnuplot, and produce very complex plots;
-- `@gpi`: very similar to `@gp`, but it allows to build a plot in
-  several calls, rather than a single `@gp` call;
-- `@gp_str`: run simple gnuplot commands
-  using a
-  [non-standard string literal](https://docs.julialang.org/en/stable/manual/strings/#non-standard-string-literals-1);
-- `@gp_cmd`: load a gnuplot script file using a non-standard string literal.
-
-The last two macros are supposed to be used only in the REPL, not in
-Julia function.
