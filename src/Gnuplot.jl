@@ -4,6 +4,10 @@ module Gnuplot
 
 using AbbrvKW
 
+import Base.send
+import Base.reset
+
+
 ######################################################################
 # Exported symbols
 ######################################################################
@@ -203,24 +207,24 @@ end
 
 #---------------------------------------------------------------------
 """
-# gpSend
+# send
 
 Send a string to gnuplot's STDIN.
 
-The commands sent through `gpSend` are not stored in the current
+The commands sent through `send` are not stored in the current
 session (use `addCmd` to save commands in the current session).
 
 ## Example:
 ```
 gp = GnuplotProc()
-gpSend(gp, "plot sin(x)")
+send(gp, "plot sin(x)")
 ```
 
 ## Arguments:
 - `gp`: a GnuplotProc or GnuplotSession object;
 - `str::String`: command to be sent.
 """
-function gpSend(gp::GnuplotProc, str::AbstractString, capture=false)
+function send(gp::GnuplotProc, str::AbstractString, capture=false)
     (capture)  &&  (write(gp.pin, "print 'GNUPLOT_CAPTURE_BEGIN'\n"))
     w = write(gp.pin, strip(str) * "\n")
     logIn(gp, str)
@@ -242,11 +246,11 @@ end
 
 #---------------------------------------------------------------------
 """
-# gpReset
+# reset
 
 Delete all commands, data, and plots in the gnuplot session.
 """
-function gpReset(gp::GnuplotSession)
+function reset(gp::GnuplotSession)
     gp.blockCnt = 0
     gp.data = Vector{inputData}()
     gp.plot = [inputPlot()]
@@ -256,15 +260,15 @@ function gpReset(gp::GnuplotSession)
 end
 
 """
-# gpReset
+# reset
 
 Send a 'reset session' command to gnuplot and delete all commands,
 data, and plots in the associated session.
 """
-function gpReset(gp::GnuplotProc)
-    gpReset(gp.session)
-    gpSend(gp, "reset session")
-    gpSend(gp, gp.session.defCmd)
+function reset(gp::GnuplotProc)
+    reset(gp.session)
+    send(gp, "reset session")
+    send(gp, gp.session.defCmd)
     return nothing
 end
 
@@ -393,7 +397,9 @@ setMultiID(gp::GnuplotProc, id::Int) = setMultiID(gp.session, id)
 
 #---------------------------------------------------------------------
 function setSplot(gp::GnuplotSession, splot::Bool)
-    gp.plot[gp.multiID].splot = splot
+    if splot
+        gp.plot[gp.multiID].splot = splot
+    end
 end
 setSplot(gp::GnuplotProc, splot::Bool) = setSplot(gp.session, splot)
 
@@ -420,7 +426,7 @@ end
 
 function addCmd(gp::GnuplotProc, s::String; id::Int=0)
     addCmd(gp.session, s, id=id)
-    (length(gp.session.plot) == 1)  &&  (gpSend(gp, s))
+    (length(gp.session.plot) == 1)  &&  (send(gp, s))
 end
 
 function addCmd(gp::GnuplotProc; id::Int=0, args...)
@@ -489,7 +495,7 @@ Optionally, the commands may be sent to a file or returned as a
         (file != "")         &&  (println(sfile , s))
         (stream != nothing)  &&  (println(stream, s))
         (asArray)            &&  (push!(ret, s))
-        (dump2Gp)            &&  (gpSend(gp, s))
+        (dump2Gp)            &&  (send(gp, s))
         return nothing
     end
 
@@ -593,13 +599,15 @@ function gpDriver(args...)
         elseif typeof(arg) == Symbol
             if arg == :.
                 addDump = true
+            elseif arg == :splot
+                setSplot(gp, true)
             else
                 dataName = string(arg)
                 endOfData()
             end
         elseif isa(arg, Int)
             if arg == 0
-                gpReset(gp)
+                reset(gp)
             else
                 endOfData("")
                 setMultiID(gp, arg)
@@ -811,7 +819,7 @@ println("Current gnuplot terminal is: ", GnuplotGet("GPVAL_TERM"))
 """
 function GnuplotGet(gp::GnuplotProc, var::String)
     out = Vector{String}()
-    answer = gpSend(gp, "print $var", true)
+    answer = send(gp, "print $var", true)
     for line in answer
         if length(search(line, "undefined variable:")) > 0
             error(line)
@@ -1077,7 +1085,7 @@ splot '\$grid' matrix with lines notitle
 """
 macro gp_str(s::String)
     for v in split(s, "\n")
-        gpSend(getCurrent(), string(v))
+        send(getCurrent(), string(v))
     end
     return nothing
 end
@@ -1095,13 +1103,12 @@ functions.
 
 Example:
 ```
-@gp (1:10).^3 "w l notit lw 4"
-gpDump(gp, file="test.gp")
+@gp (1:10).^3 "w l notit lw 4" file="test.gp"
 gp`test.gp`
 ```
 """
 macro gp_cmd(file::String)
-    return gpSend(getCurrent(), "load '$file'")
+    return send(getCurrent(), "load '$file'")
 end
 
 end #module

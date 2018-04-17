@@ -2,7 +2,7 @@ using Base.Test
 using Gnuplot
 
 function gp_test()
-    x = collect(1.:100)
+    x = collect(1.:100);
 
     #-----------------------------------------------------------------
     gp1 = GnuplotProc()
@@ -38,6 +38,7 @@ function gp_test()
     @gp x y :aa "plot \$aa w l" "pl \$aa u 1:(2*\$2) w l"
 
     @gp randn(Float64, 30, 50)
+    @gp :splot x y y
 
     @gp("set key horizontal", "set grid",
         xrange=(-7,7), ylabel="Y label",
