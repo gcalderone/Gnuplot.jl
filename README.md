@@ -42,7 +42,6 @@ using Gnuplot
 
 A slightly more complicated one showing a parabola with a solid line and a title:
 ``` Julia
-using Gnuplot
 x = 1:10
 @gp x x.^2 "w l tit 'Parabola'"
 ```
@@ -50,8 +49,6 @@ x = 1:10
 A real life example showing some random noise generated data:
 
 ``` Julia
-using Gnuplot
-
 # Create some noisy data...
 x = linspace(-2pi, 2pi, 100);
 y = 1.5 * sin.(0.3 + 0.7x) ;
@@ -68,7 +65,7 @@ e = 0.5 * ones(x);
 That's it for the first plots. The syntax should be familiar to most gnuplot users, with this code we:
 - set a few gnuplot properties (`key` and `grid`);
 - set the X axis range and Y axis label;
-- passed the data to gnuplot;
+- send the data to gnuplot;
 - plot two data sets specifying a few details (style, line width, color, legend, etc...).
 
 Note that this simple example already covers the vast majority of use cases, since the remaining details of the plot can be easily tweaked by adding the appropriate gnuplot command.  Also note that you would barely recognize the Julia language by just looking at the `@gp` call since **Gnuplot.jl** aims to be mostly transparent: the user is supposed to focus only on the data and on the gnuplot commands, rather than the package details.
@@ -80,8 +77,10 @@ GNUPLOT (1) -> reset session
 GNUPLOT (1) -> 
 GNUPLOT (1) -> set key horizontal
 GNUPLOT (1) -> set grid
+GNUPLOT (1) -> set title  'My title'
 GNUPLOT (1) -> set xrange [-7:7]
 GNUPLOT (1) -> set ylabel 'Y label'
+GNUPLOT (1) -> set xlabel 'X label'
 GNUPLOT (1) -> $data0 << EOD
 GNUPLOT (1) ->  -6.283185307179586 1.2258873407968363
 GNUPLOT (1) ->  -6.156252270670907 1.1443471266509504
@@ -89,9 +88,9 @@ GNUPLOT (1) ->  -6.029319234162229 1.05377837392046
 GNUPLOT (1) -> ...
 GNUPLOT (1) -> EOD
 GNUPLOT (1) -> $data1 << EOD
-GNUPLOT (1) ->  -6.283185307179586 1.770587856071291 0.5
-GNUPLOT (1) ->  -6.156252270670907 0.9350095514668977 0.5
-GNUPLOT (1) ->  -6.029319234162229 0.8960704540397358 0.5
+GNUPLOT (1) ->  -6.283185307179586 2.25743603855675 0.5
+GNUPLOT (1) ->  -6.156252270670907 0.8313068798234011 0.5
+GNUPLOT (1) ->  -6.029319234162229 0.6077957618755075 0.5
 GNUPLOT (1) -> ...
 GNUPLOT (1) -> EOD
 GNUPLOT (1) -> plot  \
@@ -111,28 +110,35 @@ Note the lack of ` -> ` and the different color in the reply (if your terminal i
 The default verbosity level is 4.
 
 
-So far we have shown how to produce plots with a single command, however such task can also be break into multiple statements by using `@gpi` in place of `@gp`.  The syntax is exactly the same, but we should explicitly take care of resetting the gnuplot session (by using the `0` number) and send the final plot commands (using the `:.` symbol), e.g.:
+So far we have shown how to produce plots with a single command, however such task can also be performed using multiple statements.  The syntax is exactly the same, but we should use the `:-` symbol at the beginning of each statement (ecept the first) and at the end of each statement (except the last), e.g.:
 ``` Julia
 # Reset the gnuplot session and give the dataset the name :aa
-@gpi 0 x y+noise e :aa
+@gp x y+noise e :aa :-
 
 # Define a model function to be fitted
-@gpi "f(x) = a * sin(b + c*x); a = 1; b = 1; c = 1;"
+@gp :- "f(x) = a * sin(b + c*x); a = 1; b = 1; c = 1;"  :-
 
 # Fit the function to the :aa dataset
-@gpi "fit f(x) \$aa u 1:2:3 via a, b, c;"
+@gp :- "fit f(x) \$aa u 1:2:3 via a, b, c;" :-
 
 # Prepare a multiplot showing the data, the model...
-@gpi "set multiplot layout 2,1"
-@gpi "plot \$aa w points tit 'Data'" ylab="Data and model"
-@gpi "plot \$aa u 1:(f(\$1)) w lines tit 'Best fit'"
+@gp :- "set multiplot layout 2,1" :-
+@gp :- "plot \$aa w points tit 'Data'" ylab="Data and model" :-
+@gp :- "plot \$aa u 1:(f(\$1)) w lines tit 'Best fit'" :-
 
-# ... and the residuals (the `2` here refer to the second plot in the multiplot.  Also note the `:.` symbol has last argument which triggers the actual plot generation.
-@gpi 2 xlab="X label" ylab="Residuals"
-@gpi "plot \$aa u 1:((f(\$1)-\$2) / \$3):(1) w errorbars notit"  :.
+# ... and the residuals (the `2` here refer to the second plot in the multiplot.
+@gp :- 2 xlab="X label" ylab="Residuals" :-
+@gp :- "plot \$aa u 1:((f(\$1)-\$2) / \$3):(1) w errorbars notit"
 ```
 
-Further documentation for the `@gp` and `@gpi` macros is available in the REPL by means of the `@doc` macro or by typing `?` in the REPL followed by the macro name.
+The **Gnuplot.jl** package also provide support for 3D plots using the `@gsp` macro in place of `@gp`, e.g.:
+
+``` Julia
+@gsp randn(Float64, 30, 50)
+```
+
+
+Further documentation for the `@gp` and `@gsp` macros is available in the REPL by means of the `@doc` macro or by typing `?` in the REPL followed by the macro name.
 
 
 
@@ -189,6 +195,3 @@ GNUPLOT (2)    Process exited with status 0
 0
 ```
 Note that `GnuplotQuit` returns the exit code of the underlying gnuplot process.  Alternatively you can use `GnuplotQuitAll()`  to terminate all active istances.
-
-
-

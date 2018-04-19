@@ -3,6 +3,7 @@ __precompile__(true)
 module Gnuplot
 
 using AbbrvKW
+using ColorTypes
 
 import Base.send
 import Base.reset
@@ -14,7 +15,7 @@ import Base.reset
 
 export CheckGnuplotVersion, GnuplotSession, GnuplotProc,
     GnuplotQuit, GnuplotQuitAll, GnuplotGet, setCurrent, getCurrent,
-    @gp, @gpi, @gp_str, @gp_cmd
+    @gp, @gsp, @gp_str, @gp_cmd
 
 
 ######################################################################
@@ -274,7 +275,7 @@ end
 
 
 #---------------------------------------------------------------------
-function addData(gp::GnuplotSession, data::Vararg{AbstractArray{T},M}; name="") where {T<:Number,M}
+function addData(gp::GnuplotSession, args...; name="")
     if name == ""
         name = string("data", gp.blockCnt)
         gp.blockCnt += 1
@@ -282,86 +283,131 @@ function addData(gp::GnuplotSession, data::Vararg{AbstractArray{T},M}; name="") 
     name = "\$$name"
 
     # Check dimensions
-    dimX = (size(data[1]))[1]
-    dimY = 0
-    is2D = false
-    first1D = 0
-    coordX = Vector{Float64}()
-    coordY = Vector{Float64}()
-    for i in length(data):-1:1
-        d = data[i]
-        @assert ndims(d) <=2 "Array dimensions must be <= 2"
+    maxDim = 0
+    for iarg in 1:length(args)
+        d = args[iarg]
+        ok = false
+        if typeof(d) <: AbstractArray
+            if typeof(d[1]) <: Number
+                ok = true
+            end
+            if typeof(d[1]) <: ColorTypes.RGB
+                ok = true
+            end
+        end
+        if ndims(d) > maxDim
+            maxDim = ndims(d)
+        end
 
-        if ndims(d) == 2
-            dimY == 0  &&  (dimY = (size(d))[2])
+        @assert ok "Invalid argument at position $iarg"
+        @assert maxDim <= 3 "Array dimensions must be <= 3"
+    end
+
+    dimX = 0
+    dimY = 0
+    dimZ = 0
+    count1D = 0
+    for iarg in 1:length(args)
+        d = args[iarg]
+        if ndims(d) == 1
+            count1D += 1
+
+            if maxDim == 1
+                (iarg == 1)  &&  (dimX = length(d))
+                @assert dimX == length(d) "Array size are incompatible"
+            else
+                (iarg == 1)  &&  (dimX = length(d))
+                (maxDim == 2)  &&  (iarg == 2)  &&  (dimY = length(d))
+                (maxDim == 3)  &&  (iarg == 3)  &&  (dimZ = length(d))
+                @assert iarg <= maxDim "2D and 3D data must be given at the end of argument list"
+            end
+        elseif ndims(d) == 2
+            if iarg == 1
+                dimX = (size(d))[1]
+                dimY = (size(d))[2]
+            end
             @assert dimX == (size(d))[1] "Array size are incompatible"
             @assert dimY == (size(d))[2] "Array size are incompatible"
-            @assert first1D == 0 "2D data must be given at the end of argument list"
-            is2D = true
-        end
-
-        if ndims(d) == 1
-            if !is2D
-                @assert dimX == (size(d))[1] "Array size are incompatible"
-            else
-                @assert i <= 2 "When 2D data are given only the first two arrays must be 1D"
-
-                if i == 1
-                    @assert dimX == (size(d))[1] "Array size are incompatible"
-                end
-                if i == 2
-                    @assert dimY == (size(d))[1] "Array size are incompatible"
-                end
+            @assert dimZ == 0 "Mixing 2D and 3D data is not allowed"
+        elseif ndims(d) == 3
+            if iarg == 1
+                dimX = (size(d))[1]
+                dimY = (size(d))[2]
+                dimZ = (size(d))[3]
             end
-
-            first1D = i
+            @assert dimX == (size(d))[1] "Array size are incompatible"
+            @assert dimY == (size(d))[2] "Array size are incompatible"
+            @assert dimZ == (size(d))[3] "Array size are incompatible"
         end
     end
-    if is2D
-        if ndims(data[1]) == 1
-            @assert ndims(data[2]) == 1 "Only one coordinate of a 2D dataset has been given"
-            coordX = deepcopy(data[1])
-            coordY = deepcopy(data[2])
-        else
-            coordX = collect(1.:1.:dimX)
-            coordY = collect(1.:1.:dimY)
-        end
+    if (dimZ > 0)  &&  (count1D != 0)  &&  (count1D != 3)
+        error("Either zero or three 1D arrays must be given before 3D data")
+    elseif (dimY > 0)  &&  (count1D != 0)  &&  (count1D != 2)
+        error("Either zero or two 1D arrays must be given before 2D data")
     end
 
+    # Prepare data
     v = "$name << EOD"
     push!(gp.data, inputData(v))
 
-    if !is2D
-        for i in 1:dimX
-            v = ""
-            for j in 1:length(data)
-                v *= " " * string(data[j][i])
+    if dimZ > 0 # 3D
+        for ix in 1:dimX
+            for iy in 1:dimY
+                for iz in 1:dimZ
+                    if count1D == 0
+                        v = string(ix) * " " * string(iy) * " " * string(iz)
+                    else
+                        v = string(args[1][ix]) * " " * string(args[2][iy]) * " " * string(args[3][iz])
+                    end
+                    for iarg in count1D+1:length(args)
+                        d = args[iarg]
+                        v *= " " * string(d[ix,iy,iz])
+                    end
+                    push!(gp.data, inputData(v))
+                end
             end
-            push!(gp.data, inputData(v))
+            push!(gp.data, inputData(""))
         end
-    else
-        for i in 1:dimX
-            for j in 1:dimY
-                v = string(coordX[i]) * " " * string(coordY[j])
-                for d in data
-                    ndims(d) == 1  &&  (continue)
-                    v *= " " * string(d[i,j])
+    elseif dimY > 0  # 2D
+        for ix in 1:dimX
+            for iy in 1:dimY
+                if count1D == 0
+                    v = string(ix) * " " * string(iy)
+                else
+                    v = string(args[1][ix]) * " " * string(args[2][iy])
+                end
+                for iarg in count1D+1:length(args)
+                    d = args[iarg]
+                    if typeof(d[ix,iy]) <: ColorTypes.RGB
+                        tmp = d[ix,iy]
+                        v *= " " * string(float(tmp.r)*255) * " " * string(float(tmp.g)*255) * " " * string(float(tmp.b)*255)
+                    else
+                        v *= " " * string(d[ix,iy])
+                    end
                 end
                 push!(gp.data, inputData(v))
             end
             push!(gp.data, inputData(""))
         end
+    else # 1D
+        for ix in 1:dimX
+            v = ""
+            for iarg in 1:length(args)
+                d = args[iarg]
+                v *= " " * string(d[ix])
+            end
+            push!(gp.data, inputData(v))
+        end
     end
 
-    v = "EOD"
-    push!(gp.data, inputData(v))
+    push!(gp.data, inputData("EOD"))
 
-    return (name, is2D)
+    return name
 end
 
 
-function addData(gp::GnuplotProc, data::Vararg{AbstractArray{T},M}; name="") where {T<:Number,M}
-    name = addData(gp.session, data..., name=name)
+function addData(gp::GnuplotProc, args...; name="")
+    name = addData(gp.session, args..., name=name)
 
     first = true
     count = 0
@@ -397,9 +443,7 @@ setMultiID(gp::GnuplotProc, id::Int) = setMultiID(gp.session, id)
 
 #---------------------------------------------------------------------
 function setSplot(gp::GnuplotSession, splot::Bool)
-    if splot
-        gp.plot[gp.multiID].splot = splot
-    end
+    gp.plot[gp.multiID].splot = splot
 end
 setSplot(gp::GnuplotProc, splot::Bool) = setSplot(gp.session, splot)
 
@@ -533,48 +577,29 @@ end
 
 
 #---------------------------------------------------------------------
-function gpDriver(args...)
-    gp = nothing
-    for arg in args
-        if  typeof(arg) == GnuplotProc   ||
-            typeof(arg) == GnuplotSession
-            gp = arg
-        end
-    end
-    if gp == nothing
-        gp = getCurrent()
-    end
-
+function gpDriver(splot, args...)
     if length(args) == 0
-        #gpDump(gp)
+        gpDump(getCurrent())
         return nothing
     end
 
+    gp = nothing
     eData = Vector{Any}()
     dataName = ""
-    addDump  = false
+    addDump  = true
     term = ("", "")
     file=""
     stream=nothing
 
     function endOfData(associatedPlot=nothing)
         if length(eData) > 0
-            (last, splot) = addData(gp, eData...; name=dataName)
+            last = addData(gp, eData...; name=dataName)
             if associatedPlot != nothing
-                setSplot(gp, splot)
                 addPlot(gp, last, associatedPlot)
             end
         end
         eData = Vector{Any}()
         dataName = ""
-    end
-    function endOfStream(forceDump::Bool)
-        endOfData("")
-        (forceDump  ||  addDump)  &&  (gpDump(gp; term=term, file=file, stream=stream))
-        addDump  = false
-        term = ("", "")
-        file=""
-        stream=nothing
     end
     function isPlotCmd(s::String)
         (length(s) >= 2)  &&  (s[1:2] ==  "p "    )  &&  (return (true, false, strip(s[2:end])))
@@ -595,23 +620,33 @@ function gpDriver(args...)
 
         if  typeof(arg) == GnuplotProc   ||
             typeof(arg) == GnuplotSession
+            gp = arg
+        end
+        if gp == nothing
+            gp = getCurrent()
+        end
+        if iarg == 1
+            if (typeof(arg) != Symbol)  ||  (arg != :-)
+                reset(gp)
+            end
+            setSplot(gp, splot)
+        end
+        if  typeof(arg) == GnuplotProc   ||
+            typeof(arg) == GnuplotSession
             continue
-        elseif typeof(arg) == Symbol
-            if arg == :.
-                addDump = true
-            elseif arg == :splot
-                setSplot(gp, true)
+        end
+
+        if typeof(arg) == Symbol
+            if arg == :-
+                (iarg == length(args))  &&  (addDump = false)
             else
                 dataName = string(arg)
                 endOfData()
             end
         elseif isa(arg, Int)
-            if arg == 0
-                reset(gp)
-            else
-                endOfData("")
-                setMultiID(gp, arg)
-            end
+            @assert arg > 0
+            endOfData("")
+            setMultiID(gp, arg)
         elseif isa(arg, String)
             # Either a plot or cmd string
             if length(eData) > 0
@@ -650,7 +685,9 @@ function gpDriver(args...)
             push!(eData, arg)
         end
     end
-    endOfStream(false)
+
+    endOfData("")
+    (addDump)  &&  (gpDump(gp; term=term, file=file, stream=stream))
 
     return nothing
 end
@@ -862,20 +899,26 @@ end
 """
 # @gp
 
-The `@gp` (and its companion `@gpi`) allows to exploit all of the
-**Gnuplot** package functionalities using an extremely efficient and
-concise syntax.
+The `@gp`, and its companion `@gsp`(to be used for the `splot`
+operations) allows to exploit all of the **Gnuplot** package
+functionalities using an extremely efficient and concise syntax.  Both
+macros accept the same syntax, described below:
 
-The `@gp` accepts any number of arguments, with the following meaning:
+The `@gp` macro accepts any number of arguments, with the following
+meaning:
 - a string: a command (e.g. "set key left") or plot specification;
-- a `GnuplotProc` or `GnuplotSession` object: set the current sink;
+- a `GnuplotProc` or `GnuplotSession` object: set the current destination;
 - a symbol: specifies the data set name;
 - an `Int`: if >0 set the current plot destination (if multiplot is
-  enabled).  If 0 reset the whole session.
+  enabled);
 - a keyword: set the keyword value (see below);
 - any other data type: data to be passed to Gnuplot.  Each dataset
   must be terminated by either: a symbol (i.e. the data set name) or a
-  string with the plot specifications (e.g. "with lines").
+  string with the plot specifications (e.g. "with lines");
+- the `:-` symbol, used as first argument, avoids resetting the
+Gnuplot session.  Used as last argument avoids immediate execution of
+the plot/splot command.  This symbol can be used to split a single
+`@gp` call in multiple ones.
 
 All entries are optional, and there is no mandatory order.  The plot
 specification can either be: a complete plot/splot command (e.g.,
@@ -941,8 +984,8 @@ should use the `@gpi` macro instead, with exaclty the same syntax as
 @gp "plo sin(x)" "s cos(x)"
 
 # Split a `@gp` call in two
-@gpi 0 "plot sin(x)"
-@gpi "plot cos(x)" :.
+@gp "plot sin(x)" :-
+@gp :- "plot cos(x)"
 
 # Insert a 3 second pause between one plot and the next
 @gp "plot sin(x)" 2 xr=(-2pi,2pi) "pause 3" "plot cos(4*x)"
@@ -975,11 +1018,11 @@ lw = 3
     4, "p sin(4*x)")
 
 # or equivalently
-@gpi 0 xr=(-2pi,2pi) "unset key" "set multi layout 2,2 title 'Multiplot title'"
+@gp xr=(-2pi,2pi) "unset key" "set multi layout 2,2 title 'Multiplot title'" :-
 for i in 1:4
-  @gpi i "p sin(\$i*x)"
+  @gp :- i "p sin(\$i*x)" :-
 end
-@gpi :.
+@gp
 
 
 # Multiple gnuplot instances
@@ -999,7 +1042,9 @@ noise = randn(length(x))./2;
 e = 0.5 * ones(x);
 
 @gp verb=2 x y :aa "plot \\\$aa w l" "pl \\\$aa u 1:(2*\\\$2) w l"
-@gp randn(Float64, 30, 50)
+
+@gsp randn(Float64, 30, 50)
+@gp randn(Float64, 30, 50) "w image"
 
 @gp("set key horizontal", "set grid",
     xrange=(-7,7), ylabel="Y label",
@@ -1007,36 +1052,57 @@ e = 0.5 * ones(x);
     x, y+noise, e, "w errorbars t 'Data'");
 
 
-@gpi 0 "f(x) = a * sin(b + c*x); a = 1; b = 1; c = 1;"
-@gpi x y+noise e :aa
-@gpi "fit f(x) \\\$aa u 1:2:3 via a, b, c;"
-@gpi "set multiplot layout 2,1"
-@gpi "plot \\\$aa w points tit 'Data'" ylab="Data and model"
-@gpi "plot \\\$aa u 1:(f(\\\$1)) w lines tit 'Best fit'"
-@gpi 2 xlab="X label" ylab="Residuals"
-@gpi "plot \\\$aa u 1:((f(\\\$1)-\\\$2) / \\\$3):(1) w errorbars notit"  :.
+@gp "f(x) = a * sin(b + c*x); a = 1; b = 1; c = 1;"            :-
+@gp :- x y+noise e :aa                                         :-
+@gp :- "fit f(x) \\\$aa u 1:2:3 via a, b, c;"                  :-
+@gp :- "set multiplot layout 2,1"                              :-
+@gp :- "plot \\\$aa w points tit 'Data'" ylab="Data and model" :-
+@gp :- "plot \\\$aa u 1:(f(\\\$1)) w lines tit 'Best fit'"     :-
+@gp :- 2 xlab="X label" ylab="Residuals"                       :-
+@gp :- "plot \\\$aa u 1:((f(\\\$1)-\\\$2) / \\\$3):(1) w errorbars notit"
 
+# Display an image
+using TestImages
+img = testimage("lena");
+@gp img "w image"
+@gp "set size square" img "w rgbimage" # Color image with correct proportions
+@gp "set size square" img "u 2:(-\\\$1):3:4:5 with rgbimage" # Correct orientation
 ```
 """
 macro gp(args...)
-    esc_args = Vector{Any}()
-    for arg in args
-        push!(esc_args, esc(arg))
-    end
-    e = :(@gpi(0, $(esc_args...), :.))
+    # esc_args = Vector{Any}()
+    # for arg in args
+    #     push!(esc_args, esc(arg))
+    # end
+    # e = :(@gp(splot=true, $(esc_args...)))
+    # return e
 
-    return e
+    out = Expr(:call)
+    push!(out.args, :(Gnuplot.gpDriver))
+    push!(out.args, false)
+    for iarg in 1:length(args)
+        arg = args[iarg ]
+        if (isa(arg, Expr)  &&  (arg.head == :(=)))
+            sym = string(arg.args[1])
+            val = arg.args[2]
+            push!(out.args, :((Symbol($sym),$val)))
+        else
+            push!(out.args, arg)
+        end
+    end
+    return esc(out)
 end
 
 
 """
-# @gpi
+# @gsp
 
 See documentation for `@gp`.
 """
-macro gpi(args...)
+macro gsp(args...)
     out = Expr(:call)
     push!(out.args, :(Gnuplot.gpDriver))
+    push!(out.args, true)
     for iarg in 1:length(args)
         arg = args[iarg ]
         if (isa(arg, Expr)  &&  (arg.head == :(=)))

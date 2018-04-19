@@ -22,11 +22,11 @@ function gp_test()
     @gp "plot sin(x)" "pl cos(x)"
     @gp "plo sin(x)" "s cos(x)"
 
-    @gpi 0 "plot sin(x)"
-    @gpi "plot cos(x)" :.
+    @gp "plot sin(x)" :-
+    @gp :- "plot cos(x)"
 
 
-    @gp "plot sin(x)" 2 xr=(-2pi,2pi) "pause 3" "plot cos(4*x)"
+    @gp "plot sin(x)" 2 xr=(-2pi,2pi) "pause 2" "plot cos(4*x)"
     
     x = linspace(-2pi, 2pi, 100);
     y = 1.5 * sin.(0.3 + 0.7x) ;
@@ -37,8 +37,9 @@ function gp_test()
     @gp x y "w l"
     @gp x y :aa "plot \$aa w l" "pl \$aa u 1:(2*\$2) w l"
 
-    @gp randn(Float64, 30, 50)
-    @gp :splot x y y
+    @gsp randn(Float64, 30, 50)
+    @gp randn(Float64, 30, 50) "w image"
+    @gsp x y y
 
     @gp("set key horizontal", "set grid",
         xrange=(-7,7), ylabel="Y label",
@@ -46,14 +47,14 @@ function gp_test()
         x, y+noise, e, "w errorbars t 'Data'");
 
     
-    @gpi 0 "f(x) = a * sin(b + c*x); a = 1; b = 1; c = 1;"
-    @gpi x y+noise e :aa
-    @gpi "fit f(x) \$aa u 1:2:3 via a, b, c;"
-    @gpi "set multiplot layout 2,1"
-    @gpi "plot \$aa w points" ylab="Data and model"
-    @gpi "plot \$aa u 1:(f(\$1)) w lines"
-    @gpi 2 xlab="X label" ylab="Residuals"
-    @gpi "plot \$aa u 1:((f(\$1)-\$2) / \$3):(1) w errorbars notit"  :.
+    @gp "f(x) = a * sin(b + c*x); a = 1; b = 1; c = 1;"   :-
+    @gp :- x y+noise e :aa                                :-
+    @gp :- "fit f(x) \$aa u 1:2:3 via a, b, c;"           :-
+    @gp :- "set multiplot layout 2,1"                     :-
+    @gp :- "plot \$aa w points" ylab="Data and model"     :-
+    @gp :- "plot \$aa u 1:(f(\$1)) w lines"               :-
+    @gp :- 2 xlab="X label" ylab="Residuals"              :- 
+    @gp :- "plot \$aa u 1:((f(\$1)-\$2) / \$3):(1) w errorbars notit"
 
 
     #-----------------------------------------------------------------
