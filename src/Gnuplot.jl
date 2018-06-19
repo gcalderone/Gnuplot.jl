@@ -110,6 +110,13 @@ function logData(gp::GnuplotProc, s::AbstractString)
     return nothing
 end
 
+function logData(gp::GnuplotProc, v::Vector{T}) where T <: AbstractString
+    for s in v
+        logData(gp, s)
+    end
+    return nothing
+end
+
 function logOut(gp::GnuplotProc, s::AbstractString)
     (gp.verbosity < 2)  &&  return nothing
     print_with_color(:cyan       , "GNUPLOT ($(gp.id))    $s\n")
@@ -183,6 +190,7 @@ end
                                 xrange::Union{Void,NTuple{2, Number}}=nothing,
                                 yrange::Union{Void,NTuple{2, Number}}=nothing,
                                 zrange::Union{Void,NTuple{2, Number}}=nothing,
+                                cbrange::Union{Void,NTuple{2, Number}}=nothing,
                                 title::Union{Void,String}=nothing,
                                 xlabel::Union{Void,String}=nothing,
                                 ylabel::Union{Void,String}=nothing,
@@ -195,6 +203,7 @@ end
     xrange == nothing  ||  (push!(out, "set xrange [" * join(xrange, ":") * "]"))
     yrange == nothing  ||  (push!(out, "set yrange [" * join(yrange, ":") * "]"))
     zrange == nothing  ||  (push!(out, "set zrange [" * join(zrange, ":") * "]"))
+    cbrange == nothing ||  (push!(out, "set cbrange [" * join(cbrange, ":") * "]"))
     title  == nothing  ||  (push!(out, "set title  '" * title  * "'"))
     xlabel == nothing  ||  (push!(out, "set xlabel '" * xlabel * "'"))
     ylabel == nothing  ||  (push!(out, "set ylabel '" * ylabel * "'"))
@@ -276,6 +285,10 @@ end
 
 #---------------------------------------------------------------------
 function addData(gp::GnuplotSession, args...; name="")
+    function toString(n::Number)
+        return @sprintf("%.4g", n)
+    end
+
     if name == ""
         name = string("data", gp.blockCnt)
         gp.blockCnt += 1
@@ -286,8 +299,11 @@ function addData(gp::GnuplotSession, args...; name="")
     maxDim = 0
     for iarg in 1:length(args)
         d = args[iarg]
+
         ok = false
-        if typeof(d) <: AbstractArray
+        if typeof(d) <: Number
+            ok = true
+        elseif typeof(d) <: AbstractArray
             if typeof(d[1]) <: Number
                 ok = true
             end
@@ -309,9 +325,10 @@ function addData(gp::GnuplotSession, args...; name="")
     count1D = 0
     for iarg in 1:length(args)
         d = args[iarg]
-        if ndims(d) == 1
+        if ndims(d) == 0
+            @assert maxDim == 0 "Input data are ambiguous: use use all scalar floats or arrays of floats"
+        elseif ndims(d) == 1
             count1D += 1
-
             if maxDim == 1
                 (iarg == 1)  &&  (dimX = length(d))
                 @assert dimX == length(d) "Array size are incompatible"
@@ -382,14 +399,14 @@ function addData(gp::GnuplotSession, args...; name="")
                         tmp = d[ix,iy]
                         v *= " " * string(float(tmp.r)*255) * " " * string(float(tmp.g)*255) * " " * string(float(tmp.b)*255)
                     else
-                        v *= " " * string(d[ix,iy])
+                        v *= " " * toString(d[ix,iy])
                     end
                 end
                 push!(gp.data, inputData(v))
             end
             push!(gp.data, inputData(""))
         end
-    else # 1D
+    elseif dimX > 0  # 1D
         for ix in 1:dimX
             v = ""
             for iarg in 1:length(args)
@@ -398,6 +415,13 @@ function addData(gp::GnuplotSession, args...; name="")
             end
             push!(gp.data, inputData(v))
         end
+    else # scalars
+        v = ""
+        for iarg in 1:length(args)
+            d = args[iarg]
+            v *= " " * string(d)
+        end
+        push!(gp.data, inputData(v))
     end
 
     push!(gp.data, inputData("EOD"))
@@ -409,23 +433,23 @@ end
 function addData(gp::GnuplotProc, args...; name="")
     name = addData(gp.session, args..., name=name)
 
-    first = true
-    count = 0
-    for v in gp.session.data
-        (v.sent)  &&  (continue)
+    i = find(.!getfield.(gp.session.data, :sent))
+    if length(i) > 0
+        v = getfield.(gp.session.data[i], :str)
+        push!(v, " ")
         if gp.verbosity >= 4
-            (v.str == "EOD")  &&  (count = -1)
-            if count < 4
-                logData(gp, v.str)
-            elseif count == 4
+            if length(v) > 4
+                logData(gp, v[1:4])
                 logData(gp, "...")
+            else
+                logData(gp, v)
             end
-            count += 1
         end
-        w = write(gp.pin, v.str*"\n")
-        v.sent = true
+        vv = join(v, "\n")
+        w = write(gp.pin, vv)
+        flush(gp.pin)
+        setfield!.(gp.session.data[i], :sent, true)
     end
-
     return name
 end
 
@@ -937,6 +961,7 @@ The list of accepted keyword is as follows:
 - `xrange::NTuple{2, Number}`: X axis range;
 - `yrange::NTuple{2, Number}`: Y axis range;
 - `zrange::NTuple{2, Number}`: Z axis range;
+- `cbrange::NTuple{2, Number}`: Color box axis range;
 
 The symbol for the above-mentioned keywords may also be used in a
 shortened form, as long as there is no ambiguity with other keywords.
