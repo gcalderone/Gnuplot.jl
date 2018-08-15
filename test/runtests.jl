@@ -1,4 +1,3 @@
-using Base.Test
 using Gnuplot
 
 function gp_test()
@@ -28,10 +27,10 @@ function gp_test()
 
     @gp "plot sin(x)" 2 xr=(-2pi,2pi) "pause 2" "plot cos(4*x)"
     
-    x = linspace(-2pi, 2pi, 100);
-    y = 1.5 * sin.(0.3 + 0.7x) ;
+    x = range(-2pi, stop=2pi, length=100);
+    y = 1.5 * sin.(0.3 .+ 0.7x) ;
     noise = randn(length(x))./2;
-    e = 0.5 * ones(x);
+    e = 0.5 * fill(1, size(x));
 
     @gp x y
     @gp x y "w l"
@@ -124,4 +123,5 @@ function gp_test()
     return true
 end
 
-@test gp_test()
+
+gp_test()

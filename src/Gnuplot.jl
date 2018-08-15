@@ -2,10 +2,10 @@ __precompile__(true)
 
 module Gnuplot
 
-using AbbrvKW
+using NormalizeStructure
 using ColorTypes
+using Printf
 
-import Base.send
 import Base.reset
 
 
@@ -100,13 +100,13 @@ level.
 """
 function logIn(gp::GnuplotProc, s::AbstractString)
     (gp.verbosity < 1)  &&  return nothing
-    print_with_color(:yellow     , "GNUPLOT ($(gp.id)) -> $s\n")
+    printstyled(color=:yellow     , "GNUPLOT ($(gp.id)) -> $s\n")
     return nothing
 end
 
 function logData(gp::GnuplotProc, s::AbstractString)
     (gp.verbosity < 4)  &&  return nothing
-    print_with_color(:light_black, "GNUPLOT ($(gp.id)) -> $s\n")
+    printstyled(color=:light_black, "GNUPLOT ($(gp.id)) -> $s\n")
     return nothing
 end
 
@@ -119,19 +119,19 @@ end
 
 function logOut(gp::GnuplotProc, s::AbstractString)
     (gp.verbosity < 2)  &&  return nothing
-    print_with_color(:cyan       , "GNUPLOT ($(gp.id))    $s\n")
+    printstyled(color=:cyan       , "GNUPLOT ($(gp.id))    $s\n")
     return nothing
 end
 
 function logErr(gp::GnuplotProc, s::AbstractString)
     (gp.verbosity < 3)  &&  return nothing
-    print_with_color(:cyan       , "GNUPLOT ($(gp.id))    $s\n")
+    printstyled(color=:cyan       , "GNUPLOT ($(gp.id))    $s\n")
     return nothing
 end
 
 function logCaptured(gp::GnuplotProc, s::AbstractString)
     (gp.verbosity < 3)  &&  return nothing
-    print_with_color(:green      , "GNUPLOT ($(gp.id))    $s\n")
+    printstyled(color=:green      , "GNUPLOT ($(gp.id))    $s\n")
     return nothing
 end
 
@@ -186,31 +186,32 @@ end
 
 
 #---------------------------------------------------------------------
-@AbbrvKW function parseKeywords(;
-                                xrange::Union{Void,NTuple{2, Number}}=nothing,
-                                yrange::Union{Void,NTuple{2, Number}}=nothing,
-                                zrange::Union{Void,NTuple{2, Number}}=nothing,
-                                cbrange::Union{Void,NTuple{2, Number}}=nothing,
-                                title::Union{Void,String}=nothing,
-                                xlabel::Union{Void,String}=nothing,
-                                ylabel::Union{Void,String}=nothing,
-                                zlabel::Union{Void,String}=nothing,
-                                xlog::Union{Void,Bool}=nothing,
-                                ylog::Union{Void,Bool}=nothing,
-                                zlog::Union{Void,Bool}=nothing)
+function parseKeywords(; kwargs...)
+    template = (xrange=NTuple{2, Number},
+                yrange=NTuple{2, Number},
+                zrange=NTuple{2, Number},
+                cbrange=NTuple{2, Number},
+                title=String,
+                xlabel=String,
+                ylabel=String,
+                zlabel=String,
+                xlog=Bool,
+                ylog=Bool,
+                zlog=Bool)
 
+    kw = NormalizeStructure.normalize(template; kwargs...)
     out = Vector{String}()
-    xrange == nothing  ||  (push!(out, "set xrange [" * join(xrange, ":") * "]"))
-    yrange == nothing  ||  (push!(out, "set yrange [" * join(yrange, ":") * "]"))
-    zrange == nothing  ||  (push!(out, "set zrange [" * join(zrange, ":") * "]"))
-    cbrange == nothing ||  (push!(out, "set cbrange [" * join(cbrange, ":") * "]"))
-    title  == nothing  ||  (push!(out, "set title  '" * title  * "'"))
-    xlabel == nothing  ||  (push!(out, "set xlabel '" * xlabel * "'"))
-    ylabel == nothing  ||  (push!(out, "set ylabel '" * ylabel * "'"))
-    zlabel == nothing  ||  (push!(out, "set zlabel '" * zlabel * "'"))
-    xlog   == nothing  ||  (push!(out, (xlog  ?  ""  :  "un") * "set logscale x"))
-    ylog   == nothing  ||  (push!(out, (ylog  ?  ""  :  "un") * "set logscale y"))
-    zlog   == nothing  ||  (push!(out, (zlog  ?  ""  :  "un") * "set logscale z"))
+    ismissing(kw.xrange ) || (push!(out, "set xrange  [" * join(kw.xrange , ":") * "]"))
+    ismissing(kw.yrange ) || (push!(out, "set yrange  [" * join(kw.yrange , ":") * "]"))
+    ismissing(kw.zrange ) || (push!(out, "set zrange  [" * join(kw.zrange , ":") * "]"))
+    ismissing(kw.cbrange) || (push!(out, "set cbrange [" * join(kw.cbrange, ":") * "]"))
+    ismissing(kw.title  ) || (push!(out, "set title  '" * kw.title  * "'"))
+    ismissing(kw.xlabel ) || (push!(out, "set xlabel '" * kw.xlabel * "'"))
+    ismissing(kw.ylabel ) || (push!(out, "set ylabel '" * kw.ylabel * "'"))
+    ismissing(kw.zlabel ) || (push!(out, "set zlabel '" * kw.zlabel * "'"))
+    ismissing(kw.xlog   ) || (push!(out, (kw.xlog  ?  ""  :  "un") * "set logscale x"))
+    ismissing(kw.ylog   ) || (push!(out, (kw.ylog  ?  ""  :  "un") * "set logscale y"))
+    ismissing(kw.zlog   ) || (push!(out, (kw.zlog  ?  ""  :  "un") * "set logscale z"))
     return out
 end
 
@@ -433,7 +434,7 @@ end
 function addData(gp::GnuplotProc, args...; name="")
     name = addData(gp.session, args..., name=name)
 
-    i = find(.!getfield.(gp.session.data, :sent))
+    i = findall(.!getfield.(gp.session.data, :sent))
     if length(i) > 0
         v = getfield.(gp.session.data[i], :str)
         push!(v, " ")
@@ -521,8 +522,8 @@ Send all necessary commands to gnuplot to actually do the plot.
 Optionally, the commands may be sent to a file or returned as a
 `Vector{String}`.
 """
-@AbbrvKW function gpDump(gp::Union{GnuplotSession,GnuplotProc};
-                         term=("", ""), file="", stream=nothing, asArray=false)
+function gpDump(gp::Union{GnuplotSession,GnuplotProc};
+                term=("", ""), file="", stream=nothing, asArray=false)
 
     session = (typeof(gp) == GnuplotProc  ?  gp.session  :  gp)
     ret = Vector{String}()
@@ -538,7 +539,7 @@ Optionally, the commands may be sent to a file or returned as a
         if typeof(gp) == GnuplotProc
             dump2Gp = true
         else
-            stream = STDOUT
+            stream = stdout
         end
     end
 
@@ -702,7 +703,7 @@ function gpDriver(splot, args...)
                 stream = arg[2]
             else
                 # A cmd keyword
-                addCmd(gp; arg)
+                addCmd(gp; [arg]...)
             end
         else
             # A data set
@@ -731,9 +732,10 @@ blocks).
 """
 function CheckGnuplotVersion(cmd::String)
     icmd = `$(cmd) --version`
-    out, procs = open(`$icmd`, "r")
-    s = String(read(out))
-    if !success(procs)
+
+    proc = open(`$icmd`, read=true)
+    s = String(read(proc))
+    if !success(proc)
         error("An error occurred while running: " * string(icmd))
     end
 
@@ -749,12 +751,12 @@ function CheckGnuplotVersion(cmd::String)
 
     if ver < v"4.7"
         # Do not raise error in order to pass Travis CI test, since it has v4.6
-        warn("gnuplot ver. >= 4.7 is required, but " * string(ver) * " was found.")
+        @warn "gnuplot ver. >= 4.7 is required, but " * string(ver) * " was found."
     end
     if ver < v"4.6"
         error("gnuplot ver. >= 4.7 is required, but " * string(ver) * " was found.")
     end
-    info("Running gnuplot version: " * string(ver))
+    @info "Running gnuplot version: " * string(ver)
     return ver
 end
 
@@ -796,7 +798,7 @@ function GnuplotProc(cmd="gnuplot"; default="")
     pin  = Base.Pipe()
     pout = Base.Pipe()
     perr = Base.Pipe()
-    proc = spawn(`$cmd`, (pin, pout, perr))
+    proc = run(pipeline(`$cmd`, stdin=pin, stdout=pout, stderr=perr), wait=false)
 
     id = newID()
     out = GnuplotProc(id, pin, pout, perr, proc,
@@ -807,9 +809,9 @@ function GnuplotProc(cmd="gnuplot"; default="")
     g_state.obj[id] = out
 
     # Close unused sides of the pipes
-    Base.close_pipe_sync(out.pout.in)
-    Base.close_pipe_sync(out.perr.in)
-    Base.close_pipe_sync(out.pin.out)
+    Base.close(out.pout.in)
+    Base.close(out.perr.in)
+    Base.close(out.pin.out)
     Base.start_reading(out.pout.out)
     Base.start_reading(out.perr.out)
 
@@ -911,7 +913,7 @@ end
 function getCurrent()
     global g_state
     if !(g_state.id in keys(g_state.obj))
-        info("Creating default Gnuplot process...")
+        @info "Creating default Gnuplot process..."
         out = GnuplotProc()
         setCurrent(out)
     end
