@@ -1,6 +1,8 @@
 # Gnuplot.jl
 ## A Julia interface to Gnuplot.
 
+([v0.2.0](https://github.com/gcalderone/Gnuplot.jl/releases) is the last version working on Julia v0.6.  Newer versions works only on Julia v0.7/1.0).
+
 [![Build Status](https://travis-ci.org/gcalderone/Gnuplot.jl.svg?branch=master)](https://travis-ci.org/gcalderone/Gnuplot.jl)
 
 **Gnuplot.jl** allows easy and fast use of [Gnuplot](http://gnuplot.info/) as data visualization tool in Julia.  Its main features are:
