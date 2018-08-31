@@ -2,7 +2,7 @@ __precompile__(true)
 
 module Gnuplot
 
-using NormalizeStructure
+using StructC14N
 using ColorTypes
 using Printf
 
@@ -199,7 +199,7 @@ function parseKeywords(; kwargs...)
                 ylog=Bool,
                 zlog=Bool)
 
-    kw = NormalizeStructure.normalize(template; kwargs...)
+    kw = canonicalize(template; kwargs...)
     out = Vector{String}()
     ismissing(kw.xrange ) || (push!(out, "set xrange  [" * join(kw.xrange , ":") * "]"))
     ismissing(kw.yrange ) || (push!(out, "set yrange  [" * join(kw.yrange , ":") * "]"))
