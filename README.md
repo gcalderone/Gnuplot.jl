@@ -189,7 +189,7 @@ gnuplot> load 'test.gp'
 
 
 ### Direct execution of gnuplot commands
-Both the `@gp` and `@gsp` macros stores data and commands in the package state to allow using multiple statements for a single plot, or to save all data and commands on a script file.  However the user may directly execute command on the underlying gnuplot process using the `gpeval` function.  E.g. to retrieve the value of the fitting parameters of the previous example:
+Both the `@gp` and `@gsp` macros stores data and commands in the package state to allow using multiple statements for a single plot, or to save all data and commands on a script file.  However the user may directly execute command on the underlying gnuplot process using the `gpeval` function.  E.g., we can retrieve the values of the fitting parameters of the previous example:
 ```Julia
 # Retrieve values fr a, b and c
 a = parse(Float64, gpeval("print a"))
@@ -202,6 +202,4 @@ A session and the associated gnuplot process can be terminated by a call to `qui
 ``` Julia
 julia> quit(:GP1)
 ```
-while a call to `quitall()` will terminate all active sessions.
-
-
+A call to `quitall()` will terminate all active sessions.

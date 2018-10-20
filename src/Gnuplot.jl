@@ -186,6 +186,7 @@ function reset(gp::Session)
     return nothing
 end
 
+
 #---------------------------------------------------------------------
 function setmulti(gp::Session, id::Int)
     @assert id >= 0 "Multiplot ID must be a >= 0"
@@ -389,6 +390,7 @@ function parseKeywords(; kwargs...)
     return out
 end
 
+
 #---------------------------------------------------------------------
 """
   # addCmd
@@ -432,16 +434,6 @@ function quitsession(gp::Session)
     return exitcode
 end
 
-
-#---------------------------------------------------------------------
-function hist(v::Vector{T}; addright=false, closed::Symbol=:left, args...) where T <: AbstractFloat
-    i = findall(isfinite.(v))
-    hh = fit(Histogram, v[i]; closed=closed, args...)
-    if addright == 0
-        return PackedDataPlot([hh.edges[1], [hh.weights;0]], "", [], ["w steps"])
-    end
-    return PackedDataPlot([hh.edges[1], [0;hh.weights]], "", [], ["w fsteps"])
-end
 
 #---------------------------------------------------------------------
 function gpDump(gp::Session;
@@ -651,9 +643,15 @@ end
 """
   # gnuplot
   
-  Initialize a new session and (optionally) the associated Gnuplot process.  This is intended to use the package facilities to save the Gnuplot commands and data in a script file, rather than sending them to an actual process.
-  
-  The newly created session becomes the default sink for the @gp macro.
+  Initialize a new session and (optionally) the associated Gnuplot process
+
+  ## Arguments:
+  - `id`: the session name (a Julia symbol);
+
+  ## Optional keywords:
+  - `dry`: a boolean specifying whether the session should be a *dry* one, i.e. with no underlying gnuplot process (`default false`);
+
+  - `cmd`: a string specifying the complete file path to a gnuplot executable (default="gnuplot").
 """
 function gnuplot(id::Symbol; dry=false, cmd="gnuplot")
     if id in keys(state.sessions)
@@ -721,7 +719,7 @@ end
 """
   # quit
   
-  Quit the current session and the associated gnuplot process (if any).
+  Quit the session and the associated gnuplot process (if any).
 """
 function quit(id::Symbol)
     global state
@@ -750,26 +748,29 @@ end
 """
   # @gp
   
-  The `@gp`, and its companion `@gsp`(to be used for the `splot`
+  The `@gp` macro, and its companion `@gsp` (for `splot`
   operations) allows to exploit all of the **Gnuplot** package
   functionalities using an extremely efficient and concise syntax.  Both
   macros accept the same syntax, described below:
   
-  The `@gp` macro accepts any number of arguments, with the following
+  The macros accepts any number of arguments, with the following
   meaning:
-  - a string: a command (e.g. "set key left") or plot specification;
-  - a `Process` or `Session` object: set the current destination;
-  - a symbol: specifies the data set name;
-  - an `Int`: if >0 set the current plot destination (if multiplot is
+
+  - a symbol: the name of the session to use;
+  - a string: a command (e.g. "set key left") or plot specification
+    (e.g. "with lines");
+  - a string starting with a `\$` sign: specifies a data set name;
+  - an `Int` > 0: set the current plot destination (if multiplot is
     enabled);
   - a keyword: set the keyword value (see below);
-  - any other data type: data to be passed to Gnuplot.  Each dataset
-    must be terminated by either: a symbol (i.e. the data set name) or a
-    string with the plot specifications (e.g. "with lines");
+  - any other type: a dataset to be passed to Gnuplot.  Each dataset
+    must be terminated by either: a string starting with a `\$` sign
+    (i.e. the data set name) or a string with the plot specifications
+    (e.g. "with lines");
   - the `:-` symbol, used as first argument, avoids resetting the
-  Gnuplot session.  Used as last argument avoids immediate execution of
-  the plot/splot command.  This symbol can be used to split a single
-  `@gp` call in multiple ones.
+    Gnuplot session.  Used as last argument avoids immediate execution
+    of the plot/splot command.  This symbol can be used to split a
+    single call into multiple ones.
   
   All entries are optional, and there is no mandatory order.  The plot
   specification can either be: a complete plot/splot command (e.g.,
@@ -797,39 +798,16 @@ end
   Beside the above-mentioned keyword the following can also be used
   (although with no symbol shortening):
   
-  - verb=Int: a number between 0 and 4, to set the verbosity level;
-  - file="A string": send all the data and command to a file rather than
+  - verb=Int: 0 or 1, to set the verbosity level;
+  - file="output.gp": send all the data and command to a file rather than
     to a Gnuplot process;
-  - stream=A stream: send all the data and command to a stream rather than
+  - stream=: send all the data and command to a stream rather than
     to a Gnuplot process;
   - term="a string", or term=("a string", "a filename"): to specify the
     terminal (and optionally the output file);
   
-  
-  A rather simple example for the usage of `@gp` is as follows:
-  ```
-  @gp "set key left" tit="My title" xr=(1,12) 1:10 "with lines tit 'Data'"
-  ```
-  
-  In general, the `@gp` macro tries to figure out the appropriate
-  meaning of each arugment to allows an easy and straightforward use of
-  the underlying Gnuplot process.
-  
-  The `@gp` macro always send a "reset session" command to Gnuplot at
-  the beginning, and always run all the given commands at the end,
-  i.e. it is supposed to be used in cases where all data/commands are
-  provided in a single `@gp` call.
-  
-  To split the call in several statements, avoiding a session reset at
-  the beginning and an automatic execution of all commands at then, you
-  should use the `@gpi` macro instead, with exaclty the same syntax as
-  `@gp`.  The `@gpi` macro also accepts the following arguments:
-  - the `0` number to reset the whole session;
-  - the `:.` symbol to send all commands to Gnuplot.
-  
-  
   ## Examples:
-  ```
+
   # Simple examples with no data
   @gp "plot sin(x)"
   @gp "plot sin(x)" "pl cos(x)"
@@ -843,6 +821,8 @@ end
   @gp "plot sin(x)" 2 xr=(-2pi,2pi) "pause 3" "plot cos(4*x)"
   
   # Simple examples with data:
+  @gp "set key left" tit="My title" xr=(1,12) 1:10 "with lines tit 'Data'"
+
   x = collect(1.:10)
   @gp x
   @gp x x
@@ -860,7 +840,6 @@ end
       x, x     , "w l tit 'Pow 1'   dt 1 lw 3 lc rgb 'blue'",
       x, x.^2  , "w l tit 'Pow 2'   dt 3 lw 2 lc rgb 'purple'")
   
-  
   # Multiplot example:
   @gp(xr=(-2pi,2pi), "unset key",
       "set multi layout 2,2 title 'Multiplot title'",
@@ -876,22 +855,17 @@ end
   end
   @gp
   
-  
   # Multiple gnuplot instances
-  gp1 = Process(default="set term wxt")
-  gp2 = Process(default="set term qt")
-  
-  @gp gp1 "plot sin(x)"
-  @gp gp2 "plot sin(x)"
+  @gp :GP1 "plot sin(x)"
+  @gp :GP2 "plot sin(x)"
   
   quitall()
   
-  
   # Further examples
-  x = linspace(-2pi, 2pi, 100);
-  y = 1.5 * sin.(0.3 + 0.7x) ;
+  x = range(-2pi, stop=2pi, length=100);
+  y = 1.5 * sin.(0.3 .+ 0.7x) ;
   noise = randn(length(x))./2;
-  e = 0.5 * ones(x);
+  e = 0.5 * fill(1, size(x));
   
   @gp verb=2 x y :aa "plot \\\$aa w l" "pl \\\$aa u 1:(2*\\\$2) w l"
   
@@ -902,7 +876,6 @@ end
       xrange=(-7,7), ylabel="Y label",
       x, y, "w l t 'Real model' dt 2 lw 2 lc rgb 'red'",
       x, y+noise, e, "w errorbars t 'Data'");
-  
   
   @gp "f(x) = a * sin(b + c*x); a = 1; b = 1; c = 1;"            :-
   @gp :- x y+noise e :aa                                         :-
@@ -940,7 +913,7 @@ end
 
 """
   # @gsp
-  
+
   See documentation for `@gp`.
 """
 macro gsp(args...)
@@ -980,39 +953,15 @@ end
 
 #---------------------------------------------------------------------
 """
-  # @gp_str
+  # gpeval
   
-  Send a non-standard string literal to Gnuplot
-  
-  NOTE: this is supposed to be used interactively on the REPL, not in
+  Directly execute commands on the underlying gnuplot process, and return the result(s).
   functions.
   
   ## Examples:
   ```
-  gp"print GPVAL_TERM"
-  gp"plot sin(x)"
-  
-  gp"
-  set title \\"3D surface from a grid (matrix) of Z values\\"
-  set xrange [-0.5:4.5]
-  set yrange [-0.5:4.5]
-  
-  set grid
-  set hidden3d
-  \$grid << EOD
-  5 4 3 1 0
-  2 2 0 0 1
-  0 0 0 1 0
-  0 0 0 2 3
-  0 1 2 4 3
-  EOD
-  splot '\$grid' matrix with lines notitle
-  "
-  ```
-
-  ## Example
-  ```
-  println("Current gnuplot terminal is: ", repl("print GPVAL_TERM"))
+  gpeval("print GPVAL_TERM")
+  gpeval("plot sin(x)")
   ```
 """
 function gpeval(id::Symbol, s::Vector{String})
@@ -1030,5 +979,15 @@ function gpeval(s::String)
 end
 gpeval(id::Symbol, s::String) = gpeval(id, [s])
 
+
+#---------------------------------------------------------------------
+function hist(v::Vector{T}; addright=false, closed::Symbol=:left, args...) where T <: AbstractFloat
+    i = findall(isfinite.(v))
+    hh = fit(Histogram, v[i]; closed=closed, args...)
+    if addright == 0
+        return PackedDataPlot([hh.edges[1], [hh.weights;0]], "", [], ["w steps"])
+    end
+    return PackedDataPlot([hh.edges[1], [0;hh.weights]], "", [], ["w fsteps"])
+end
 
 end #module
