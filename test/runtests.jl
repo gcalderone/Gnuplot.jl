@@ -34,8 +34,8 @@ function gp_test()
     @gp x y
     @gp x y "w l"
 
-    d = "\$aa"
-    @gp x y d "plot $d w l" "pl $d u 1:(2*\$2) w l"
+    name = "\$MyDataSet1"
+    @gp x y name "plot $name w l" "pl $name u 1:(2*\$2) w l"
 
     @gsp randn(Float64, 30, 50)
     @gp randn(Float64, 30, 50) "w image"
@@ -64,14 +64,14 @@ function gp_test()
     @gp    :dry "f(x) = a * sin(b + c*x); a = 1; b = 1; c = 1;"  :-
     @gp :- :dry "a = $a; b = $b; c = $c"                         :-
     @gp :- :dry "set multiplot layout 2,1" ylab="Data and model" :-
-    d = "\$aa"
-    @gp :- :dry x y+noise e d                                    :-
-    @gp :- :dry "plot $d w points"                               :-
-    @gp :- :dry "plot $d u 1:(f(\$1)) w lines"                   :-
+    name = "\$MyDataSet1"
+    @gp :- :dry x y+noise e name                                 :-
+    @gp :- :dry "plot $name w points"                            :-
+    @gp :- :dry "plot $name u 1:(f(\$1)) w lines"                :-
     @gp :- :dry 2 xlab="X label" ylab="Residuals"                :- 
-    @gp :- :dry "plot $d u 1:((f(\$1)-\$2) / \$3):(1) w errorbars notit" :-
-    @gp :- :dry file="test"   # write on file test
-    gpeval("load 'test'")     # load file test 
+    @gp :- :dry "plot $name u 1:((f(\$1)-\$2) / \$3):(1) w errorbars notit" :-
+    @gp :- :dry file="test.gp"   # write on file test
+    gpeval("load 'test.gp'")     # load file test 
     
     #-----------------------------------------------------------------
     @gp("""
