@@ -4,17 +4,13 @@ function gp_test()
     x = collect(1.:100);
 
     #-----------------------------------------------------------------
-    gp1 = GnuplotProc()
-    gp2 = GnuplotProc()
-    gp3 = GnuplotProc()
-
     for i in 1:10
-        @gp gp1 "plot sin($i*x)"
-        @gp gp2 "plot sin($i*x)"
-        @gp gp3 "plot sin($i*x)"
+        @gp :gp1 "plot sin($i*x)"
+        @gp :gp2 "plot sin($i*x)"
+        @gp :gp3 "plot sin($i*x)"
         sleep(0.3)
     end
-    GnuplotQuitAll()
+    quitall()
 
     #-----------------------------------------------------------------
     @gp "plot sin(x)"
@@ -32,9 +28,14 @@ function gp_test()
     noise = randn(length(x))./2;
     e = 0.5 * fill(1, size(x));
 
+    @gp hist(noise, nbins=10)
+
+    
     @gp x y
     @gp x y "w l"
-    @gp x y :aa "plot \$aa w l" "pl \$aa u 1:(2*\$2) w l"
+
+    d = "\$aa"
+    @gp x y d "plot $d w l" "pl $d u 1:(2*\$2) w l"
 
     @gsp randn(Float64, 30, 50)
     @gp randn(Float64, 30, 50) "w image"
@@ -43,11 +44,10 @@ function gp_test()
     @gp("set key horizontal", "set grid",
         xrange=(-7,7), ylabel="Y label",
         x, y, "w l t 'Real model' dt 2 lw 2 lc rgb 'red'",
-        x, y+noise, e, "w errorbars t 'Data'");
+        x, y+noise, e, "w errorbars t 'Data'")
 
-    
     @gp "f(x) = a * sin(b + c*x); a = 1; b = 1; c = 1;"   :-
-    @gp :- x y+noise e :aa                                :-
+    @gp :- x y+noise e "\$aa"                             :-
     @gp :- "fit f(x) \$aa u 1:2:3 via a, b, c;"           :-
     @gp :- "set multiplot layout 2,1"                     :-
     @gp :- "plot \$aa w points" ylab="Data and model"     :-
@@ -55,7 +55,24 @@ function gp_test()
     @gp :- 2 xlab="X label" ylab="Residuals"              :- 
     @gp :- "plot \$aa u 1:((f(\$1)-\$2) / \$3):(1) w errorbars notit"
 
-
+    # Retrieve values fr a, b and c
+    a = parse(Float64, gpeval("print a"))
+    b = parse(Float64, gpeval("print b"))
+    c = parse(Float64, gpeval("print c"))
+    
+    gnuplot(:dry, dry=true)
+    @gp    :dry "f(x) = a * sin(b + c*x); a = 1; b = 1; c = 1;"  :-
+    @gp :- :dry "a = $a; b = $b; c = $c"                         :-
+    @gp :- :dry "set multiplot layout 2,1" ylab="Data and model" :-
+    d = "\$aa"
+    @gp :- :dry x y+noise e d                                    :-
+    @gp :- :dry "plot $d w points"                               :-
+    @gp :- :dry "plot $d u 1:(f(\$1)) w lines"                   :-
+    @gp :- :dry 2 xlab="X label" ylab="Residuals"                :- 
+    @gp :- :dry "plot $d u 1:((f(\$1)-\$2) / \$3):(1) w errorbars notit" :-
+    @gp :- :dry file="test"   # write on file test
+    gpeval("load 'test'")     # load file test 
+    
     #-----------------------------------------------------------------
     @gp("""
         approx_1(x) = x - x**3/6
@@ -119,9 +136,8 @@ function gp_test()
 	    "splot x8, v, (u<0.5) ? -1 : sinc(x8,v) notitle",
 	    "splot x9, v, (u<0.5) ? -1 : sinc(x9,v) notitle")
 
-    GnuplotQuitAll()
+    quitall()
     return true
 end
-
 
 gp_test()
