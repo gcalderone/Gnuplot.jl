@@ -746,168 +746,175 @@ end
 
 #---------------------------------------------------------------------
 """
-  # @gp
+# @gp
 
-  The `@gp` macro, and its companion `@gsp` (for `splot` operations)
-  allows to exploit all of the **Gnuplot** package functionalities
-  using an extremely efficient and concise syntax.  Both macros accept
-  the same syntax, described below:
+The `@gp` macro, and its companion `@gsp` (for `splot` operations)
+allows to exploit all of the **Gnuplot** package functionalities
+using an extremely efficient and concise syntax.  Both macros accept
+the same syntax, described below:
 
-  The macros accepts any number of arguments, with the following
-  meaning:
+The macros accepts any number of arguments, with the following
+meaning:
 
-  - a symbol: the name of the session to use;
-  - a string: a command (e.g. "set key left") or plot specification
-    (e.g. "with lines");
-  - a string starting with a `\$` sign: specifies a data set name;
-  - an `Int` > 0: set the current plot destination (if multiplot is
-    enabled);
-  - a keyword: set the keyword value (see below);
-  - any other type: a dataset to be passed to Gnuplot.  Each dataset
-    must be terminated by either: a string starting with a `\$` sign
-    (i.e. the data set name) or a string with the plot specifications
-    (e.g. "with lines");
-  - the `:-` symbol, used as first argument, avoids resetting the
-    Gnuplot session.  Used as last argument avoids immediate execution
-    of the plot/splot command.  This symbol can be used to split a
-    single call into multiple ones.
+- a symbol: the name of the session to use;
+- a string: a command (e.g. "set key left") or plot specification
+  (e.g. "with lines");
+- a string starting with a `\$` sign: specifies a data set name;
+- an `Int` > 0: set the current plot destination (if multiplot is
+  enabled);
+- a keyword: set the keyword value (see below);
+- any other type: a dataset to be passed to Gnuplot.  Each dataset
+  must be terminated by either: a string starting with a `\$` sign
+  (i.e. the data set name) or a string with the plot specifications
+  (e.g. "with lines");
+- the `:-` symbol, used as first argument, avoids resetting the
+  Gnuplot session.  Used as last argument avoids immediate execution
+  of the plot/splot command.  This symbol can be used to split a
+  single call into multiple ones.
 
-  All entries are optional, and there is no mandatory order.  The plot
-  specification can either be: a complete plot/splot command (e.g.,
-  "plot sin(x)", both "plot" and "splot" can be abbreviated to "p" and
-  "s" respectively), or a partial specification starting with the
-  "with" clause (if it follows a data set).
+All entries are optional, and there is no mandatory order.  The plot
+specification can either be: a complete plot/splot command (e.g.,
+"plot sin(x)", both "plot" and "splot" can be abbreviated to "p" and
+"s" respectively), or a partial specification starting with the
+"with" clause (if it follows a data set).
 
-  The list of accepted keyword is as follows:
-  - `title::String`: plot title;
-  - `xlabel::String`: X axis label;
-  - `ylabel::String`: Y axis label;
-  - `zlabel::String`: Z axis label;
-  - `xlog::Bool`: logarithmic scale for X axis;
-  - `ylog::Bool`: logarithmic scale for Y axis;
-  - `zlog::Bool`: logarithmic scale for Z axis;
-  - `xrange::NTuple{2, Number}`: X axis range;
-  - `yrange::NTuple{2, Number}`: Y axis range;
-  - `zrange::NTuple{2, Number}`: Z axis range;
-  - `cbrange::NTuple{2, Number}`: Color box axis range;
+The list of accepted keyword is as follows:
+- `title::String`: plot title;
+- `xlabel::String`: X axis label;
+- `ylabel::String`: Y axis label;
+- `zlabel::String`: Z axis label;
+- `xlog::Bool`: logarithmic scale for X axis;
+- `ylog::Bool`: logarithmic scale for Y axis;
+- `zlog::Bool`: logarithmic scale for Z axis;
+- `xrange::NTuple{2, Number}`: X axis range;
+- `yrange::NTuple{2, Number}`: Y axis range;
+- `zrange::NTuple{2, Number}`: Z axis range;
+- `cbrange::NTuple{2, Number}`: Color box axis range;
 
-  The symbol for the above-mentioned keywords may also be used in a
-  shortened form, as long as there is no ambiguity with other
-  keywords.  E.g. you can use: `xr=(1,10)` in place of
-  `xrange=(1,10)`.
+The symbol for the above-mentioned keywords may also be used in a
+shortened form, as long as there is no ambiguity with other
+keywords.  E.g. you can use: `xr=(1,10)` in place of
+`xrange=(1,10)`.
 
-  Beside the above-mentioned keyword the following can also be used
-  (although with no symbol shortening):
+Beside the above-mentioned keyword the following can also be used
+(although with no symbol shortening):
 
-  - `verb`: 0 or 1, to set the verbosity level;
-  - `file`: send all the data and command to a file rather than
-    to a Gnuplot process;
-  - `stream`: send all the data and command to a stream rather than
-    to a Gnuplot process;
-  - `term`: `"a string"`, or `("a string", "a filename")`: to specify
-    the terminal (and optionally the output file);
+- `verb`: 0 or 1, to set the verbosity level;
+- `file`: send all the data and command to a file rather than
+  to a Gnuplot process;
+- `stream`: send all the data and command to a stream rather than
+  to a Gnuplot process;
+- `term`: `"a string"`, or `("a string", "a filename")`: to specify
+  the terminal (and optionally the output file);
 
-  ## Examples:
+## Examples:
 
-  ### Simple examples with no data:
-  ```
-  @gp "plot sin(x)"
-  @gp "plot sin(x)" "pl cos(x)"
-  @gp "plo sin(x)" "s cos(x)"
+### Simple examples with no data:
+```
+@gp "plot sin(x)"
+@gp "plot sin(x)" "pl cos(x)"
+@gp "plo sin(x)" "s cos(x)"
 
-  # Split a `@gp` call in two
-  @gp "plot sin(x)" :-
-  @gp :- "plot cos(x)"
+# Split a `@gp` call in two
+@gp "plot sin(x)" :-
+@gp :- "plot cos(x)"
 
-  # Insert a 3 second pause between one plot and the next
-  @gp "plot sin(x)" 2 xr=(-2pi,2pi) "pause 3" "plot cos(4*x)"
-  ```
+# Insert a 3 second pause between one plot and the next
+@gp "plot sin(x)" 2 xr=(-2pi,2pi) "pause 3" "plot cos(4*x)"
+```
 
-  ### Simple examples with data:
-  ```
-  @gp "set key left" tit="My title" xr=(1,12) 1:10 "with lines tit 'Data'"
+### Simple examples with data:
+```
+@gp "set key left" tit="My title" xr=(1,12) 1:10 "with lines tit 'Data'"
 
-  x = collect(1.:10)
-  @gp x
-  @gp x x
-  @gp x -x
-  @gp x x.^2
-  @gp x x.^2 "w l"
+x = collect(1.:10)
+@gp x
+@gp x x
+@gp x -x
+@gp x x.^2
+@gp x x.^2 "w l"
 
-  lw = 3
-  @gp x x.^2 "w l lw \$lw"
-  ```
+lw = 3
+@gp x x.^2 "w l lw \$lw"
+```
 
-  ### A more complex example
-  ```
-  @gp("set grid", "set key left", xlog=true, ylog=true,
-      title="My title", xlab="X label", ylab="Y label",
-      x, x.^0.5, "w l tit 'Pow 0.5' dt 2 lw 2 lc rgb 'red'",
-      x, x     , "w l tit 'Pow 1'   dt 1 lw 3 lc rgb 'blue'",
-      x, x.^2  , "w l tit 'Pow 2'   dt 3 lw 2 lc rgb 'purple'")
-  ```
+### A more complex example
+```
+@gp("set grid", "set key left", xlog=true, ylog=true,
+    title="My title", xlab="X label", ylab="Y label",
+    x, x.^0.5, "w l tit 'Pow 0.5' dt 2 lw 2 lc rgb 'red'",
+    x, x     , "w l tit 'Pow 1'   dt 1 lw 3 lc rgb 'blue'",
+    x, x.^2  , "w l tit 'Pow 2'   dt 3 lw 2 lc rgb 'purple'")
+```
 
-  ### Multiplot example:
-  ```
-  @gp(xr=(-2pi,2pi), "unset key",
-      "set multi layout 2,2 title 'Multiplot title'",
-      1, "p sin(x)"  ,
-      2, "p sin(2*x)",
-      3, "p sin(3*x)",
-      4, "p sin(4*x)")
-  ```
-  or equivalently
-  ```
-  @gp xr=(-2pi,2pi) "unset key" "set multi layout 2,2 title 'Multiplot title'" :-
-  for i in 1:4
-    @gp :- i "p sin(\$i*x)" :-
-  end
-  @gp
-  ```
+### Multiplot example:
+```
+@gp(xr=(-2pi,2pi), "unset key",
+    "set multi layout 2,2 title 'Multiplot title'",
+    1, "p sin(x)"  ,
+    2, "p sin(2*x)",
+    3, "p sin(3*x)",
+    4, "p sin(4*x)")
+```
+or equivalently
+```
+@gp xr=(-2pi,2pi) "unset key" "set multi layout 2,2 title 'Multiplot title'" :-
+for i in 1:4
+  @gp :- i "p sin(\$i*x)" :-
+end
+@gp
+```
 
-  ### Multiple gnuplot sessions
-  ```
-  @gp :GP1 "plot sin(x)"
-  @gp :GP2 "plot sin(x)"
+### Multiple gnuplot sessions
+```
+@gp :GP1 "plot sin(x)"
+@gp :GP2 "plot sin(x)"
 
-  quitall()
-  ```
+quitall()
+```
 
-  ### Further examples
-  ```
-  x = range(-2pi, stop=2pi, length=100);
-  y = 1.5 * sin.(0.3 .+ 0.7x) ;
-  noise = randn(length(x))./2;
-  e = 0.5 * fill(1, size(x));
+### Further examples
+```
+x = range(-2pi, stop=2pi, length=100);
+y = 1.5 * sin.(0.3 .+ 0.7x) ;
+noise = randn(length(x))./2;
+e = 0.5 * fill(1, size(x));
 
-  @gp verb=2 x y :aa "plot \\\$aa w l" "pl \\\$aa u 1:(2*\\\$2) w l"
+name = "\\\$MyDataSet1"
+@gp x y name "plot \$name w l" "pl \$name u 1:(2*\\\$2) w l"
 
-  @gsp randn(Float64, 30, 50)
-  @gp randn(Float64, 30, 50) "w image"
+@gsp randn(Float64, 30, 50)
+@gp randn(Float64, 30, 50) "w image"
+@gsp x y y
 
-  @gp("set key horizontal", "set grid",
-      xrange=(-7,7), ylabel="Y label",
-      x, y, "w l t 'Real model' dt 2 lw 2 lc rgb 'red'",
-      x, y+noise, e, "w errorbars t 'Data'");
+@gp("set key horizontal", "set grid",
+    xrange=(-7,7), ylabel="Y label",
+    x, y, "w l t 'Real model' dt 2 lw 2 lc rgb 'red'",
+    x, y+noise, e, "w errorbars t 'Data'")
 
-  @gp "f(x) = a * sin(b + c*x); a = 1; b = 1; c = 1;"            :-
-  @gp :- x y+noise e :aa                                         :-
-  @gp :- "fit f(x) \\\$aa u 1:2:3 via a, b, c;"                  :-
-  @gp :- "set multiplot layout 2,1"                              :-
-  @gp :- "plot \\\$aa w points tit 'Data'" ylab="Data and model" :-
-  @gp :- "plot \\\$aa u 1:(f(\\\$1)) w lines tit 'Best fit'"     :-
-  @gp :- 2 xlab="X label" ylab="Residuals"                       :-
-  @gp :- "plot \\\$aa u 1:((f(\\\$1)-\\\$2) / \\\$3):(1) w errorbars notit"
-  ```
+@gp "f(x) = a * sin(b + c*x); a = 1; b = 1; c = 1;"   :-
+@gp :- x y+noise e name                               :-
+@gp :- "fit f(x) \$name u 1:2:3 via a, b, c;"       :-
+@gp :- "set multiplot layout 2,1"                     :-
+@gp :- "plot \$name w points" ylab="Data and model" :-
+@gp :- "plot \$name u 1:(f(\\\$1)) w lines"         :-
+@gp :- 2 xlab="X label" ylab="Residuals"              :-
+@gp :- "plot \$name u 1:((f(\\\$1)-\\\$2) / \\\$3):(1) w errorbars notit"
 
-  ### Display an image
-  ```
-  using TestImages
-  img = testimage("lena");
-  @gp img "w image"
-  @gp "set size square" img "w rgbimage" # Color image with correct proportions
-  @gp "set size square" img "u 2:(-\\\$1):3:4:5 with rgbimage" # Correct orientation
-  ```
+# Retrieve values fr a, b and c
+a = parse(Float64, gpeval("print a"))
+b = parse(Float64, gpeval("print b"))
+c = parse(Float64, gpeval("print c"))
+```
+
+### Display an image
+```
+using TestImages
+img = testimage("lena");
+@gp img "w image"
+@gp "set size square" img "w rgbimage" # Color image with correct proportions
+@gp "set size square" img "u 2:(-\\\$1):3:4:5 with rgbimage" # Correct orientation
+```
 """
 macro gp(args...)
     out = Expr(:call)
