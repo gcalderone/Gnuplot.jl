@@ -1,3 +1,4 @@
 julia 0.7
 StructC14N 0.2
 ColorTypes 0.6.7
+StatsBase 0.25
