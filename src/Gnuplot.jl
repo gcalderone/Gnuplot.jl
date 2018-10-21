@@ -2,7 +2,7 @@ __precompile__(true)
 
 module Gnuplot
 
-using StatsBase, StructC14N, ColorTypes, Printf
+using StructC14N, ColorTypes, Printf
 
 import Base.reset
 import Base.quit
@@ -1003,13 +1003,13 @@ gpeval(id::Symbol, s::String) = gpeval(id, [s])
 
 
 #---------------------------------------------------------------------
-function hist(v::Vector{T}; addright=false, closed::Symbol=:left, args...) where T <: AbstractFloat
-    i = findall(isfinite.(v))
-    hh = fit(Histogram, v[i]; closed=closed, args...)
-    if addright == 0
-        return PackedDataPlot([hh.edges[1], [hh.weights;0]], "", [], ["w steps"])
-    end
-    return PackedDataPlot([hh.edges[1], [0;hh.weights]], "", [], ["w fsteps"])
-end
+# function hist(v::Vector{T}; addright=false, closed::Symbol=:left, args...) where T <: AbstractFloat
+#     i = findall(isfinite.(v))
+#     hh = fit(Histogram, v[i]; closed=closed, args...)
+#     if addright == 0
+#         return PackedDataPlot([hh.edges[1], [hh.weights;0]], "", [], ["w steps"])
+#     end
+#     return PackedDataPlot([hh.edges[1], [0;hh.weights]], "", [], ["w fsteps"])
+# end
 
 end #module
