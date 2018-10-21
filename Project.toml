@@ -1,13 +1,13 @@
 name = "Gnuplot"
 uuid = "dc211083-a33a-5b79-959f-2ff34033469d"
 authors = ["Giorgio Calderone <giorgio.calderone@gmail.com>"]
-version = "0.2.0"
+version = "1.0.0"
 
 [deps]
 ColorTypes = "3da002f7-5984-5a60-b8a6-cbb66c0b333f"
-StructC14N = "5369e15c-9fda-11e8-194c-95a38f2a9483"
 Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 StatsBase = "2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91"
+StructC14N = "5369e15c-9fda-11e8-194c-95a38f2a9483"
 
 [extras]
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
