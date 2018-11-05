@@ -50,10 +50,10 @@ A real life example showing some random noise generated data:
 
 ``` Julia
 # Create some noisy data...
-x = linspace(-2pi, 2pi, 100);
-y = 1.5 * sin.(0.3 + 0.7x) ;
+x = range(-2pi, stop=2pi, length=100);
+y = 1.5 .* sin.(0.3 .+ 0.7x) ;
 noise = randn(length(x))./2;
-e = 0.5 * ones(x);
+e = 0.5 * fill(1., length(x));
 
 # ...and show them using gnuplot.
 @gp("set key horizontal", "set grid", title="My title",
