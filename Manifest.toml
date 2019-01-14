@@ -1,7 +1,0 @@
-[[ReusePatterns]]
-deps = ["Combinatorics", "InteractiveUtils", "Statistics", "Test"]
-git-tree-sha1 = "bb0dcc3f2a65428fc9406856aec439bacfd274dc"
-repo-rev = "master"
-repo-url = "https://github.com/gcalderone/ReusePatterns.jl"
-uuid = "a0fcda1a-37b1-56c5-9123-89de768b6d0f"
-version = "0.0.0"
