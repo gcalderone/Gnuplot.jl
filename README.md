@@ -70,46 +70,53 @@ That's it for the first plots. The syntax should be familiar to most gnuplot use
 
 Note that this simple example already covers the vast majority of use cases, since the remaining details of the plot can be easily tweaked by adding the appropriate gnuplot command.  Also note that you would barely recognize the Julia language by just looking at the `@gp` call since **Gnuplot.jl** aims to be mostly transparent: the user is supposed to focus only on the data and on the gnuplot commands, rather than the package details.
 
-Let's have a look to the REPL output of the above command (this may
-differ on your computer since we used random numbers):
+If you set the verbose option (`setverbosity(true)`, which is `false` by default) you'll be able to see all the communication taking place between the **Gnuplot.jl** package and the underlyng Gnuplot process.  Repeating the last command:
 ```Julia
-GNUPLOT (default) -> reset session
-GNUPLOT (default) -> print GPVAL_TERM
-GNUPLOT (default)    qt
-GNUPLOT (default) -> print GPVAL_TERMOPTIONS
-GNUPLOT (default)    0 title "Gnuplot.jl: default" font "Sans,9"
-GNUPLOT (default) -> set key horizontal
-GNUPLOT (default) -> set grid
-GNUPLOT (default) -> set title  'My title'
-GNUPLOT (default) -> set xrange  [-7:7]
-GNUPLOT (default) -> set ylabel 'Y label'
-GNUPLOT (default) -> set xlabel 'X label'
-GNUPLOT (default) -> $data0 << EOD
-GNUPLOT (default) ->  -6.283185307179586 1.2258873407968363
-GNUPLOT (default) ->  -6.156252270670907 1.1443471266509504
-GNUPLOT (default) ->  -6.029319234162229 1.05377837392046
+julia> @gp("set key horizontal", "set grid", title="My title",
+    xrange=(-7,7), ylabel="Y label", xlab="X label", 
+    x, y, "w l t 'Real model' dt 2 lw 2 lc rgb 'red'",
+    x, y+noise, e, "w errorbars t 'Data'");
+GNUPLOT (default) reset session
+GNUPLOT (default) print GPVAL_TERM
+GNUPLOT (default) -> qt
+GNUPLOT (default) print GPVAL_TERMOPTIONS
+GNUPLOT (default) -> 0 title "Gnuplot.jl: default" font "Sans,9"
+GNUPLOT (default) set key horizontal
+GNUPLOT (default) set grid
+GNUPLOT (default) set title  'My title'
+GNUPLOT (default) set xrange  [-7:7]
+GNUPLOT (default) set ylabel 'Y label'
+GNUPLOT (default) set xlabel 'X label'
+GNUPLOT (default) $data0 << EOD
+GNUPLOT (default)  -6.283185307179586 1.2258873407968363
+GNUPLOT (default)  -6.156252270670907 1.1443471266509504
+GNUPLOT (default)  -6.029319234162229 1.05377837392046
 GNUPLOT (default) ...
-GNUPLOT (default) -> $data102 << EOD
-GNUPLOT (default) ->  -6.283185307179586 1.0050125770987044 0.5
-GNUPLOT (default) ->  -6.156252270670907 0.45687609191841705 0.5
-GNUPLOT (default) ->  -6.029319234162229 1.4782789213307108 0.5
+GNUPLOT (default) EOD
+GNUPLOT (default) $data1 << EOD
+GNUPLOT (default)  -6.283185307179586 1.516291874781302 0.5
+GNUPLOT (default)  -6.156252270670907 1.5490769687987143 0.5
+GNUPLOT (default)  -6.029319234162229 0.30753349072971314 0.5
 GNUPLOT (default) ...
-GNUPLOT (default) -> plot  \
+GNUPLOT (default) EOD
+GNUPLOT (default) set key horizontal
+GNUPLOT (default) set grid
+GNUPLOT (default) set title  'My title'
+GNUPLOT (default) set xrange  [-7:7]
+GNUPLOT (default) set ylabel 'Y label'
+GNUPLOT (default) set xlabel 'X label'
+GNUPLOT (default) plot  \
   $data0 w l t 'Real model' dt 2 lw 2 lc rgb 'red', \
-  $data102 w errorbars t 'Data'
+  $data1 w errorbars t 'Data'
+GNUPLOT (default) 
 ```
 The **Gnuplot.jl** package (note the leading `GNUPLOT`...) tells us which commands are being sent to the gnuplot process and the name of the current gnuplot session (`default`).  The **Gnuplot.jl** package will also print the replies from gnuplot, e.g.:
 ``` Julia
-julia> GnuplotGet("GPVAL_TERM");
-GNUPLOT (1) -> print GPVAL_TERM
-GNUPLOT (1)    qt
+julia> Gnuplot.exec("print GPVAL_TERM");
+GNUPLOT (default) print GPVAL_TERM
+GNUPLOT (default) -> qt
 ```
-Note the lack of ` -> ` and the different color in the reply (if your terminal is able to display colors).  You may suppress all logs from **Gnuplot.jl** package by setting the verbosity level to 0, e.g.:
-``` Julia
-@gp verb=1
-```
-The default verbosity level is 1.
-
+Note the different color in the reply (if your terminal is able to display colors).
 
 So far we have shown how to produce plots with a single command, however such task can also be performed using multiple statements.  The syntax is exactly the same, but we should use the `:-` symbol at the beginning of each statement (except the first) and at the end of each statement (except the last), e.g.:
 ``` Julia
@@ -128,26 +135,21 @@ name = "\$MyDataSet1"
 @gp :- "plot $name w points tit 'Data'" ylab="Data and model" :-
 @gp :- "plot $name u 1:(f(\$1)) w lines tit 'Best fit'" :-
 
-# ... and the residuals (the `2` here refer to the second plot in the multiplot.
+# ... and the residuals (the `2` here refer to the second plot in the multiplot).
 @gp :- 2 xlab="X label" ylab="Residuals" :-
 @gp :- "plot $name u 1:((f(\$1)-\$2) / \$3):(1) w errorbars notit"
 ```
 
-The **Gnuplot.jl** package also provide support for 3D plots using the `@gsp` macro in place of `@gp`, e.g.:
-
-``` Julia
-@gsp randn(Float64, 30, 50)
-```
-
+The **Gnuplot.jl** package also provide support 
 As discussed above, **Gnuplot.jl** allows to trasparently exploit all gnuplot functionalities.  E.g., we can show a random image with:
 ```Julia
 @gp randn(Float64, 30, 50) "w image"
 ```
+or show an interactive 3D plots using the `@gsp` macro in place of `@gp`, e.g.:
 
-...or fit some mock data with:
-
-
-
+``` Julia
+@gsp randn(Float64, 30, 50)
+```
 
 Further documentation for the `@gp` and `@gsp` macros is available in the REPL by means of the `@doc` macro or by typing `?` in the REPL followed by the macro name.
 
@@ -174,13 +176,14 @@ If needed, a specific session can be started by specifying a complete file path 
 gp = gnuplot(:CUSTOM1, "/path/to/gnuplot/executable")
 ```
 
-Also, a session can be started as a *dry* one, i.e. a session with no underlying gnuplot process:
+Also, a session can be started as a *dry* one, i.e. a session with no underlying gnuplot process, by omitting the path to the Gnuplot executable:
 ``` Julia
-gp = gnuplot(:DRY_SESSION, dry=true)
+gp = gnuplot(:DRY_SESSION)
 ```
 The prupose is to create gnuplot scripts without running them, e.g:
 ```Julia
-@gp :DRY_SESSION x x.^2 "w l" file="test.gp"
+@gp :DRY_SESSION x x.^2 "w l" 
+save("test.gp")
 ```
 The `test.gp` can then be loaded directly in gnuplot with:
 ```
@@ -192,9 +195,9 @@ gnuplot> load 'test.gp'
 Both the `@gp` and `@gsp` macros stores data and commands in the package state to allow using multiple statements for a single plot, or to save all data and commands on a script file.  However the user may directly execute command on the underlying gnuplot process using the `gpeval` function.  E.g., we can retrieve the values of the fitting parameters of the previous example:
 ```Julia
 # Retrieve values fr a, b and c
-a = parse(Float64, gpeval("print a"))
-b = parse(Float64, gpeval("print b"))
-c = parse(Float64, gpeval("print c"))
+a = parse(Float64, exec("print a"))
+b = parse(Float64, exec("print b"))
+c = parse(Float64, exec("print c"))
 ```
 
 ### Terminating a session
