@@ -889,10 +889,10 @@ name = "\\\$MyDataSet1"
 
 @gp "f(x) = a * sin(b + c*x); a = 1; b = 1; c = 1;"   :-
 @gp :- x y+noise e name                               :-
-@gp :- "fit f(x) \$name u 1:2:3 via a, b, c;"       :-
+@gp :- "fit f(x) \$name u 1:2:3 via a, b, c;"         :-
 @gp :- "set multiplot layout 2,1"                     :-
-@gp :- "plot \$name w points" ylab="Data and model" :-
-@gp :- "plot \$name u 1:(f(\\\$1)) w lines"         :-
+@gp :- "plot \$name w points" ylab="Data and model"   :-
+@gp :- "plot \$name u 1:(f(\\\$1)) w lines"           :-
 @gp :- 2 xlab="X label" ylab="Residuals"              :-
 @gp :- "plot \$name u 1:((f(\\\$1)-\\\$2) / \\\$3):(1) w errorbars notit"
 
