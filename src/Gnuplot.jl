@@ -250,7 +250,7 @@ function reset(gp::DrySession)
     gp.plots = [SinglePlot()]
     gp.curmid = 1
     println(gp, "reset session")
-    setWindowTitle(gp)
+    # setWindowTitle(gp)
     return nothing
 end
 
@@ -525,7 +525,11 @@ end
 # --------------------------------------------------------------------
 internal_save(gp::DrySession; kw...) = internal_save(gp, gp; kw...)
 function internal_save(gp::DrySession, stream; term::AbstractString="", output::AbstractString="")
-    (term != "")  &&  println(stream, "set term $term")
+    if term != ""
+        former_term = writeread(gp, "print GPVAL_TERM")[1]
+        former_opts = writeread(gp, "print GPVAL_TERMOPTIONS")[1]
+        println(stream, "set term $term")
+    end
     (output != "")  &&  println(stream, "set output '$output'")
     i = (!(typeof(stream) <: DrySession), 1, 1) # Skip data sources ?
     while (next = iterate(gp, i)) != nothing
@@ -533,6 +537,9 @@ function internal_save(gp::DrySession, stream; term::AbstractString="", output::
         println(stream, s)
     end
     (output != "")  &&  println(stream, "set output")
+    if term != ""
+        println(stream, "set term $former_term $former_opts")
+    end
     output
 end
 
@@ -572,7 +579,6 @@ function driver(args...; flag3d=false)
     end
 
     gp = nothing
-    term = ("", "")
     doDump  = true
     doReset = true
 
