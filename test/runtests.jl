@@ -54,11 +54,14 @@ name = "\$MyDataSet1"
 @gp :- 2 xlab="X label" ylab="Residuals"              :- 
 @gp :- "plot $name u 1:((f(\$1)-\$2) / \$3):(1) w errorbars notit"
 
-# Retrieve values fr a, b and c
-a = parse(Float64, exec("print a"))
-b = parse(Float64, exec("print b"))
-c = parse(Float64, exec("print c"))
-
+# Retrieve values for a, b and c
+a = 0; b = 0; c = 0;
+try
+    a = parse(Float64, exec("print a"))
+    b = parse(Float64, exec("print b"))
+    c = parse(Float64, exec("print c"))
+catch
+end
 gnuplot(:dry)
 @gp    :dry "f(x) = a * sin(b + c*x); a = 1; b = 1; c = 1;"  :-
 @gp :- :dry "a = $a; b = $b; c = $c"                         :-

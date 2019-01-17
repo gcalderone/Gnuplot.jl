@@ -106,7 +106,6 @@ function CheckGnuplotVersion(cmd::AbstractString)
     end
 
     if ver < v"4.7"
-        # Do not raise error in order to pass Travis CI test, since it has v4.6
         error("gnuplot ver. >= 4.7 is required, but " * string(ver) * " was found.")
     end
     @info "  Gnuplot version: " * string(ver)
@@ -214,7 +213,7 @@ end
 
 
 # --------------------------------------------------------------------
-writeread(gp::DrySession, str::AbstractString) = nothing
+writeread(gp::DrySession, str::AbstractString) = ""
 function writeread(gp::Session, str::AbstractString)
     global state
     write(gp.pin, "print 'GNUPLOT_CAPTURE_BEGIN'\n")
