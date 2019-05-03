@@ -1075,7 +1075,7 @@ function hist(v::Vector{T}; range=[NaN,NaN], bs=NaN, nbins=0, pad=true) where T 
 end
 
     
-function contourlines(args...; cntrparam="level auto 10", lw=0, offset=0, minlen=10)
+function contourlines(args...; cntrparam="level auto 10", offset=0, width=0.)
     tmpfile = Base.Filesystem.tempname()
     sid = Symbol("j", Base.Libc.getpid())
     if !haskey(state.sessions, sid)
@@ -1090,57 +1090,64 @@ function contourlines(args...; cntrparam="level auto 10", lw=0, offset=0, minlen
     Gnuplot.exec(sid, "unset table")
     Gnuplot.exec(sid, "reset")
 
-    dump = false
     outl = Vector{String}()
     outc = Vector{String}()
     curx = Vector{Float64}()
     cury = Vector{Float64}()
     curl = ""
-
-    for l in readlines(tmpfile)
-        if length(strip(l)) == 0
-            dump = true
-            continue
+    elength(x, y) = sqrt.((x[2:end] .- x[1:end-1]).^2 .+
+                          (y[2:end] .- y[1:end-1]).^2)
+    function dump()
+        if (length(curx) < 2)  ||  (curl == "")
+            return nothing
         end
 
+        if sum(elength(curx, cury)) > width
+            if (offset > 0)  &&  (offset+3 < length(curx))
+                append!(outc, string.(curx[1:offset]) .* " " .* string.(cury[1:offset]))
+                push!(outc, "")              
+                curx = [curx[offset+1:end]; curx[1]]
+                cury = [cury[offset+1:end]; cury[1]]
+            end
+            if length(curx) > 3
+                d = cumsum(elength(curx, cury))
+                i0 = findall(d .<= width); sort!(i0)
+                i1 = findall(d .>  width)
+                n = 1
+                rot1 = atan(cury[i0[end]]-cury[i0[1]], curx[i0[end]]-curx[i0[1]]) * 180 / pi
+                rot = round(mod(rot1, 360))
+                x = mean(curx[i0])
+                y = mean(cury[i0])
+                push!(outl, "set label " * string(length(outl)+1) * " '$curl' at $x, $y center front rotate by $rot")
+                curx = curx[i1]
+                cury = cury[i1]
+            end
+        end
+        append!(outc, string.(curx) .* " " .* string.(cury))
+        push!(outc, "")
+        empty!(curx)
+        empty!(cury)
+    end
+    
+    for l in readlines(tmpfile)
+        if length(strip(l)) == 0
+            dump()
+            continue
+        end
         if !isnothing(findfirst("# Contour ", l))
+            dump()
             curl = strip(split(l, ':')[2])
-            dump = true
             continue
         end
         (l[1] == '#')  &&  continue
 
-        if dump  &&  (length(curx) > 1)  &&  (curl != "")
-            if offset != 0
-                curx = circshift(curx, offset)
-                cury = circshift(cury, offset)
-            end
-            if (lw > 0)  &&  (length(curx) > (2*lw+2 + minlen))
-                n = lw + 1
-                x = curx[n]
-                y = cury[n]
-                rot = atan(cury[n+1]-cury[n-1], curx[n+1]-curx[n-1]) * 180 / pi
-                rot = round(mod(rot, 360))
-                push!(outl, "set label " * string(length(outl)+1) * " '$curl' at $x, $y centre front rotate by $rot")
-                curx = curx[2*lw+2:end]
-                cury = cury[2*lw+2:end]
-            end
-            append!(outc, string.(curx) .* " " .* string.(cury))
-            push!(outc, "")
-            empty!(curx)
-            empty!(cury)
-            dump = false
-        end
         n = Meta.parse.(split(l))
         @assert length(n) == 3
-
         push!(curx, n[1])
         push!(cury, n[2])
     end
     rm(tmpfile)
-    if lw > 0
-        return (outl, outc)
-    end
+    (width > 0.)  &&  (return (outl, outc))
     return outc
 end
 
