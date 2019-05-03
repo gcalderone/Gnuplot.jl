@@ -1057,11 +1057,11 @@ function hist(v::Vector{T}; range=[NaN,NaN], bs=NaN, nbins=0, pad=true) where T 
     isnan(range[1])  &&  (range[1] = minimum(v[i]))
     isnan(range[2])  &&  (range[2] = maximum(v[i]))
     i = findall(isfinite.(v)  .&  (v.>= range[1])  .&  (v.<= range[2]))
-    isfinite(bs)  &&  (nbins = Int(ceil((range[2] - range[1]) / bs)))
-    if nbins > 0
-        hh = fit(Histogram, v[i]; closed=:left, nbins=nbins)
+    (nbins > 0)  &&  (bs = (range[2] - range[1]) / nbins)
+    if isfinite(bs)
+        hh = fit(Histogram, v[i], range[1]:bs:range[2], closed=:left)
     else
-        hh = fit(Histogram, v[i]; closed=:left)
+        hh = fit(Histogram, v[i], closed=:left)
     end
     x = collect(hh.edges[1])
     x = (x[1:end-1] .+ x[2:end]) ./ 2
