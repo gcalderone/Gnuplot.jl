@@ -10,7 +10,7 @@ import Base.iterate
 import Base.convert
 
 export gnuplot, quit, quitall, setverbose,
-    @gp, @gsp, exec, save, hist
+    @gp, @gsp, exec, save, contourlines, hist
 
 
 #_____________________________________________________________________
@@ -63,15 +63,6 @@ mutable struct State
     State() = new(Dict{Symbol, DrySession}(), true, "gnuplot", :default, false, 4)
 end
 const state = State()
-
-
-# --------------------------------------------------------------------
-mutable struct PackedDataAndCmds
-    data::Vector{Any}
-    name::String
-    cmds::Vector{String}
-    plot::Vector{String}
-end
 
 
 #_____________________________________________________________________
@@ -212,6 +203,31 @@ function println(gp::Session, str::AbstractString)
 end
 
 
+function println(gp::Session, d::DataSource)
+    if typeof(gp) == concretetype(Session)
+        if state.verbose
+            for ii in 1:length(d.lines)
+                v = d.lines[ii]
+                printstyled(color=:light_black, "GNUPLOT ($(gp.sid)) $v\n")
+                if ii == state.printlines
+                    printstyled(color=:light_black, "GNUPLOT ($(gp.sid)) ...\n")
+                    if ii < length(d.lines)
+                        v = d.lines[end]
+                        printstyled(color=:light_black, "GNUPLOT ($(gp.sid)) $v\n")
+                    end
+                    break
+                end
+            end
+        end
+        w = write(gp.pin, "\n")
+        w = write(gp.pin, join(d.lines, "\n"))
+        w = write(gp.pin, "\n")
+        w = write(gp.pin, "\n")
+        flush(gp.pin)
+    end
+    return nothing
+end
+
 # --------------------------------------------------------------------
 writeread(gp::DrySession, str::AbstractString) = ""
 function writeread(gp::Session, str::AbstractString)
@@ -261,6 +277,23 @@ function setmulti(gp::DrySession, mid::Int)
         push!(gp.plots, SinglePlot())
     end
     (mid > 0)  &&  (gp.curmid = mid)
+end
+
+
+# --------------------------------------------------------------------
+function newdatasource(gp::DrySession, v::Vector{T}; name="") where T <: AbstractString
+    (name == "")  &&  (name = string("data", length(gp.datas)))
+    name = "\$$name"
+
+    accum = Vector{String}()
+    push!(accum, "$name << EOD")
+    append!(accum, v)
+    push!(accum, "EOD")
+    d = DataSource(name, accum)
+    push!(gp.datas, d)
+
+    println(gp, d) # Send directly to gnuplot process
+    return name
 end
 
 
@@ -405,29 +438,7 @@ function newdatasource(gp::DrySession, args...; name="")
     d = DataSource(name, accum)
     push!(gp.datas, d)
 
-    # Send data immediately to gnuplot process
-    if typeof(gp) == concretetype(Session)
-        if state.verbose
-            for ii in 1:length(d.lines)
-                v = d.lines[ii]
-                printstyled(color=:light_black, "GNUPLOT ($(gp.sid)) $v\n")
-                if ii == state.printlines
-                    printstyled(color=:light_black, "GNUPLOT ($(gp.sid)) ...\n")
-                    if ii < length(d.lines)
-                        v = d.lines[end]
-                        printstyled(color=:light_black, "GNUPLOT ($(gp.sid)) $v\n")
-                    end
-                    break
-                end
-            end
-        end
-        w = write(gp.pin, "\n")
-        w = write(gp.pin, join(d.lines, "\n"))
-        w = write(gp.pin, "\n")
-        w = write(gp.pin, "\n")
-        flush(gp.pin)
-    end
-    
+    println(gp, d) # Send directly to gnuplot process
     return name
 end
 
@@ -637,12 +648,6 @@ function driver(args...; flag3d=false)
                         end
                     end
                 end
-            elseif typeof(arg) == PackedDataAndCmds
-                if loop == 2
-                    last = newdatasource(gp, arg.data..., name=arg.name)
-                    for v in arg.cmds;  newcmd(gp, v); end
-                    for v in arg.plot; newplotelem(gp, last, v); end
-                end
             else
                 (loop == 2)  &&  push!(data, arg) # a data set
             end
@@ -783,7 +788,7 @@ The macros accepts any number of arguments, with the following meaning:
 - a string starting with a `\$` sign: a data set name;
 - an `Int` > 0: the plot destination in a multiplot session;
 - a keyword/value pair: a keyword value (see below);
-- any other type: a dataset to be passed to Gnuplot.  Each dataset must be terminated by either: 
+- any other type: a dataset to be passed to Gnuplot.  Each dataset must be terminated by either:
   - a string starting with a `\$` sign (i.e. the data set name);
   - or a string with the plot specifications (e.g. "with lines");
 - the `:-` symbol, used as first argument, avoids resetting the Gnuplot session.  Used as last argument avoids immediate execution  of the plot/splot command.  This symbol can be used to split a  single call into multiple ones.
@@ -1041,13 +1046,102 @@ save(sid::Symbol, file::AbstractString; kw...) = open(file, "w") do stream; inte
 
 
 # --------------------------------------------------------------------
-function hist(v::Vector{T}; addright=false, closed::Symbol=:left, args...) where T <: AbstractFloat
+#=
+Example:
+v = randn(1000)
+h = hist(v, bs=0.2)
+@gp h.loc h.counts "w histep" h.loc h.counts "w l"
+=#
+function hist(v::Vector{T}; range=[NaN,NaN], bs=NaN, nbins=0, pad=true) where T <: Number
     i = findall(isfinite.(v))
-    hh = fit(Histogram, v[i]; closed=closed, args...)
-    if addright == 0
-        return PackedDataAndCmds([hh.edges[1], [hh.weights;0]], "", [], ["w steps notit"])
+    isnan(range[1])  &&  (range[1] = minimum(v[i]))
+    isnan(range[2])  &&  (range[2] = maximum(v[i]))
+    i = findall(isfinite.(v)  .&  (v.>= range[1])  .&  (v.<= range[2]))
+    isfinite(bs)  &&  (nbins = Int(ceil((range[2] - range[1]) / bs)))
+    if nbins > 0
+        hh = fit(Histogram, v[i]; closed=:left, nbins=nbins)
+    else
+        hh = fit(Histogram, v[i]; closed=:left)
     end
-    return PackedDataAndCmds([hh.edges[1], [0;hh.weights]], "", [], ["w fsteps notit"])
+    x = collect(hh.edges[1])
+    x = (x[1:end-1] .+ x[2:end]) ./ 2
+    h = hh.weights
+    binsize = x[2] - x[1]
+    if pad
+        x = [x[1]-binsize, x..., x[end]+binsize]
+        h = [0, h..., 0]
+    end
+    return (loc=x, counts=h, binsize=binsize)
+end
+
+    
+function contourlines(args...; cntrparam="level auto 10", lw=0, offset=0, minlen=10)
+    tmpfile = Base.Filesystem.tempname()
+    sid = Symbol("j", Base.Libc.getpid())
+    if !haskey(state.sessions, sid)
+        gp = gnuplot(sid, state.cmd)
+    end
+    
+    Gnuplot.exec(sid, "set term unknown")
+    @gsp    sid "set contour base" "unset surface" :-
+    @gsp :- sid "set cntrparam $cntrparam" :-
+    @gsp :- sid "set table '$tmpfile'" :-
+    @gsp :- sid args...
+    Gnuplot.exec(sid, "unset table")
+    Gnuplot.exec(sid, "reset")
+
+    dump = false
+    outl = Vector{String}()
+    outc = Vector{String}()
+    curx = Vector{Float64}()
+    cury = Vector{Float64}()
+    curl = ""
+
+    for l in readlines(tmpfile)
+        if length(strip(l)) == 0
+            dump = true
+            continue
+        end
+
+        if !isnothing(findfirst("# Contour ", l))
+            curl = strip(split(l, ':')[2])
+            dump = true
+            continue
+        end
+        (l[1] == '#')  &&  continue
+
+        if dump  &&  (length(curx) > 1)  &&  (curl != "")
+            if offset != 0
+                curx = circshift(curx, offset)
+                cury = circshift(cury, offset)
+            end
+            if (lw > 0)  &&  (length(curx) > (2*lw+2 + minlen))
+                n = lw + 1
+                x = curx[n]
+                y = cury[n]
+                rot = atan(cury[n+1]-cury[n-1], curx[n+1]-curx[n-1]) * 180 / pi
+                rot = round(mod(rot, 360))
+                push!(outl, "set label " * string(length(outl)+1) * " '$curl' at $x, $y centre front rotate by $rot")
+                curx = curx[2*lw+2:end]
+                cury = cury[2*lw+2:end]
+            end
+            append!(outc, string.(curx) .* " " .* string.(cury))
+            push!(outc, "")
+            empty!(curx)
+            empty!(cury)
+            dump = false
+        end
+        n = Meta.parse.(split(l))
+        @assert length(n) == 3
+
+        push!(curx, n[1])
+        push!(cury, n[2])
+    end
+    rm(tmpfile)
+    if lw > 0
+        return (outl, outc)
+    end
+    return outc
 end
 
 end #module
