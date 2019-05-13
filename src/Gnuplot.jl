@@ -328,9 +328,9 @@ function newdatasource(gp::DrySession, args...; name="")
         @assert maxDim <= 3 "Array dimensions must be <= 3"
     end
 
-    dimX = 0
-    dimY = 0
-    dimZ = 0
+    dimX = -1
+    dimY = -1
+    dimZ = -1
     count1D = 0
     for iarg in 1:length(args)
         d = args[iarg]
@@ -354,7 +354,7 @@ function newdatasource(gp::DrySession, args...; name="")
             end
             @assert dimX == (size(d))[1] "Array size are incompatible"
             @assert dimY == (size(d))[2] "Array size are incompatible"
-            @assert dimZ == 0 "Mixing 2D and 3D data is not allowed"
+            @assert dimZ == -1 "Mixing 2D and 3D data is not allowed"
         elseif ndims(d) == 3
             if iarg == 1
                 dimX = (size(d))[1]
@@ -377,7 +377,7 @@ function newdatasource(gp::DrySession, args...; name="")
     v = "$name << EOD"
     push!(accum, v)
 
-    if dimZ > 0 # 3D
+    if dimZ >= 0 # 3D
         for ix in 1:dimX
             for iy in 1:dimY
                 for iz in 1:dimZ
@@ -395,7 +395,7 @@ function newdatasource(gp::DrySession, args...; name="")
             end
             push!(accum, "")
         end
-    elseif dimY > 0  # 2D
+    elseif dimY >= 0  # 2D
         for ix in 1:dimX
             for iy in 1:dimY
                 if count1D == 0
@@ -416,7 +416,7 @@ function newdatasource(gp::DrySession, args...; name="")
             end
             push!(accum, "")
         end
-    elseif dimX > 0  # 1D
+    elseif dimX >= 0  # 1D
         for ix in 1:dimX
             v = ""
             for iarg in 1:length(args)
