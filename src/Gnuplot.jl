@@ -313,10 +313,10 @@ function newdatasource(gp::DrySession, args...; name="")
         if typeof(d) <: Number
             ok = true
         elseif typeof(d) <: AbstractArray
-            if typeof(d[1]) <: Number
+            if typeof(d).parameters[1] <: Number
                 ok = true
             end
-            if typeof(d[1]) <: ColorTypes.RGB
+            if typeof(d).parameters[1] <: ColorTypes.RGB
                 ok = true
             end
         end
