@@ -57,10 +57,12 @@ mutable struct State
     sessions::Dict{Symbol, DrySession};
     dry::Bool
     cmd::String
-    default::Symbol;        # default session name
-    verbose::Bool;        # verbosity level (true/false)
-    printlines::Int;        # How many data lines are printed in log
-    State() = new(Dict{Symbol, DrySession}(), true, "gnuplot", :default, false, 4)
+    default::Symbol;           # default session name
+    initcmd::Vector{String}    # Commands to initialize the gnuplot session (e.g., to set default terminal)
+    verbose::Bool;             # verbosity level (true/false)
+    silent::Bool;              # Silent flag
+    printlines::Int;           # How many data lines are printed in log
+    State() = new(Dict{Symbol, DrySession}(), true, "gnuplot", :default, Vector{String}(), false, false, 4)
 end
 const state = State()
 
@@ -99,7 +101,7 @@ function CheckGnuplotVersion(cmd::AbstractString)
     if ver < v"4.7"
         error("gnuplot ver. >= 4.7 is required, but " * string(ver) * " was found.")
     end
-    @info "  Gnuplot version: " * string(ver)
+    #@info "  Gnuplot version: " * string(ver)
     return ver
 end
 
@@ -161,7 +163,7 @@ end
 function getsession(sid::Symbol)
     global state
     if !(sid in keys(state.sessions))
-        @info "Creating session $sid..."
+        #@info "Creating session $sid..."
         if state.dry
             gnuplot(sid)
         else
@@ -193,7 +195,7 @@ end
 println(gp::DrySession, str::AbstractString) = nothing
 function println(gp::Session, str::AbstractString)
     global state
-    if state.verbose
+    if !state.silent  &&  state.verbose
         printstyled(color=:yellow, "GNUPLOT ($(gp.sid)) $str\n")
     end
     w = write(gp.pin, strip(str) * "\n")
@@ -205,7 +207,7 @@ end
 
 function println(gp::Session, d::DataSource)
     if typeof(gp) == concretetype(Session)
-        if state.verbose
+        if !state.silent  &&  state.verbose
             for ii in 1:length(d.lines)
                 v = d.lines[ii]
                 printstyled(color=:light_black, "GNUPLOT ($(gp.sid)) $v\n")
@@ -232,6 +234,8 @@ end
 writeread(gp::DrySession, str::AbstractString) = ""
 function writeread(gp::Session, str::AbstractString)
     global state
+    silent = state.silent
+    state.silent = true
     write(gp.pin, "print 'GNUPLOT_CAPTURE_BEGIN'\n")
     println(gp, strip(str))
     write(gp.pin, "print 'GNUPLOT_CAPTURE_END'\n")
@@ -242,6 +246,7 @@ function writeread(gp::Session, str::AbstractString)
         l == "GNUPLOT_CAPTURE_END"  &&  break
         push!(out, l)
     end
+    state.silent = silent
     return out
 end
 
@@ -253,7 +258,7 @@ function setWindowTitle(session::Session)
     if term in ("aqua", "x11", "qt", "wxt")
         opts = writeread(session, "print GPVAL_TERMOPTIONS")[1]
         if findfirst("title", opts) == nothing
-            println(session, "set term $term $opts title 'Gnuplot.jl: $(session.sid)'")
+            writeread(session, "set term $term $opts title 'Gnuplot.jl: $(session.sid)'")
         end
     end
 end
@@ -265,7 +270,6 @@ function reset(gp::DrySession)
     gp.plots = [SinglePlot()]
     gp.curmid = 1
     println(gp, "reset session")
-    # setWindowTitle(gp)
     return nothing
 end
 
@@ -620,8 +624,6 @@ function driver(args...; flag3d=false)
                             error("The term tuple must contain at most two strings")
                         end
                     end
-                #elseif arg[1] == :verb
-                #    (loop == 1)  &&  (state.verbose = arg[2])
                 else
                     (loop == 2)  &&  newcmd(gp; [arg]...) # A cmd keyword
                 end
@@ -690,20 +692,32 @@ function gnuplot(sid::Symbol, cmd::AbstractString)
         saveOutput = false
 
         while isopen(stream)
-            line = convert(String, readline(stream))
+            line = readline(stream)
+
+            if (length(line) >= 1)  &&  (line[1] == Char(0x1b)) # Escape (xterm -ti vt340)
+                buf = Vector{UInt8}()
+                append!(buf, convert(Vector{UInt8}, [line...]))
+                push!(buf, 0x0a)
+                c = 0x00
+                while c != 0x1b
+                    c = read(stream, 1)[1]
+                    push!(buf, c)
+                end
+                c = read(stream, 1)[1]
+                push!(buf, c)
+                write(stdout, buf)
+                continue
+            end
             if line == "GNUPLOT_CAPTURE_BEGIN"
                 saveOutput = true
             else
-                (saveOutput)  &&  (put!(channel, line))
-                if line == "GNUPLOT_CAPTURE_END"
-                    saveOutput = false
-                elseif line != ""
+                if (line != "")  &&  (line != "GNUPLOT_CAPTURE_END")  &&  (!state.silent)
                     printstyled(color=:cyan, "GNUPLOT ($sid) -> $line\n")
-                    #(state.verbose >= 1)  &&  (printstyled(color=:cyan, "GNUPLOT ($sid) -> $line\n"))
                 end
+                (saveOutput)  &&  (put!(channel, line))
+                (line == "GNUPLOT_CAPTURE_END")  &&  (saveOutput = false)
             end
         end
-        global state
         delete!(state.sessions, sid)
         return nothing
     end
@@ -734,6 +748,10 @@ function gnuplot(sid::Symbol, cmd::AbstractString)
     state.sessions[sid] = out
 
     setWindowTitle(out)
+    for l in state.initcmd
+        writeread(out, l)
+    end
+
     return out
 end
 
@@ -1021,6 +1039,12 @@ function setverbose(b::Bool)
 end
 
 
+function initcmd()
+    global state
+    return state.initcmd
+end
+
+
 # --------------------------------------------------------------------
 """
 `save(...)`
@@ -1074,14 +1098,14 @@ function hist(v::Vector{T}; range=[NaN,NaN], bs=NaN, nbins=0, pad=true) where T 
     return (loc=x, counts=h, binsize=binsize)
 end
 
-    
+
 function contourlines(args...; cntrparam="level auto 10", offset=0, width=0.)
     tmpfile = Base.Filesystem.tempname()
     sid = Symbol("j", Base.Libc.getpid())
     if !haskey(state.sessions, sid)
         gp = gnuplot(sid, state.cmd)
     end
-    
+
     Gnuplot.exec(sid, "set term unknown")
     @gsp    sid "set contour base" "unset surface" :-
     @gsp :- sid "set cntrparam $cntrparam" :-
@@ -1105,7 +1129,7 @@ function contourlines(args...; cntrparam="level auto 10", offset=0, width=0.)
         if sum(elength(curx, cury)) > width
             if (offset > 0)  &&  (offset+3 < length(curx))
                 append!(outc, string.(curx[1:offset]) .* " " .* string.(cury[1:offset]))
-                push!(outc, "")              
+                push!(outc, "")
                 curx = [curx[offset+1:end]; curx[1]]
                 cury = [cury[offset+1:end]; cury[1]]
             end
@@ -1113,14 +1137,15 @@ function contourlines(args...; cntrparam="level auto 10", offset=0, width=0.)
                 d = cumsum(elength(curx, cury))
                 i0 = findall(d .<= width); sort!(i0)
                 i1 = findall(d .>  width)
-                n = 1
-                rot1 = atan(cury[i0[end]]-cury[i0[1]], curx[i0[end]]-curx[i0[1]]) * 180 / pi
-                rot = round(mod(rot1, 360))
-                x = mean(curx[i0])
-                y = mean(cury[i0])
-                push!(outl, "set label " * string(length(outl)+1) * " '$curl' at $x, $y center front rotate by $rot")
-                curx = curx[i1]
-                cury = cury[i1]
+                if (length(i0) > 0)  &&  (length(i1) > 0)
+                    rot1 = atan(cury[i0[end]]-cury[i0[1]], curx[i0[end]]-curx[i0[1]]) * 180 / pi
+                    rot = round(mod(rot1, 360))
+                    x = mean(curx[i0])
+                    y = mean(cury[i0])
+                    push!(outl, "set label " * string(length(outl)+1) * " '$curl' at $x, $y center front rotate by $rot")
+                    curx = curx[i1]
+                    cury = cury[i1]
+                end
             end
         end
         append!(outc, string.(curx) .* " " .* string.(cury))
@@ -1128,7 +1153,7 @@ function contourlines(args...; cntrparam="level auto 10", offset=0, width=0.)
         empty!(curx)
         empty!(cury)
     end
-    
+
     for l in readlines(tmpfile)
         if length(strip(l)) == 0
             dump()
