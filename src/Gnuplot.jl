@@ -539,6 +539,7 @@ end
 # --------------------------------------------------------------------
 internal_save(gp::DrySession; kw...) = internal_save(gp, gp; kw...)
 function internal_save(gp::DrySession, stream; term::AbstractString="", output::AbstractString="")
+    println(stream, "reset")
     if term != ""
         former_term = writeread(gp, "print GPVAL_TERM")[1]
         former_opts = writeread(gp, "print GPVAL_TERMOPTIONS")[1]
