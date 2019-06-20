@@ -2,7 +2,7 @@ __precompile__(true)
 
 module Gnuplot
 
-using StructC14N, ColorTypes, Printf, StatsBase, ReusePatterns
+using StructC14N, ColorTypes, Printf, StatsBase, ReusePatterns, DataFrames
 
 import Base.reset
 import Base.println
@@ -305,8 +305,6 @@ end
 
 # --------------------------------------------------------------------
 function newdatasource(gp::DrySession, args...; name="")
-    toString(n::Number) = @sprintf("%.4g", n)
-
     (name == "")  &&  (name = string("data", length(gp.datas)))
     name = "\$$name"
 
@@ -415,7 +413,7 @@ function newdatasource(gp::DrySession, args...; name="")
                         tmp = d[ix,iy]
                         v *= " " * string(float(tmp.r)*255) * " " * string(float(tmp.g)*255) * " " * string(float(tmp.b)*255)
                     else
-                        v *= " " * toString(d[ix,iy])
+                        v *= " " * string(d[ix,iy])
                     end
                 end
                 push!(accum, v)
@@ -1086,10 +1084,20 @@ function hist(v::Vector{T}; range=[NaN,NaN], bs=NaN, nbins=0, pad=true) where T 
     i = findall(isfinite.(v)  .&  (v.>= range[1])  .&  (v.<= range[2]))
     (nbins > 0)  &&  (bs = (range[2] - range[1]) / nbins)
     if isfinite(bs)
-        hh = fit(Histogram, v[i], range[1]:bs:range[2], closed=:left)
+        rr = range[1]:bs:range[2]
+        if maximum(rr) < range[2]
+            rr = range[1]:bs:(range[2]+bs)
+        end
+        hh = fit(Histogram, v[i], rr, closed=:left)
+        if sum(hh.weights) < length(i)
+            j = findall(v[i] .== range[2])
+            @assert length(j) == (length(i) - sum(hh.weights))
+            hh.weights[end] += length(j)
+        end
     else
         hh = fit(Histogram, v[i], closed=:left)
     end
+    @assert sum(hh.weights) == length(i)
     x = collect(hh.edges[1])
     x = (x[1:end-1] .+ x[2:end]) ./ 2
     h = hh.weights
@@ -1102,11 +1110,42 @@ function hist(v::Vector{T}; range=[NaN,NaN], bs=NaN, nbins=0, pad=true) where T 
 end
 
 
-function contourlines(args...; cntrparam="level auto 10", offset=0, width=0.)
+function hist(v1::Vector{T1}, v2::Vector{T2};
+              range1=[NaN,NaN], bs1=NaN, nbins1=0,
+              range2=[NaN,NaN], bs2=NaN, nbins2=0) where {T1 <: Number, T2 <: Number}
+    i = findall(isfinite.(v2))
+    isnan(range1[1])  &&  (range1[1] = minimum(v1[i]))
+    isnan(range1[2])  &&  (range1[2] = maximum(v1[i]))
+    i = findall(isfinite.(v2))
+    isnan(range2[1])  &&  (range2[1] = minimum(v2[i]))
+    isnan(range2[2])  &&  (range2[2] = maximum(v2[i]))
+
+    i1 = findall(isfinite.(v1)  .&  (v1.>= range1[1])  .&  (v1.<= range1[2]))
+    i2 = findall(isfinite.(v2)  .&  (v2.>= range2[1])  .&  (v2.<= range2[2]))
+    (nbins1 > 0)  &&  (bs1 = (range1[2] - range1[1]) / nbins1)
+    (nbins2 > 0)  &&  (bs2 = (range2[2] - range2[1]) / nbins2)
+    if isfinite(bs1) &&  isfinite(bs2)
+        hh = fit(Histogram, (v1[i1], v2[i2]), (range1[1]:bs1:range1[2], range2[1]:bs2:range2[2]), closed=:left)
+    else
+        hh = fit(Histogram, (v1[i1], v2[i2]), closed=:left)
+    end
+    x1 = collect(hh.edges[1])
+    x1 = (x1[1:end-1] .+ x1[2:end]) ./ 2
+    x2 = collect(hh.edges[2])
+    x2 = (x2[1:end-1] .+ x2[2:end]) ./ 2
+
+    binsize1 = x1[2] - x1[1]
+    binsize2 = x2[2] - x2[1]
+    return (loc1=x1, loc2=x2, counts=hh.weights, binsize1=binsize1)
+end
+
+
+
+function contourlines(args...; cntrparam="level auto 10")
     tmpfile = Base.Filesystem.tempname()
     sid = Symbol("j", Base.Libc.getpid())
-    if !haskey(state.sessions, sid)
-        gp = gnuplot(sid, state.cmd)
+    if !haskey(Gnuplot.state.sessions, sid)
+        gp = gnuplot(sid, Gnuplot.state.cmd)
     end
 
     Gnuplot.exec(sid, "set term unknown")
@@ -1117,42 +1156,32 @@ function contourlines(args...; cntrparam="level auto 10", offset=0, width=0.)
     Gnuplot.exec(sid, "unset table")
     Gnuplot.exec(sid, "reset")
 
-    outl = Vector{String}()
-    outc = Vector{String}()
+    out = DataFrame()
+    curlevel = NaN
     curx = Vector{Float64}()
     cury = Vector{Float64}()
-    curl = ""
+    curid = 1
     elength(x, y) = sqrt.((x[2:end] .- x[1:end-1]).^2 .+
                           (y[2:end] .- y[1:end-1]).^2)
     function dump()
-        if (length(curx) < 2)  ||  (curl == "")
-            return nothing
-        end
-
-        if sum(elength(curx, cury)) > width
-            if (offset > 0)  &&  (offset+3 < length(curx))
-                append!(outc, string.(curx[1:offset]) .* " " .* string.(cury[1:offset]))
-                push!(outc, "")
-                curx = [curx[offset+1:end]; curx[1]]
-                cury = [cury[offset+1:end]; cury[1]]
-            end
-            if length(curx) > 3
-                d = cumsum(elength(curx, cury))
-                i0 = findall(d .<= width); sort!(i0)
-                i1 = findall(d .>  width)
-                if (length(i0) > 0)  &&  (length(i1) > 0)
-                    rot1 = atan(cury[i0[end]]-cury[i0[1]], curx[i0[end]]-curx[i0[1]]) * 180 / pi
-                    rot = round(mod(rot1, 360))
-                    x = mean(curx[i0])
-                    y = mean(cury[i0])
-                    push!(outl, "set label " * string(length(outl)+1) * " '$curl' at $x, $y center front rotate by $rot")
-                    curx = curx[i1]
-                    cury = cury[i1]
-                end
-            end
-        end
-        append!(outc, string.(curx) .* " " .* string.(cury))
-        push!(outc, "")
+        ((length(curx) < 2)  ||  isnan(curlevel))  &&  return nothing
+        tmp = DataFrame([Int, Float64, Vector{Float64}, Vector{Float64}, Vector{Float64}],
+                        [:id, :level , :len           , :x             , :y])
+        push!(tmp, (curid, curlevel, [0.; elength(curx, cury)], [curx...], [cury...]))
+        append!(out, tmp)
+        curid += 1
+        # d = cumsum(elength(curx, cury))
+        # i0 = findall(d .<= width); sort!(i0)
+        # i1 = findall(d .>  width)
+        # if (length(i0) > 0)  &&  (length(i1) > 0)
+        #     rot1 = atan(cury[i0[end]]-cury[i0[1]], curx[i0[end]]-curx[i0[1]]) * 180 / pi
+        #     rot = round(mod(rot1, 360))
+        #     x = mean(curx[i0])
+        #     y = mean(cury[i0])
+        #     push!(outl, "set label " * string(length(outl)+1) * " '$curlevel' at $x, $y center front rotate by $rot")
+        #     curx = curx[i1]
+        #     cury = cury[i1]
+        # end
         empty!(curx)
         empty!(cury)
     end
@@ -1164,7 +1193,7 @@ function contourlines(args...; cntrparam="level auto 10", offset=0, width=0.)
         end
         if !isnothing(findfirst("# Contour ", l))
             dump()
-            curl = strip(split(l, ':')[2])
+            curlevel = Meta.parse(strip(split(l, ':')[2]))
             continue
         end
         (l[1] == '#')  &&  continue
@@ -1175,8 +1204,17 @@ function contourlines(args...; cntrparam="level auto 10", offset=0, width=0.)
         push!(cury, n[2])
     end
     rm(tmpfile)
-    (width > 0.)  &&  (return (outl, outc))
-    return outc
+
+    if nrow(out) > 0
+        levels = unique(out.level)
+        sort!(levels)
+        out[:levelcount] = 0
+        for i in 1:length(levels)
+            j = findall(out.level .== levels[i])
+            out[j, :levelcount] = i
+        end
+    end
+    return out
 end
 
 end #module
