@@ -511,6 +511,9 @@ function iterate(gp::DrySession, state)
         if ii <= length(gp.plots[mid].cmds)
             return (gp.plots[mid].cmds[ii], (false, mid, ii+1))
         end
+        if length(gp.plots[mid].elems) == 0
+            return ("", (false, mid+1, 1))
+        end
         s = (gp.plots[mid].flag3d  ?  "splot "  :  "plot ") * " \\\n  " *
             join(gp.plots[mid].elems, ", \\\n  ")
         return (s, (false, mid+1, 1))
@@ -573,8 +576,18 @@ function driver(args...; flag3d=false)
 
     function dataCompleted()
         if length(data) > 0
-            last = newdatasource(gp, data...; name=dataname)
-            (dataplot != nothing)  &&  (newplotelem(gp, last, dataplot))
+            AllArraysAreNotEmpty = true
+            for i in 1:length(data)
+                if (typeof(data[i]) <: AbstractArray)  &&  (length(data[i]) == 0)
+                    @warn "Input array is empty"
+                    AllArraysAreNotEmpty = false
+                    break
+                end
+            end
+            if AllArraysAreNotEmpty
+                last = newdatasource(gp, data...; name=dataname)
+                (dataplot != nothing)  &&  (newplotelem(gp, last, dataplot))
+            end
         end
         data = Vector{Any}()
         dataname = ""
@@ -1208,13 +1221,64 @@ function contourlines(args...; cntrparam="level auto 10")
     if nrow(out) > 0
         levels = unique(out.level)
         sort!(levels)
-        out[:levelcount] = 0
+        out[!, :levelcount] .= 0
         for i in 1:length(levels)
             j = findall(out.level .== levels[i])
-            out[j, :levelcount] = i
+            out[j, :levelcount] .= i
         end
     end
     return out
+end
+
+
+function boxxyerror(x, y; xmin=NaN, ymin=NaN, xmax=NaN, ymax=NaN, cartesian=false)
+    @assert length(x) == length(y)
+    @assert issorted(x)
+    @assert issorted(y)
+    xlow  = Vector{Float64}(undef, length(x))
+    xhigh = Vector{Float64}(undef, length(x))
+    ylow  = Vector{Float64}(undef, length(x))
+    yhigh = Vector{Float64}(undef, length(x))
+    for i in 2:length(x)-1
+        xlow[i]  = (x[i-1] + x[i]) / 2
+        ylow[i]  = (y[i-1] + y[i]) / 2
+        xhigh[i] = (x[i+1] + x[i]) / 2
+        yhigh[i] = (y[i+1] + y[i]) / 2
+    end
+    xlow[1]    = (isfinite(xmin)  ?  xmin  :  (x[1] - (x[2]-x[1])/2))
+    ylow[1]    = (isfinite(ymin)  ?  ymin  :  (y[1] - (y[2]-y[1])/2))
+    xlow[end]  = (x[end] - (x[end]-x[end-1])/2)
+    ylow[end]  = (y[end] - (y[end]-y[end-1])/2)
+    xhigh[1]   = (x[1] + (x[2]-x[1])/2)
+    yhigh[1]   = (y[1] + (y[2]-y[1])/2)
+    xhigh[end] = (isfinite(xmax)  ?  xmax  :  (x[end] + (x[end]-x[end-1])/2))
+    yhigh[end] = (isfinite(ymax)  ?  ymax  :  (y[end] + (y[end]-y[end-1])/2))
+    if !cartesian
+        return (x, y, xlow, xhigh, ylow, yhigh)
+    end
+    n = length(x)
+    i = repeat(1:n, outer=n)
+    j = repeat(1:n, inner=n)
+    return (x[i], y[j], xlow[i], xhigh[i], ylow[j], yhigh[j])
+end
+
+
+function histo2segments(in_x, counts)
+    @assert length(in_x) == length(counts)
+    x = Vector{Float64}()
+    y = Vector{Float64}()
+    push!(x, in_x[1])
+    push!(y, counts[1])
+    for i in 2:length(in_x)
+        xx = (in_x[i-1] + in_x[i]) / 2.
+        push!(x, xx)
+        push!(y, counts[i-1])
+        push!(x, xx)
+        push!(y, counts[i])
+    end
+    push!(x, in_x[end])
+    push!(y, counts[end])
+    return (x, y)
 end
 
 end #module
