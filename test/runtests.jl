@@ -83,7 +83,7 @@ for i in 1:10
     @gp :gp3 "plot sin($i*x)"
     sleep(0.3)
 end
-quitall()
+Gnuplot.quitall()
 
 #-----------------------------------------------------------------
 @gp "plot sin(x)"
@@ -211,5 +211,4 @@ Gnuplot.exec("load 'test.gp'") # load file test.gp
 	"splot x7, v, (u<0.5) ? -1 : sinc(x7,v) notitle",
 	"splot x8, v, (u<0.5) ? -1 : sinc(x8,v) notitle",
 	"splot x9, v, (u<0.5) ? -1 : sinc(x9,v) notitle")
-
 Gnuplot.quitall()
