@@ -3,26 +3,24 @@ module Gnuplot
 using StructC14N, ColorTypes, Printf, StatsBase, ReusePatterns, DataFrames
 
 import Base.reset
-import Base.println
+import Base.write
 import Base.iterate
 import Base.convert
 
-export gnuplot, quit, quitall, setverbose,
-    @gp, @gsp, exec, save, contourlines, hist
+export @gp, @gsp, save, contourlines, hist
 
+# ╭───────────────────────────────────────────────────────────────────╮
+# │                           TYPE DEFINITIONS                        │
+# ╰───────────────────────────────────────────────────────────────────╯
 
-#_____________________________________________________________________
-#                          TYPE DEFINITIONS
-#_____________________________________________________________________
-
-# --------------------------------------------------------------------
+# ---------------------------------------------------------------------
 mutable struct DataSet
     name::String
     lines::Vector{String}
 end
 
 
-# --------------------------------------------------------------------
+# ---------------------------------------------------------------------
 mutable struct SinglePlot
     cmds::Vector{String}
     elems::Vector{String}
@@ -31,7 +29,7 @@ mutable struct SinglePlot
 end
 
 
-# --------------------------------------------------------------------
+# ---------------------------------------------------------------------
 @quasiabstract mutable struct DrySession
     sid::Symbol                # session ID
     datas::Vector{DataSet}     # data sets
@@ -40,8 +38,8 @@ end
 end
 
 
-# --------------------------------------------------------------------
-@quasiabstract mutable struct Session <: DrySession
+# ---------------------------------------------------------------------
+@quasiabstract mutable struct GPSession <: DrySession
     pin::Base.Pipe;
     pout::Base.Pipe;
     perr::Base.Pipe;
@@ -50,27 +48,25 @@ end
 end
 
 
-# --------------------------------------------------------------------
+# ---------------------------------------------------------------------
 mutable struct State
     sessions::Dict{Symbol, DrySession};
     dry::Bool
     cmd::String
     default::Symbol;           # default session name
-    initcmd::Vector{String}    # Commands to initialize the gnuplot session (e.g., to set default terminal)
+    init::Vector{String}       # Commands to initialize the gnuplot session (e.g., to set default terminal)
     verbose::Bool;             # verbosity level (true/false)
-    silent::Bool;              # Silent flag
     printlines::Int;           # How many data lines are printed in log
-    State() = new(Dict{Symbol, DrySession}(), true, "gnuplot", :default, Vector{String}(), false, false, 4)
+    State() = new(Dict{Symbol, DrySession}(), true, "gnuplot", :default, Vector{String}(), false, 4)
 end
 const state = State()
 state.dry = false
 
 
-#_____________________________________________________________________
-#                 "PRIVATE" (NON-EXPORTED) FUNCTIONS
-#_____________________________________________________________________
-
-# --------------------------------------------------------------------
+# ╭───────────────────────────────────────────────────────────────────╮
+# │                         LOW LEVEL FUNCTIONS                       │
+# ╰───────────────────────────────────────────────────────────────────╯
+# ---------------------------------------------------------------------
 """
   # CheckGnuplotVersion
 
@@ -105,7 +101,7 @@ function CheckGnuplotVersion(cmd::AbstractString)
 end
 
 
-# --------------------------------------------------------------------
+# ---------------------------------------------------------------------
 function parseKeywords(; kwargs...)
     template = (xrange=NTuple{2, Real},
                 yrange=NTuple{2, Real},
@@ -136,176 +132,8 @@ function parseKeywords(; kwargs...)
 end
 
 
-# --------------------------------------------------------------------
-function DrySession(sid::Symbol)
-    global state
-    (sid in keys(state.sessions))  &&
-        error("Gnuplot session $sid is already active")
-    out = DrySession(sid, Vector{DataSet}(), [SinglePlot()], 1)
-    return out
-end
-
-
-# --------------------------------------------------------------------
-function getsession(sid::Symbol)
-    global state
-    if !(sid in keys(state.sessions))
-        #@info "Creating session $sid..."
-        if state.dry
-            gnuplot(sid)
-        else
-            gnuplot(sid, state.cmd)
-        end
-    end
-    return state.sessions[sid]
-end
-function getsession()
-    global state
-    return getsession(state.default)
-end
-
-
-# --------------------------------------------------------------------
-"""
-  # println
-
-  Send a string to gnuplot's STDIN.
-
-  The commands sent through `send` are not stored in the current
-  session (use `newcmd` to save commands in the current session).
-
-  ## Arguments:
-  - `gp`: a `Session` object;
-  - `str::String`: command to be sent;
-  - `capture=false`: set to `true` to capture and return the output.
-"""
-println(gp::DrySession, str::AbstractString) = nothing
-function println(gp::Session, str::AbstractString)
-    global state
-    if !state.silent  &&  state.verbose
-        printstyled(color=:yellow, "GNUPLOT ($(gp.sid)) $str\n")
-    end
-    w = write(gp.pin, strip(str) * "\n")
-    w <= 0  &&  error("Writing on gnuplot STDIN pipe returned $w")
-    #flush(gp.pin)
-    return w
-end
-
-
-println(gp::DrySession, d::DataSet) = nothing
-
-function println(gp::Session, d::DataSet)
-    if typeof(gp) == concretetype(Session)
-        if !state.silent  &&  state.verbose
-            for ii in 1:length(d.lines)
-                v = d.lines[ii]
-                printstyled(color=:light_black, "GNUPLOT ($(gp.sid)) $v\n")
-                if ii == state.printlines
-                    printstyled(color=:light_black, "GNUPLOT ($(gp.sid)) ...\n")
-                    if ii < length(d.lines)
-                        v = d.lines[end]
-                        printstyled(color=:light_black, "GNUPLOT ($(gp.sid)) $v\n")
-                    end
-                    break
-                end
-            end
-        end
-        w = write(gp.pin, "\n")
-        w = write(gp.pin, join(d.lines, "\n"))
-        w = write(gp.pin, "\n")
-        w = write(gp.pin, "\n")
-        flush(gp.pin)
-    end
-    return nothing
-end
-
-# --------------------------------------------------------------------
-writeread(gp::DrySession, str::AbstractString) = [""]
-function writeread(gp::Session, str::AbstractString)
-    global state
-    silent = state.silent
-    state.silent = true
-    write(gp.pin, "print 'GNUPLOT_CAPTURE_BEGIN'\n")
-    println(gp, strip(str))
-    write(gp.pin, "print 'GNUPLOT_CAPTURE_END'\n")
-    flush(gp.pin)
-    out = Vector{String}()
-    while true
-        l = take!(gp.channel)
-        l == "GNUPLOT_CAPTURE_END"  &&  break
-        push!(out, l)
-    end
-    state.silent = silent
-    return out
-end
-
-
-# --------------------------------------------------------------------
-setWindowTitle(session::DrySession) = nothing
-function setWindowTitle(session::Session)
-    term = writeread(session, "print GPVAL_TERM")[1]
-    if term in ("aqua", "x11", "qt", "wxt")
-        opts = writeread(session, "print GPVAL_TERMOPTIONS")[1]
-        if findfirst("title", opts) == nothing
-            writeread(session, "set term $term $opts title 'Gnuplot.jl: $(session.sid)'")
-        end
-    end
-end
-
-
-# --------------------------------------------------------------------
-function reset(gp::DrySession)
-    gp.datas = Vector{DataSet}()
-    gp.plots = [SinglePlot()]
-    gp.curmid = 1
-    println(gp, "reset session")
-    return nothing
-end
-
-
-# --------------------------------------------------------------------
-function setmulti(gp::DrySession, mid::Int)
-    @assert mid >= 0 "Multiplot ID must be a >= 0"
-    for i in length(gp.plots)+1:mid
-        push!(gp.plots, SinglePlot())
-    end
-    (mid > 0)  &&  (gp.curmid = mid)
-end
-
-
-# --------------------------------------------------------------------
-function newdatasource(gp::DrySession, v::Vector{T}; name="") where T <: AbstractString
-    (name == "")  &&  (name = string("data", length(gp.datas)))
-    name = "\$$name"
-
-    accum = Vector{String}()
-    push!(accum, "$name << EOD")
-    append!(accum, v)
-    push!(accum, "EOD")
-    d = DataSet(name, accum)
-    push!(gp.datas, d)
-
-    println(gp, d) # Send directly to gnuplot process
-    return name
-end
-
-
-# --------------------------------------------------------------------
-function newdatasource(gp::DrySession, args...; name="")
-    (name == "")  &&  (name = string("data", length(gp.datas)))
-    name = "\$$name"
-    accum = dataset(args...)
-    accum[1] = name * accum[1]
-    d = DataSet(name, accum)
-    push!(gp.datas, d)
-
-    println(gp, d) # Send directly to gnuplot process
-    return name
-end
-
-
-# --------------------------------------------------------------------
-function dataset(args...)
+# ---------------------------------------------------------------------
+function data2string(args...)
     @assert length(args) > 0
 
     # Check types of args
@@ -339,7 +167,6 @@ function dataset(args...)
     end
 
     accum = Vector{String}()
-    push!(accum, " << EOD")
 
     # All scalars
     if minimum(dims) == 0
@@ -351,7 +178,6 @@ function dataset(args...)
             v *= " " * string(d)
         end
         push!(accum, v)
-        push!(accum, "EOD")
         return accum
     end
 
@@ -369,7 +195,6 @@ function dataset(args...)
             end
             push!(accum, v)
         end
-        push!(accum, "EOD")
         return accum
     end
 
@@ -389,7 +214,6 @@ function dataset(args...)
             i += 1
             push!(accum, v)
         end
-        push!(accum, "EOD")
         return accum
     end
 
@@ -421,7 +245,6 @@ function dataset(args...)
                 i += 1
                 push!(accum, v)
             end
-            push!(accum, "EOD")
             return accum
         else
             #@info "Case 4"
@@ -440,7 +263,6 @@ function dataset(args...)
                 i += 1
                 push!(accum, v)
             end
-            push!(accum, "EOD")
             return accum
         end
     end
@@ -449,16 +271,224 @@ function dataset(args...)
 end
 
 
-# --------------------------------------------------------------------
-"""
-  # newcmd
+# ╭───────────────────────────────────────────────────────────────────╮
+# │                SESSION CONSTRUCTORS AND getsession()              │
+# ╰───────────────────────────────────────────────────────────────────╯
+# ---------------------------------------------------------------------
+function DrySession(sid::Symbol)
+    global state
+    (sid in keys(state.sessions))  &&  error("Gnuplot session $sid is already active")
+    out = DrySession(sid, Vector{DataSet}(), [SinglePlot()], 1)
+    state.sessions[sid] = out
+    return out
+end
 
-  Send a command to gnuplot process and store it in the current session.
+# ---------------------------------------------------------------------
+function GPSession(sid::Symbol)
+    function readTask(sid, stream, channel)
+        global state
+        saveOutput = false
+
+        while isopen(stream)
+            line = readline(stream)
+            if (length(line) >= 1)  &&  (line[1] == Char(0x1b)) # Escape (xterm -ti vt340)
+                buf = Vector{UInt8}()
+                append!(buf, convert(Vector{UInt8}, [line...]))
+                push!(buf, 0x0a)
+                c = 0x00
+                while c != 0x1b
+                    c = read(stream, 1)[1]
+                    push!(buf, c)
+                end
+                c = read(stream, 1)[1]
+                push!(buf, c)
+                write(stdout, buf)
+                continue
+            end
+            if line == "GNUPLOT_CAPTURE_BEGIN"
+                saveOutput = true
+            else
+                if (line != "")  &&  (line != "GNUPLOT_CAPTURE_END")  &&  (state.verbose)
+                    printstyled(color=:cyan, "GNUPLOT ($sid) -> $line\n")
+                end
+                (saveOutput)  &&  (put!(channel, line))
+                (line == "GNUPLOT_CAPTURE_END")  &&  (saveOutput = false)
+            end
+        end
+        delete!(state.sessions, sid)
+        return nothing
+    end
+
+    global state
+
+    CheckGnuplotVersion(state.cmd)
+    session = DrySession(sid)
+
+    pin  = Base.Pipe()
+    pout = Base.Pipe()
+    perr = Base.Pipe()
+    proc = run(pipeline(`$(state.cmd)`, stdin=pin, stdout=pout, stderr=perr), wait=false)
+    chan = Channel{String}(32)
+
+    # Close unused sides of the pipes
+    Base.close(pout.in)
+    Base.close(perr.in)
+    Base.close(pin.out)
+    Base.start_reading(pout.out)
+    Base.start_reading(perr.out)
+
+    # Start reading tasks
+    @async readTask(sid, pout, chan)
+    @async readTask(sid, perr, chan)
+
+    out = GPSession(getfield.(Ref(session), fieldnames(concretetype(DrySession)))...,
+                    pin, pout, perr, proc, chan)
+    state.sessions[sid] = out
+
+    # Set window title
+    term = writeread(out, "print GPVAL_TERM")[1]
+    if term in ("aqua", "x11", "qt", "wxt")
+        opts = writeread(out, "print GPVAL_TERMOPTIONS")[1]
+        if findfirst("title", opts) == nothing
+            writeread(out, "set term $term $opts title 'Gnuplot.jl: $(out.sid)'")
+        end
+    end
+    for l in state.init
+        writeread(out, l)
+    end
+
+    return out
+end
+
+
+# ---------------------------------------------------------------------
+function getsession(sid::Symbol=state.default)
+    global state
+    if !(sid in keys(state.sessions))
+        if state.dry
+            DrySession(sid)
+        else
+            GPSession(sid)
+        end
+    end
+    return state.sessions[sid]
+end
+
+
+# ╭───────────────────────────────────────────────────────────────────╮
+# │                        write() and writeread()                    │
+# ╰───────────────────────────────────────────────────────────────────╯
+# ---------------------------------------------------------------------
 """
+  # write
+
+  Send a string to gnuplot's STDIN.
+
+  The commands sent through `write` are not stored in the current
+  session (use `newcmd` to save commands in the current session).
+
+  ## Arguments:
+  - `gp`: a `DrySession` object;
+  - `str::String`: command to be sent;
+"""
+write(gp::DrySession, str::AbstractString) = nothing
+function write(gp::GPSession, str::AbstractString)
+    global state
+    if state.verbose
+        printstyled(color=:light_yellow, "GNUPLOT ($(gp.sid)) $str\n")
+    end
+    w = write(gp.pin, strip(str) * "\n")
+    w <= 0  &&  error("Writing on gnuplot STDIN pipe returned $w")
+    flush(gp.pin)
+    return w
+end
+
+
+write(gp::DrySession, d::DataSet) = nothing
+function write(gp::GPSession, d::DataSet)
+    if state.verbose
+        v = ""
+        printstyled(color=:light_black, "GNUPLOT ($(gp.sid)) $(d.name) << EOD\n")
+        n = min(state.printlines, length(d.lines))
+        for i in 1:n
+            printstyled(color=:light_black, "GNUPLOT ($(gp.sid)) $(d.lines[i])\n")
+        end
+        if n < length(d.lines)
+            printstyled(color=:light_black, "GNUPLOT ($(gp.sid)) ...\n")
+        end
+        printstyled(color=:light_black, "GNUPLOT ($(gp.sid)) EOD\n")
+    end
+    write(gp.pin, "\n")
+    write(gp.pin, "$(d.name) << EOD\n")
+    write(gp.pin, join(d.lines, "\n") * "\n")
+    write(gp.pin, "EOD\n")
+    write(gp.pin, "\n")
+    write(gp.pin, "\n")
+    flush(gp.pin)
+    return nothing
+end
+
+
+# ---------------------------------------------------------------------
+writeread(gp::DrySession, str::AbstractString) = [""]
+function writeread(gp::GPSession, str::AbstractString)
+    global state
+    verbose = state.verbose
+    state.verbose = false
+    write(gp, "print 'GNUPLOT_CAPTURE_BEGIN'")
+    write(gp, str)
+    write(gp, "print 'GNUPLOT_CAPTURE_END'")
+    out = Vector{String}()
+    while true
+        l = take!(gp.channel)
+        l == "GNUPLOT_CAPTURE_END"  &&  break
+        push!(out, l)
+    end
+    state.verbose = verbose
+    return out
+end
+
+
+# ╭───────────────────────────────────────────────────────────────────╮
+# │              PRIVATE FUNCTIONS TO MANIPULATE SESSIONS             │
+# ╰───────────────────────────────────────────────────────────────────╯
+# ---------------------------------------------------------------------
+function reset(gp::DrySession)
+    gp.datas = Vector{DataSet}()
+    gp.plots = [SinglePlot()]
+    gp.curmid = 1
+    write(gp, "reset session")
+    return nothing
+end
+
+
+# ---------------------------------------------------------------------
+function setmulti(gp::DrySession, mid::Int)
+    @assert mid >= 0 "Multiplot ID must be a >= 0"
+    for i in length(gp.plots)+1:mid
+        push!(gp.plots, SinglePlot())
+    end
+    (mid > 0)  &&  (gp.curmid = mid)
+end
+
+
+# ---------------------------------------------------------------------
+function newdataset(gp::DrySession, accum::Vector{String}; name="")
+    (name == "")  &&  (name = string("data", length(gp.datas)))
+    name = "\$$name"
+    d = DataSet(name, accum)
+    push!(gp.datas, d)
+    write(gp, d) # Send now to gnuplot process
+    return name
+end
+newdataset(gp::DrySession, args...; name="") = newdataset(gp, data2string(args...), name=name)
+
+
+# ---------------------------------------------------------------------
 function newcmd(gp::DrySession, v::String; mid::Int=0)
     setmulti(gp, mid)
     (v != "")  &&  (push!(gp.plots[gp.curmid].cmds, v))
-    (length(gp.plots) == 1)  &&  (println(gp, v))
+    (length(gp.plots) == 1)  &&  (write(gp, v))
     return nothing
 end
 
@@ -470,105 +500,80 @@ function newcmd(gp::DrySession; mid::Int=0, args...)
 end
 
 
-# --------------------------------------------------------------------
-function newplotelem(gp::DrySession, name, opt=""; mid=0)
+# ---------------------------------------------------------------------
+function newplot(gp::DrySession, name, opt=""; mid=0)
     setmulti(gp, mid)
     push!(gp.plots[gp.curmid].elems, "$name $opt")
 end
 
 
-# --------------------------------------------------------------------
-function quitsession(gp::DrySession)
+# ---------------------------------------------------------------------
+function quit(gp::DrySession)
     global state
     delete!(state.sessions, gp.sid)
     return 0
 end
 
-function quitsession(gp::Session)
+function quit(gp::GPSession)
     close(gp.pin)
     close(gp.pout)
     close(gp.perr)
     wait( gp.proc)
     exitCode = gp.proc.exitcode
-    invoke(quitsession, Tuple{DrySession}, gp)
+    invoke(quit, Tuple{DrySession}, gp)
     return exitCode
 end
 
 
-# --------------------------------------------------------------------
-iterate(gp::DrySession) = ("#ID: $(gp.sid)", (true, 1, 1))
-function iterate(gp::DrySession, state)
-    (onData, mid, ii) = state
-    if onData
-        if mid <= length(gp.datas)
-            if ii <= length(gp.datas[mid].lines)
-                return (gp.datas[mid].lines[ii], (true, mid, ii+1))
-            end
-            return iterate(gp, (true, mid+1, 1))
-        end
-        return ("", (false, 1, 1))
-    end
-
-    if mid <= length(gp.plots)
-        if ii <= length(gp.plots[mid].cmds)
-            return (gp.plots[mid].cmds[ii], (false, mid, ii+1))
-        end
-        if length(gp.plots[mid].elems) == 0
-            return ("", (false, mid+1, 1))
-        end
-        s = (gp.plots[mid].flag3d  ?  "splot "  :  "plot ") * " \\\n  " *
-            join(gp.plots[mid].elems, ", \\\n  ")
-        return (s, (false, mid+1, 1))
-    end
-
-    if mid == length(gp.plots)+1
-        s = ""
-        (length(gp.plots) > 1)  &&  (s *= "unset multiplot;")
-        return (s, (false, mid+1, 1))
-    end
-
-    return nothing
-end
-
-
-# --------------------------------------------------------------------
-# function convert(::Type{Vector{String}}, gp::DrySession)
-#     out = Vector{String}()
-#     for l in gp
-#         push!(out, l)
-#     end
-#     return out
-# end
-
-
-# --------------------------------------------------------------------
-internal_save(gp::DrySession; kw...) = internal_save(gp, gp; kw...)
-function internal_save(gp::DrySession, stream; term::AbstractString="", output::AbstractString="")
-    println(stream, "reset")
+# ╭───────────────────────────────────────────────────────────────────╮
+# │                      dump() and driver()                          │
+# ╰───────────────────────────────────────────────────────────────────╯
+# ---------------------------------------------------------------------
+dump(gp::DrySession; kw...) = dump(gp, gp; kw...)
+function dump(gp::DrySession, stream; term::AbstractString="", output::AbstractString="")
+    write(stream, "reset\n")
     if term != ""
         former_term = writeread(gp, "print GPVAL_TERM")[1]
         former_opts = writeread(gp, "print GPVAL_TERMOPTIONS")[1]
-        println(stream, "set term $term")
+        write(stream, "set term $term\n")
     end
-    (output != "")  &&  println(stream, "set output '$output'")
-    i = (!(typeof(stream) <: DrySession), 1, 1) # Skip data sources ?
-    while (next = iterate(gp, i)) != nothing
-        (s, i) = next
-        println(stream, s)
+    (output != "")  &&  write(stream, "set output '$output'\n")
+
+    if !(typeof(stream) <: DrySession)
+        # Dump datasets
+        for i in 1:length(gp.datas)
+            d = gp.datas[i]
+            write(stream, d.name * " << EOD\n")
+            for j in 1:length(d.lines)
+                write(stream, d.lines[j] * "\n")
+            end
+            write(stream, "EOD\n")
+        end
     end
-    (output != "")  &&  println(stream, "set output")
+
+    for i in 1:length(gp.plots)
+        d = gp.plots[i]
+        for j in 1:length(d.cmds)
+            write(stream, d.cmds[j] * "\n")
+        end
+        s = (d.flag3d  ?  "splot "  :  "plot ") * " \\\n  " *
+            join(d.elems, ", \\\n  ")
+        write(stream, s * "\n")
+    end
+    (length(gp.plots) > 1)  &&  write(stream, "unset multiplot\n")
+    (output != "")  &&  write(stream, "set output\n")
     if term != ""
-        println(stream, "set term $former_term $former_opts")
+        write(stream, "set term $former_term $former_opts\n")
     end
-    output
+    return output
 end
 
 
-# --------------------------------------------------------------------
+# ---------------------------------------------------------------------
 function driver(args...; flag3d=false)
     if length(args) == 0
         gp = getsession()
-        internal_save(gp)
+        dump(gp)
         return nothing
     end
 
@@ -587,8 +592,8 @@ function driver(args...; flag3d=false)
                 end
             end
             if AllArraysAreNotEmpty
-                last = newdatasource(gp, data...; name=dataname)
-                (dataplot != nothing)  &&  (newplotelem(gp, last, dataplot))
+                last = newdataset(gp, data...; name=dataname)
+                (dataplot != nothing)  &&  (newplot(gp, last, dataplot))
             end
         end
         data = Vector{Any}()
@@ -660,7 +665,7 @@ function driver(args...; flag3d=false)
                         (isPlot, flag3d, cmd) = isPlotCmd(arg)
                         if isPlot
                             gp.plots[gp.curmid].flag3d = flag3d
-                            newplotelem(gp, cmd)
+                            newplot(gp, cmd)
                         else
                             newcmd(gp, arg)
                         end
@@ -674,7 +679,7 @@ function driver(args...; flag3d=false)
 
     dataplot = ""
     dataCompleted()
-    (doDump)  &&  (internal_save(gp))
+    (doDump)  &&  (dump(gp))
 
     return nothing
 end
@@ -683,132 +688,6 @@ end
 #_____________________________________________________________________
 #                         EXPORTED FUNCTIONS
 #_____________________________________________________________________
-
-# --------------------------------------------------------------------
-"""
-  `gnuplot(sid::Symbol)`
-
-  `gnuplot(sid::Symbol, cmd::AbstractString)`
-
-  Initialize a new session and (optionally) the associated Gnuplot process
-
-  ## Arguments:
-  - `sid`: the session name (a Julia symbol);
-  - `cmd`: a string specifying the complete file path to a gnuplot executable.  If not given a *dry* session will be created, i.e. a session without underlying gnuplot process.
-"""
-function gnuplot(sid::Symbol)
-    out = DrySession(sid)
-    state.sessions[sid] = out
-    return out
-end
-
-function gnuplot(sid::Symbol, cmd::AbstractString)
-    function readTask(sid, stream, channel)
-        global state
-        saveOutput = false
-
-        while isopen(stream)
-            line = readline(stream)
-
-            if (length(line) >= 1)  &&  (line[1] == Char(0x1b)) # Escape (xterm -ti vt340)
-                buf = Vector{UInt8}()
-                append!(buf, convert(Vector{UInt8}, [line...]))
-                push!(buf, 0x0a)
-                c = 0x00
-                while c != 0x1b
-                    c = read(stream, 1)[1]
-                    push!(buf, c)
-                end
-                c = read(stream, 1)[1]
-                push!(buf, c)
-                write(stdout, buf)
-                continue
-            end
-            if line == "GNUPLOT_CAPTURE_BEGIN"
-                saveOutput = true
-            else
-                if (line != "")  &&  (line != "GNUPLOT_CAPTURE_END")  &&  (!state.silent)
-                    printstyled(color=:cyan, "GNUPLOT ($sid) -> $line\n")
-                end
-                (saveOutput)  &&  (put!(channel, line))
-                (line == "GNUPLOT_CAPTURE_END")  &&  (saveOutput = false)
-            end
-        end
-        delete!(state.sessions, sid)
-        return nothing
-    end
-
-    global state
-
-    CheckGnuplotVersion(cmd)
-    session = DrySession(sid)
-
-    pin  = Base.Pipe()
-    pout = Base.Pipe()
-    perr = Base.Pipe()
-    proc = run(pipeline(`$cmd`, stdin=pin, stdout=pout, stderr=perr), wait=false)
-    chan = Channel{String}(32)
-
-    # Close unused sides of the pipes
-    Base.close(pout.in)
-    Base.close(perr.in)
-    Base.close(pin.out)
-    Base.start_reading(pout.out)
-    Base.start_reading(perr.out)
-
-    # Start reading tasks
-    @async readTask(sid, pout, chan)
-    @async readTask(sid, perr, chan)
-
-    out = Session(getfield.(Ref(session), fieldnames(concretetype(DrySession)))..., pin, pout, perr, proc, chan)
-    state.sessions[sid] = out
-
-    setWindowTitle(out)
-    for l in state.initcmd
-        writeread(out, l)
-    end
-
-    return out
-end
-
-function gnuplot()
-    global state
-    return gnuplot(state.default)
-end
-function gnuplot(cmd::AbstractString)
-    global state
-    return gnuplot(state.default, cmd)
-end
-
-
-# --------------------------------------------------------------------
-"""
-  `quit()`
-
-  Quit the session and the associated gnuplot process (if any).
-"""
-function quit(sid::Symbol)
-    global state
-    if !(sid in keys(state.sessions))
-        error("Gnuplot session $sid do not exists")
-    end
-    return quitsession(state.sessions[sid])
-end
-
-"""
-  `quitall()`
-
-  Quit all the sessions and the associated gnuplot processes.
-"""
-function quitall()
-    global state
-    for sid in keys(state.sessions)
-        quit(sid)
-    end
-    return nothing
-end
-
-
 
 # --------------------------------------------------------------------
 """
@@ -1015,6 +894,38 @@ end
 # end
 
 
+
+# ╭───────────────────────────────────────────────────────────────────╮
+# │              FUNCTIONS MEANT TO BE INVOKED BY USERS               │
+# ╰───────────────────────────────────────────────────────────────────╯
+# ---------------------------------------------------------------------
+"""
+  `quit()`
+
+  Quit the session and the associated gnuplot process (if any).
+"""
+function quit(sid::Symbol)
+    global state
+    if !(sid in keys(state.sessions))
+        error("Gnuplot session $sid do not exists")
+    end
+    return quit(state.sessions[sid])
+end
+
+"""
+  `quitall()`
+
+  Quit all the sessions and the associated gnuplot processes.
+"""
+function quitall()
+    global state
+    for sid in keys(state.sessions)
+        quit(sid)
+    end
+    return nothing
+end
+
+
 # --------------------------------------------------------------------
 """
 `exec(sid::Symbol, s::Vector{String})`
@@ -1055,11 +966,6 @@ function setverbose(b::Bool)
 end
 
 
-function initcmd()
-    global state
-    return state.initcmd
-end
-
 
 # --------------------------------------------------------------------
 """
@@ -1077,12 +983,12 @@ To save the data and command from a specific session pass the ID as first argume
 
 In all cases the `term` keyword allows to specify a gnuplot terminal, and the `output` keyword allows to specify an output file.
 """
-save(                                 ; kw...) =                            internal_save(getsession()           ; kw...)
-save(sid::Symbol                      ; kw...) =                            internal_save(getsession(sid)        ; kw...)
-save(             stream::IO          ; kw...) =                            internal_save(getsession()   , stream; kw...)
-save(sid::Symbol, stream::IO          ; kw...) =                            internal_save(getsession(sid), stream; kw...)
-save(             file::AbstractString; kw...) = open(file, "w") do stream; internal_save(getsession()   , stream; kw...); end
-save(sid::Symbol, file::AbstractString; kw...) = open(file, "w") do stream; internal_save(getsession(sid), stream; kw...); end
+save(                                 ; kw...) =                            dump(getsession()           ; kw...)
+save(sid::Symbol                      ; kw...) =                            dump(getsession(sid)        ; kw...)
+save(             stream::IO          ; kw...) =                            dump(getsession()   , stream; kw...)
+save(sid::Symbol, stream::IO          ; kw...) =                            dump(getsession(sid), stream; kw...)
+save(             file::AbstractString; kw...) = open(file, "w") do stream; dump(getsession()   , stream; kw...); end
+save(sid::Symbol, file::AbstractString; kw...) = open(file, "w") do stream; dump(getsession(sid), stream; kw...); end
 
 
 # --------------------------------------------------------------------
