@@ -3,7 +3,7 @@
 
 [![Build Status](https://travis-ci.org/gcalderone/Gnuplot.jl.svg?branch=master)](https://travis-ci.org/gcalderone/Gnuplot.jl)
 
-**Gnuplot.jl** allows easy and fast use of [Gnuplot](http://gnuplot.info/) as data visualization tool in Julia.  Its main features are:
+**Gnuplot.jl** allows easy and fast use of [Gnuplot](http://gnuplot.info/) as a data visualization tool in Julia.  Its main features are:
 
 - transparent interface between Julia and gnuplot to exploit all functionalities of the latter, both present and future ones;
   
@@ -19,7 +19,6 @@
 
 - very easy to use: if you know gnuplot you're ready to go.
 
-
 The purpose is similar to the [Gaston](https://github.com/mbaz/Gaston.jl) package, but **Gnuplot.jl** main focus is on on the syntax conciseness and ease of use.
 
 
@@ -27,17 +26,16 @@ The purpose is similar to the [Gaston](https://github.com/mbaz/Gaston.jl) packag
 In the Julia REPL type:
 
 ``` julia
+using Pkg
 Pkg.add("Gnuplot")
 ```
-
-You'll also need [gnuplot](http://gnuplot.info/) (ver. >= 4.7) installed on your system.
-
+You'll also need [gnuplot](http://gnuplot.info/) (ver. >= 4.7) installed on your system and its executable available in your path.
 
 ## Usage:
-The simplemost plot ever can be generated with just 8 characters:
+The simplemost plot ever can be generated with just 7 characters:
 ``` Julia
 using Gnuplot
-@gp 1:10
+@gp 1:9
 ```
 
 A slightly more complicated one showing a parabola with a solid line and a title:
@@ -47,7 +45,6 @@ x = 1:10
 ```
 
 A real life example showing some random noise generated data:
-
 ``` Julia
 # Create some noisy data...
 x = range(-2pi, stop=2pi, length=100);
@@ -59,56 +56,58 @@ e = 0.5 * fill(1., length(x));
 @gp("set key horizontal", "set grid", title="My title",
     xrange=(-7,7), ylabel="Y label", xlab="X label", 
     x, y, "w l t 'Real model' dt 2 lw 2 lc rgb 'red'",
-    x, y+noise, e, "w errorbars t 'Data'");
+    x, y+noise, e, "w errorbars t 'Data'")
 ```
-
-That's it for the first plots. The syntax should be familiar to most gnuplot users, with this code we:
+The syntax should be familiar to most gnuplot users, with the code above we:
 - set a few gnuplot properties (`key` and `grid`);
 - set the X axis range and Y axis label;
 - send the data to gnuplot;
 - plot two data sets specifying a few details (style, line width, color, legend, etc...).
 
-Note that this simple example already covers the vast majority of use cases, since the remaining details of the plot can be easily tweaked by adding the appropriate gnuplot command.  Also note that you would barely recognize the Julia language by just looking at the `@gp` call since **Gnuplot.jl** aims to be mostly transparent: the user is supposed to focus only on the data and on the gnuplot commands, rather than the package details.
+Note that this simple example already covers the vast majority of use cases, since the remaining details of the plot can be easily tweaked by adding the appropriate gnuplot command.  Also note that you would barely recognize the Julia language by just looking at the `@gp` call since **Gnuplot.jl** aims to be mostly transparent: the user is supposed to focus only on the data and on the gnuplot commands, rather than the package interface.
 
-If you set the verbose option (`setverbosity(true)`, which is `false` by default) you'll be able to see all the communication taking place between the **Gnuplot.jl** package and the underlyng Gnuplot process.  Repeating the last command:
+If you set the verbose option (`Gnuplot.setverbose(true)`, which is `false` by default) you'll be able to see all the communication taking place between the **Gnuplot.jl** package and the underlyng Gnuplot process.  Repeating the last command:
 ```Julia
 julia> @gp("set key horizontal", "set grid", title="My title",
     xrange=(-7,7), ylabel="Y label", xlab="X label", 
     x, y, "w l t 'Real model' dt 2 lw 2 lc rgb 'red'",
-    x, y+noise, e, "w errorbars t 'Data'");
-GNUPLOT (default) reset session
+    x, y+noise, e, "w errorbars t 'Data'")
 GNUPLOT (default) print GPVAL_TERM
 GNUPLOT (default) -> qt
 GNUPLOT (default) print GPVAL_TERMOPTIONS
-GNUPLOT (default) -> 0 title "Gnuplot.jl: default" font "Sans,9"
+GNUPLOT (default) -> 0 font "Sans,9"
+GNUPLOT (default) set term qt 0 font "Sans,9" title 'Gnuplot.jl: default'
+GNUPLOT (default) reset session
 GNUPLOT (default) set key horizontal
 GNUPLOT (default) set grid
-GNUPLOT (default) set title  'My title'
+GNUPLOT (default) set title  "My title"
 GNUPLOT (default) set xrange  [-7:7]
-GNUPLOT (default) set ylabel 'Y label'
-GNUPLOT (default) set xlabel 'X label'
+GNUPLOT (default) set ylabel "Y label"
+GNUPLOT (default) set xlabel "X label"
 GNUPLOT (default) $data0 << EOD
 GNUPLOT (default)  -6.283185307179586 1.2258873407968363
 GNUPLOT (default)  -6.156252270670907 1.1443471266509504
 GNUPLOT (default)  -6.029319234162229 1.05377837392046
+GNUPLOT (default)  -5.90238619765355 0.9548956415530343
 GNUPLOT (default) ...
 GNUPLOT (default) EOD
 GNUPLOT (default) $data1 << EOD
-GNUPLOT (default)  -6.283185307179586 1.516291874781302 0.5
-GNUPLOT (default)  -6.156252270670907 1.5490769687987143 0.5
-GNUPLOT (default)  -6.029319234162229 0.30753349072971314 0.5
+GNUPLOT (default)  -6.283185307179586 1.9916843919829947 0.5
+GNUPLOT (default)  -6.156252270670907 0.33627277530403243 0.5
+GNUPLOT (default)  -6.029319234162229 0.2532754844189571 0.5
+GNUPLOT (default)  -5.90238619765355 1.083699870620209 0.5
 GNUPLOT (default) ...
 GNUPLOT (default) EOD
+GNUPLOT (default) reset
 GNUPLOT (default) set key horizontal
 GNUPLOT (default) set grid
-GNUPLOT (default) set title  'My title'
+GNUPLOT (default) set title  "My title"
 GNUPLOT (default) set xrange  [-7:7]
-GNUPLOT (default) set ylabel 'Y label'
-GNUPLOT (default) set xlabel 'X label'
+GNUPLOT (default) set ylabel "Y label"
+GNUPLOT (default) set xlabel "X label"
 GNUPLOT (default) plot  \
   $data0 w l t 'Real model' dt 2 lw 2 lc rgb 'red', \
   $data1 w errorbars t 'Data'
-GNUPLOT (default) 
 ```
 The **Gnuplot.jl** package (note the leading `GNUPLOT`...) tells us which commands are being sent to the gnuplot process and the name of the current gnuplot session (`default`).  The **Gnuplot.jl** package will also print the replies from gnuplot, e.g.:
 ``` Julia

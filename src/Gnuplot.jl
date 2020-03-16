@@ -3,7 +3,7 @@ module Gnuplot
 using StructC14N, ColorTypes, Printf, StatsBase, ReusePatterns, DataFrames
 
 import Base.reset
-import Base.write
+import Base.println
 import Base.iterate
 import Base.convert
 
@@ -12,7 +12,6 @@ export @gp, @gsp, save, contourlines, hist
 # ╭───────────────────────────────────────────────────────────────────╮
 # │                           TYPE DEFINITIONS                        │
 # ╰───────────────────────────────────────────────────────────────────╯
-
 # ---------------------------------------------------------------------
 mutable struct DataSet
     name::String
@@ -376,23 +375,23 @@ end
 
 
 # ╭───────────────────────────────────────────────────────────────────╮
-# │                        write() and writeread()                    │
+# │                      println() and writeread()                    │
 # ╰───────────────────────────────────────────────────────────────────╯
 # ---------------------------------------------------------------------
 """
-  # write
+  # println
 
   Send a string to gnuplot's STDIN.
 
-  The commands sent through `write` are not stored in the current
+  The commands sent through `println` are not stored in the current
   session (use `newcmd` to save commands in the current session).
 
   ## Arguments:
   - `gp`: a `DrySession` object;
   - `str::String`: command to be sent;
 """
-write(gp::DrySession, str::AbstractString) = nothing
-function write(gp::GPSession, str::AbstractString)
+println(gp::DrySession, str::AbstractString) = nothing
+function println(gp::GPSession, str::AbstractString)
     global state
     if state.verbose
         printstyled(color=:light_yellow, "GNUPLOT ($(gp.sid)) $str\n")
@@ -404,8 +403,8 @@ function write(gp::GPSession, str::AbstractString)
 end
 
 
-write(gp::DrySession, d::DataSet) = nothing
-function write(gp::GPSession, d::DataSet)
+println(gp::DrySession, d::DataSet) = nothing
+function println(gp::GPSession, d::DataSet)
     if state.verbose
         v = ""
         printstyled(color=:light_black, "GNUPLOT ($(gp.sid)) $(d.name) << EOD\n")
@@ -418,12 +417,9 @@ function write(gp::GPSession, d::DataSet)
         end
         printstyled(color=:light_black, "GNUPLOT ($(gp.sid)) EOD\n")
     end
-    write(gp.pin, "\n")
     write(gp.pin, "$(d.name) << EOD\n")
     write(gp.pin, join(d.lines, "\n") * "\n")
     write(gp.pin, "EOD\n")
-    write(gp.pin, "\n")
-    write(gp.pin, "\n")
     flush(gp.pin)
     return nothing
 end
@@ -434,17 +430,23 @@ writeread(gp::DrySession, str::AbstractString) = [""]
 function writeread(gp::GPSession, str::AbstractString)
     global state
     verbose = state.verbose
+
     state.verbose = false
-    write(gp, "print 'GNUPLOT_CAPTURE_BEGIN'")
-    write(gp, str)
-    write(gp, "print 'GNUPLOT_CAPTURE_END'")
+    println(gp, "print 'GNUPLOT_CAPTURE_BEGIN'")
+
+    state.verbose = verbose
+    println(gp, str)
+
+    state.verbose = false
+    println(gp, "print 'GNUPLOT_CAPTURE_END'")
+    state.verbose = verbose
+
     out = Vector{String}()
     while true
         l = take!(gp.channel)
         l == "GNUPLOT_CAPTURE_END"  &&  break
         push!(out, l)
     end
-    state.verbose = verbose
     return out
 end
 
@@ -457,7 +459,7 @@ function reset(gp::DrySession)
     gp.datas = Vector{DataSet}()
     gp.plots = [SinglePlot()]
     gp.curmid = 1
-    write(gp, "reset session")
+    println(gp, "reset session")
     return nothing
 end
 
@@ -478,7 +480,7 @@ function newdataset(gp::DrySession, accum::Vector{String}; name="")
     name = "\$$name"
     d = DataSet(name, accum)
     push!(gp.datas, d)
-    write(gp, d) # Send now to gnuplot process
+    println(gp, d) # Send now to gnuplot process
     return name
 end
 newdataset(gp::DrySession, args...; name="") = newdataset(gp, data2string(args...), name=name)
@@ -488,7 +490,7 @@ newdataset(gp::DrySession, args...; name="") = newdataset(gp, data2string(args..
 function newcmd(gp::DrySession, v::String; mid::Int=0)
     setmulti(gp, mid)
     (v != "")  &&  (push!(gp.plots[gp.curmid].cmds, v))
-    (length(gp.plots) == 1)  &&  (write(gp, v))
+    (length(gp.plots) == 1)  &&  (println(gp, v))
     return nothing
 end
 
@@ -531,39 +533,39 @@ end
 # ---------------------------------------------------------------------
 dump(gp::DrySession; kw...) = dump(gp, gp; kw...)
 function dump(gp::DrySession, stream; term::AbstractString="", output::AbstractString="")
-    write(stream, "reset\n")
+    println(stream, "reset")
     if term != ""
         former_term = writeread(gp, "print GPVAL_TERM")[1]
         former_opts = writeread(gp, "print GPVAL_TERMOPTIONS")[1]
-        write(stream, "set term $term\n")
+        println(stream, "set term $term")
     end
-    (output != "")  &&  write(stream, "set output '$output'\n")
+    (output != "")  &&  println(stream, "set output '$output'")
 
     if !(typeof(stream) <: DrySession)
         # Dump datasets
         for i in 1:length(gp.datas)
             d = gp.datas[i]
-            write(stream, d.name * " << EOD\n")
+            println(stream, d.name * " << EOD")
             for j in 1:length(d.lines)
-                write(stream, d.lines[j] * "\n")
+                println(stream, d.lines[j])
             end
-            write(stream, "EOD\n")
+            println(stream, "EOD")
         end
     end
 
     for i in 1:length(gp.plots)
         d = gp.plots[i]
         for j in 1:length(d.cmds)
-            write(stream, d.cmds[j] * "\n")
+            println(stream, d.cmds[j])
         end
         s = (d.flag3d  ?  "splot "  :  "plot ") * " \\\n  " *
             join(d.elems, ", \\\n  ")
-        write(stream, s * "\n")
+        println(stream, s)
     end
-    (length(gp.plots) > 1)  &&  write(stream, "unset multiplot\n")
-    (output != "")  &&  write(stream, "set output\n")
+    (length(gp.plots) > 1)  &&  println(stream, "unset multiplot")
+    (output != "")  &&  println(stream, "set output")
     if term != ""
-        write(stream, "set term $former_term $former_opts\n")
+        println(stream, "set term $former_term $former_opts")
     end
     return output
 end
@@ -964,7 +966,6 @@ function setverbose(b::Bool)
     global state
     state.verbose = b
 end
-
 
 
 # --------------------------------------------------------------------
