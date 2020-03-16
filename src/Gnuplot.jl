@@ -1,5 +1,3 @@
-__precompile__(true)
-
 module Gnuplot
 
 using StructC14N, ColorTypes, Printf, StatsBase, ReusePatterns, DataFrames
@@ -138,10 +136,10 @@ function parseKeywords(; kwargs...)
     ismissing(kw.yrange ) || (push!(out, "set yrange  [" * join(kw.yrange , ":") * "]"))
     ismissing(kw.zrange ) || (push!(out, "set zrange  [" * join(kw.zrange , ":") * "]"))
     ismissing(kw.cbrange) || (push!(out, "set cbrange [" * join(kw.cbrange, ":") * "]"))
-    ismissing(kw.title  ) || (push!(out, "set title  '" * kw.title  * "'"))
-    ismissing(kw.xlabel ) || (push!(out, "set xlabel '" * kw.xlabel * "'"))
-    ismissing(kw.ylabel ) || (push!(out, "set ylabel '" * kw.ylabel * "'"))
-    ismissing(kw.zlabel ) || (push!(out, "set zlabel '" * kw.zlabel * "'"))
+    ismissing(kw.title  ) || (push!(out, "set title  \"" * kw.title  * "\""))
+    ismissing(kw.xlabel ) || (push!(out, "set xlabel \"" * kw.xlabel * "\""))
+    ismissing(kw.ylabel ) || (push!(out, "set ylabel \"" * kw.ylabel * "\""))
+    ismissing(kw.zlabel ) || (push!(out, "set zlabel \"" * kw.zlabel * "\""))
     ismissing(kw.xlog   ) || (push!(out, (kw.xlog  ?  ""  :  "un") * "set logscale x"))
     ismissing(kw.ylog   ) || (push!(out, (kw.ylog  ?  ""  :  "un") * "set logscale y"))
     ismissing(kw.zlog   ) || (push!(out, (kw.zlog  ?  ""  :  "un") * "set logscale z"))
@@ -307,9 +305,21 @@ end
 function newdatasource(gp::DrySession, args...; name="")
     (name == "")  &&  (name = string("data", length(gp.datas)))
     name = "\$$name"
+    accum = dataset(args...)
+    accum[1] = name * accum[1]
+    d = DataSource(name, accum)
+    push!(gp.datas, d)
 
-    # Check dimensions
-    maxDim = 0
+    println(gp, d) # Send directly to gnuplot process
+    return name
+end
+
+
+# --------------------------------------------------------------------
+function dataset(args...)
+    @assert length(args) > 0
+
+    # Check types of args
     for iarg in 1:length(args)
         d = args[iarg]
 
@@ -324,126 +334,129 @@ function newdatasource(gp::DrySession, args...; name="")
                 ok = true
             end
         end
-        if ndims(d) > maxDim
-            maxDim = ndims(d)
-        end
-
-        @assert ok "Invalid argument at position $iarg"
-        @assert maxDim <= 3 "Array dimensions must be <= 3"
+        @assert ok "Invalid argument type at position $iarg"
     end
 
-    dimX = 0
-    dimY = 0
-    dimZ = 0
-    count1D = 0
-    for iarg in 1:length(args)
-        d = args[iarg]
-        if ndims(d) == 0
-            @assert maxDim == 0 "Input data are ambiguous: use use all scalar floats or arrays of floats"
-        elseif ndims(d) == 1
-            count1D += 1
-            if maxDim == 1
-                (iarg == 1)  &&  (dimX = length(d))
-                @assert dimX == length(d) "Array size are incompatible"
-            else
-                (iarg == 1)  &&  (dimX = length(d))
-                (maxDim == 2)  &&  (iarg == 2)  &&  (dimY = length(d))
-                (maxDim == 3)  &&  (iarg == 3)  &&  (dimZ = length(d))
-                @assert iarg <= maxDim "2D and 3D data must be given at the end of argument list"
-            end
-        elseif ndims(d) == 2
-            if iarg == 1
-                dimX = (size(d))[1]
-                dimY = (size(d))[2]
-            end
-            @assert dimX == (size(d))[1] "Array size are incompatible"
-            @assert dimY == (size(d))[2] "Array size are incompatible"
-            @assert dimZ == 0 "Mixing 2D and 3D data is not allowed"
-        elseif ndims(d) == 3
-            if iarg == 1
-                dimX = (size(d))[1]
-                dimY = (size(d))[2]
-                dimZ = (size(d))[3]
-            end
-            @assert dimX == (size(d))[1] "Array size are incompatible"
-            @assert dimY == (size(d))[2] "Array size are incompatible"
-            @assert dimZ == (size(d))[3] "Array size are incompatible"
-        end
-    end
-    if (dimZ > 0)  &&  (count1D != 0)  &&  (count1D != 3)
-        error("Either zero or three 1D arrays must be given before 3D data")
-    elseif (dimY > 0)  &&  (count1D != 0)  &&  (count1D != 2)
-        error("Either zero or two 1D arrays must be given before 2D data")
+    # Collect lengths and number of dims
+    lengths = Vector{Int}()
+    dims = Vector{Int}()
+    firstMultiDim = 0
+    for i in 1:length(args)
+        d = args[i]
+        @assert ndims(d) <= 3 "Array dimensions must be <= 3"
+        push!(lengths, length(d))
+        push!(dims   , ndims(d))
+        (firstMultiDim == 0)  &&  (ndims(d) > 1)  &&  (firstMultiDim = i)
     end
 
-    # Prepare data
     accum = Vector{String}()
-    v = "$name << EOD"
-    push!(accum, v)
+    push!(accum, " << EOD")
 
-    if dimZ > 0 # 3D
-        for ix in 1:dimX
-            for iy in 1:dimY
-                for iz in 1:dimZ
-                    if count1D == 0
-                        v = string(ix) * " " * string(iy) * " " * string(iz)
-                    else
-                        v = string(args[1][ix]) * " " * string(args[2][iy]) * " " * string(args[3][iz])
-                    end
-                    for iarg in count1D+1:length(args)
-                        d = args[iarg]
-                        v *= " " * string(d[ix,iy,iz])
-                    end
-                    push!(accum, v)
-                end
-            end
-            push!(accum, "")
-        end
-    elseif dimY > 0  # 2D
-        for ix in 1:dimX
-            for iy in 1:dimY
-                if count1D == 0
-                    v = string(ix) * " " * string(iy)
-                else
-                    v = string(args[1][ix]) * " " * string(args[2][iy])
-                end
-                for iarg in count1D+1:length(args)
-                    d = args[iarg]
-                    if typeof(d[ix,iy]) <: ColorTypes.RGB
-                        tmp = d[ix,iy]
-                        v *= " " * string(float(tmp.r)*255) * " " * string(float(tmp.g)*255) * " " * string(float(tmp.b)*255)
-                    else
-                        v *= " " * string(d[ix,iy])
-                    end
-                end
-                push!(accum, v)
-            end
-            push!(accum, "")
-        end
-    elseif dimX > 0  # 1D
-        for ix in 1:dimX
-            v = ""
-            for iarg in 1:length(args)
-                d = args[iarg]
-                v *= " " * string(d[ix])
-            end
-            push!(accum, v)
-        end
-    else # scalars
+    # All scalars
+    if minimum(dims) == 0
+        #@info "Case 0"
+        @assert maximum(dims) == 0 "Input data are ambiguous: either use all scalar or arrays of floats"
         v = ""
         for iarg in 1:length(args)
             d = args[iarg]
             v *= " " * string(d)
         end
         push!(accum, v)
+        push!(accum, "EOD")
+        return accum
     end
 
-    push!(accum, "EOD")
-    d = DataSource(name, accum)
-    push!(gp.datas, d)
+    @assert all((dims .== 1)  .|  (dims .== maximum(dims))) "Array size are incompatible"
 
-    println(gp, d) # Send directly to gnuplot process
-    return name
+    # All 1D
+    if firstMultiDim == 0
+        #@info "Case 1"
+        @assert minimum(lengths) == maximum(lengths) "Array size are incompatible"
+        for i in 1:lengths[1]
+            v = ""
+            for iarg in 1:length(args)
+                d = args[iarg]
+                v *= " " * string(d[i])
+            end
+            push!(accum, v)
+        end
+        push!(accum, "EOD")
+        return accum
+    end
+
+    # Multidimensional, add independent indices
+    if firstMultiDim == 1
+        #@info "Case 2"
+        @assert minimum(lengths) == maximum(lengths) "Array size are incompatible"
+        i = 1
+        for CIndex in CartesianIndices(size(args[1]))
+            indices = Tuple(CIndex)
+            (i > 1)  &&  (indices[end-1] == 1)  &&  (push!(accum, ""))  # blank line
+            v = " " * join(string.(getindex.(Ref(Tuple(indices)), 1:ndims(args[1]))), " ")
+            for iarg in 1:length(args)
+                d = args[iarg]
+                v *= " " * string(d[i])
+            end
+            i += 1
+            push!(accum, v)
+        end
+        push!(accum, "EOD")
+        return accum
+    end
+
+    # Multidimensional (independent indices provided in input)
+    if firstMultiDim >= 2
+        @assert (firstMultiDim-1 == dims[firstMultiDim]) "Not enough independent variables"
+        refLength = lengths[firstMultiDim]
+        @assert all(lengths[firstMultiDim:end] .== refLength) "Array size are incompatible"
+
+        if lengths[1] < refLength
+            #@info "Case 3"
+            # Cartesian product of Independent variables
+            checkLength = prod(lengths[1:firstMultiDim-1])
+            @assert prod(lengths[1:firstMultiDim-1]) == refLength "Array size are incompatible"
+
+            i = 1
+            for CIndex in CartesianIndices(size(args[firstMultiDim]))
+                indices = Tuple(CIndex)
+                (i > 1)  &&  (indices[end-1] == 1)  &&  (push!(accum, ""))  # blank line
+                v = ""
+                for iarg in 1:firstMultiDim-1
+                    d = args[iarg]
+                    v *= " " * string(d[indices[iarg]])
+                end
+                for iarg in firstMultiDim:length(args)
+                    d = args[iarg]
+                    v *= " " * string(d[i])
+                end
+                i += 1
+                push!(accum, v)
+            end
+            push!(accum, "EOD")
+            return accum
+        else
+            #@info "Case 4"
+            # All Independent variables have the same length as the main multidimensional data
+            @assert all(lengths[1:firstMultiDim-1] .== refLength) "Array size are incompatible"
+
+            i = 1
+            for CIndex in CartesianIndices(size(args[firstMultiDim]))
+                indices = Tuple(CIndex)
+                (i > 1)  &&  (indices[end-1] == 1)  &&  (push!(accum, ""))  # blank line
+                v = ""
+                for iarg in 1:length(args)
+                    d = args[iarg]
+                    v *= " " * string(d[i])
+                end
+                i += 1
+                push!(accum, v)
+            end
+            push!(accum, "EOD")
+            return accum
+        end
+    end
+
+    return nothing
 end
 
 

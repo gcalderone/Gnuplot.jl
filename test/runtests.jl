@@ -1,4 +1,94 @@
-using Gnuplot
+using Test, Gnuplot
+
+x = [1, 2, 3]
+y = [4, 5, 6]
+
+s = Gnuplot.dataset(1)
+@test all(s .== [" << EOD",
+                 " 1"     ,
+                 "EOD"    ])
+
+s = Gnuplot.dataset(1, 2)
+@test all(s .== [" << EOD",
+                 " 1 2"   ,
+                 "EOD"    ])
+
+s = Gnuplot.dataset(x)
+@test all(s .== [" << EOD",
+                 " 1"   ,
+                 " 2"   ,
+                 " 3"   ,
+                 "EOD"    ])
+
+s = Gnuplot.dataset(x, y)
+@test all(s .== [ " << EOD",
+                  " 1 4",
+                  " 2 5",
+                  " 3 6",
+                  "EOD"     ])
+
+s = Gnuplot.dataset(x, y, x.+y)
+@test all(s .== [ " << EOD",
+                  " 1 4 5",
+                  " 2 5 7",
+                  " 3 6 9",
+                  "EOD"     ])
+
+z = [X+Y for X in x, Y in y];
+s = Gnuplot.dataset(z)
+@test all(s .== [" << EOD",
+                 " 1 1 5" ,
+                 " 2 1 6" ,
+                 " 3 1 7" ,
+                 ""       ,
+                 " 1 2 6" ,
+                 " 2 2 7" ,
+                 " 3 2 8" ,
+                 ""       ,
+                 " 1 3 7" ,
+                 " 2 3 8" ,
+                 " 3 3 9" ,
+                 "EOD"    ])
+
+
+s = Gnuplot.dataset(x, y, z)
+@test all(s .== [" << EOD",
+                 " 1 4 5" ,
+                 " 2 4 6" ,
+                 " 3 4 7" ,
+                 ""       ,
+                 " 1 5 6" ,
+                 " 2 5 7" ,
+                 " 3 5 8" ,
+                 ""       ,
+                 " 1 6 7" ,
+                 " 2 6 8" ,
+                 " 3 6 9" ,
+                 "EOD"     ])
+
+
+
+c = [[X, Y] for Y in y for X in x];  # First Y (i.e. rows) then X (i.e. columns)
+u = getindex.(c, 1)
+v = getindex.(c, 2)
+
+s = Gnuplot.dataset(u, v, z)
+@test all(s .== [" << EOD",
+                 " 1 4 5" ,
+                 " 2 4 6" ,
+                 " 3 4 7" ,
+                 ""       ,
+                 " 1 5 6" ,
+                 " 2 5 7" ,
+                 " 3 5 8" ,
+                 ""       ,
+                 " 1 6 7" ,
+                 " 2 6 8" ,
+                 " 3 6 9" ,
+                 "EOD"     ])
+
+
+#-----------------------------------------------------------------
 
 x = collect(1.:100);
 
