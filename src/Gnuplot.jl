@@ -6,6 +6,7 @@ import Base.reset
 import Base.println
 import Base.iterate
 import Base.convert
+import Base.string
 
 export @gp, @gsp, save, contourlines, hist
 
@@ -66,6 +67,11 @@ state.dry = false
 # │                         LOW LEVEL FUNCTIONS                       │
 # ╰───────────────────────────────────────────────────────────────────╯
 # ---------------------------------------------------------------------
+function string(c::ColorTypes.RGB)
+    return string(float(c.r)*255) * " " * string(float(c.g)*255) * " " * string(float(c.b)*255)
+end
+
+
 """
   # CheckGnuplotVersion
 
@@ -695,7 +701,7 @@ end
 """
 `@gp args...`
 
-The `@gp` macro, and its companion `@gsp` (for `splot` operations) allows to exploit all of the **Gnuplot** package functionalities using an extremely efficient and concise syntax.  Both macros accept the same syntax, as described below.
+The `@gp` macro (and its companion `@gsp`, for `splot` operations) allows to exploit all of the **Gnuplot** package functionalities using an extremely efficient and concise syntax.  Both macros accept the same syntax, as described below.
 
 The macros accepts any number of arguments, with the following meaning:
 - a symbol: the name of the session to use;
@@ -790,7 +796,7 @@ end
 @gp :GP1 "plot sin(x)"
 @gp :GP2 "plot sin(x)"
 
-quitall()
+Gnuplot.quitall()
 ```
 
 ### Further examples
@@ -822,9 +828,9 @@ name = "\\\$MyDataSet1"
 @gp :- "plot \$name u 1:((f(\\\$1)-\\\$2) / \\\$3):(1) w errorbars notit"
 
 # Retrieve values for a, b and c
-a = parse(Float64, exec("print a"))
-b = parse(Float64, exec("print b"))
-c = parse(Float64, exec("print c"))
+a = Meta.parse(Gnuplot.exec("print a"))
+b = Meta.parse(Gnuplot.exec("print b"))
+c = Meta.parse(Gnuplot.exec("print c"))
 
 # Save to a PDF file
 save(term="pdf", output="gnuplot.pdf")
