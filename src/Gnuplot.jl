@@ -16,7 +16,7 @@ export gnuplot, quit, quitall, setverbose,
 #_____________________________________________________________________
 
 # --------------------------------------------------------------------
-mutable struct DataSource
+mutable struct DataSet
     name::String
     lines::Vector{String}
 end
@@ -34,8 +34,8 @@ end
 # --------------------------------------------------------------------
 @quasiabstract mutable struct DrySession
     sid::Symbol                # session ID
-    datas::Vector{DataSource}  # data sources
-    plots::Vector{SinglePlot}  # commands and plot commands (one entry for eahelemec plot of the multiplot)
+    datas::Vector{DataSet}     # data sets
+    plots::Vector{SinglePlot}  # commands and plot commands (one entry for each plot of the multiplot)
     curmid::Int                # current multiplot ID
 end
 
@@ -63,6 +63,7 @@ mutable struct State
     State() = new(Dict{Symbol, DrySession}(), true, "gnuplot", :default, Vector{String}(), false, false, 4)
 end
 const state = State()
+state.dry = false
 
 
 #_____________________________________________________________________
@@ -105,18 +106,6 @@ end
 
 
 # --------------------------------------------------------------------
-function __init__()
-    global state
-    try
-        ver = CheckGnuplotVersion(state.cmd)
-        state.dry = false
-    catch err
-
-    end
-end
-
-
-# --------------------------------------------------------------------
 function parseKeywords(; kwargs...)
     template = (xrange=NTuple{2, Real},
                 yrange=NTuple{2, Real},
@@ -152,7 +141,7 @@ function DrySession(sid::Symbol)
     global state
     (sid in keys(state.sessions))  &&
         error("Gnuplot session $sid is already active")
-    out = DrySession(sid, Vector{DataSource}(), [SinglePlot()], 1)
+    out = DrySession(sid, Vector{DataSet}(), [SinglePlot()], 1)
     return out
 end
 
@@ -203,9 +192,9 @@ function println(gp::Session, str::AbstractString)
 end
 
 
-println(gp::DrySession, d::DataSource) = nothing
+println(gp::DrySession, d::DataSet) = nothing
 
-function println(gp::Session, d::DataSource)
+function println(gp::Session, d::DataSet)
     if typeof(gp) == concretetype(Session)
         if !state.silent  &&  state.verbose
             for ii in 1:length(d.lines)
@@ -266,7 +255,7 @@ end
 
 # --------------------------------------------------------------------
 function reset(gp::DrySession)
-    gp.datas = Vector{DataSource}()
+    gp.datas = Vector{DataSet}()
     gp.plots = [SinglePlot()]
     gp.curmid = 1
     println(gp, "reset session")
@@ -293,7 +282,7 @@ function newdatasource(gp::DrySession, v::Vector{T}; name="") where T <: Abstrac
     push!(accum, "$name << EOD")
     append!(accum, v)
     push!(accum, "EOD")
-    d = DataSource(name, accum)
+    d = DataSet(name, accum)
     push!(gp.datas, d)
 
     println(gp, d) # Send directly to gnuplot process
@@ -307,7 +296,7 @@ function newdatasource(gp::DrySession, args...; name="")
     name = "\$$name"
     accum = dataset(args...)
     accum[1] = name * accum[1]
-    d = DataSource(name, accum)
+    d = DataSet(name, accum)
     push!(gp.datas, d)
 
     println(gp, d) # Send directly to gnuplot process
