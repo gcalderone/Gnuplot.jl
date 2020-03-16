@@ -5,11 +5,11 @@
 
 **Gnuplot.jl** allows easy and fast use of [Gnuplot](http://gnuplot.info/) as a data visualization tool in Julia.  Its main features are:
 
-- transparent interface between Julia and gnuplot to exploit all functionalities of the latter, both present and future ones;
+- transparent interface between Julia and Gnuplot to exploit all functionalities of the latter, both present and future ones;
   
 - fast data transmission to gnuplot through system pipes (no temporary files involved);
   
-- handles multiple gnuplot process simultaneously;
+- handles multiple Gnuplot process simultaneously;
 
 - support for multiplots;
 
@@ -17,7 +17,7 @@
 
 - extremely concise syntax (see examples below) makes it ideal for interactive data exploration;
 
-- very easy to use: if you know gnuplot you're ready to go.
+- very easy to use: if you know Gnuplot you're ready to go.
 
 The purpose is similar to the [Gaston](https://github.com/mbaz/Gaston.jl) package, but **Gnuplot.jl** main focus is on on the syntax conciseness and ease of use.
 
@@ -29,7 +29,7 @@ In the Julia REPL type:
 using Pkg
 Pkg.add("Gnuplot")
 ```
-You'll also need [gnuplot](http://gnuplot.info/) (ver. >= 4.7) installed on your system and its executable available in your path.
+You'll also need [gnuplot](http://gnuplot.info/) (ver. >= 4.7) installed on your system, and its executable available in your path.
 
 ## Usage:
 The simplemost plot ever can be generated with just 7 characters:
@@ -38,7 +38,7 @@ using Gnuplot
 @gp 1:9
 ```
 
-A slightly more complicated one showing a parabola with a solid line and a title:
+A slightly more complicated one showing a parabola with a solid line and a legend:
 ``` Julia
 x = 1:10
 @gp x x.^2 "w l tit 'Parabola'"
@@ -46,25 +46,23 @@ x = 1:10
 
 A real life example showing some random noise generated data:
 ``` Julia
-# Create some noisy data...
 x = range(-2pi, stop=2pi, length=100);
 y = 1.5 .* sin.(0.3 .+ 0.7x) ;
 noise = randn(length(x))./2;
 e = 0.5 * fill(1., length(x));
 
-# ...and show them using gnuplot.
 @gp("set key horizontal", "set grid", title="My title",
     xrange=(-7,7), ylabel="Y label", xlab="X label", 
     x, y, "w l t 'Real model' dt 2 lw 2 lc rgb 'red'",
     x, y+noise, e, "w errorbars t 'Data'")
 ```
-The syntax should be familiar to most gnuplot users, with the code above we:
+The syntax should be familiar to most gnuplot users.  With the code above we:
 - set a few gnuplot properties (`key` and `grid`);
 - set the X axis range and Y axis label;
-- send the data to gnuplot;
+- send the data to Gnuplot;
 - plot two data sets specifying a few details (style, line width, color, legend, etc...).
 
-Note that this simple example already covers the vast majority of use cases, since the remaining details of the plot can be easily tweaked by adding the appropriate gnuplot command.  Also note that you would barely recognize the Julia language by just looking at the `@gp` call since **Gnuplot.jl** aims to be mostly transparent: the user is supposed to focus only on the data and on the gnuplot commands, rather than the package interface.
+Note that this simple example already covers the vast majority of use cases, since the remaining details of the plot can be easily tweaked by adding the appropriate Gnuplot commands.  Also note that you would barely recognize the Julia language by just looking at the `@gp` call since **Gnuplot.jl** aims to be mostly transparent: the user is supposed to focus only on the data and on the Gnuplot commands, rather than the package interface.
 
 If you set the verbose option (`Gnuplot.setverbose(true)`, which is `false` by default) you'll be able to see all the communication taking place between the **Gnuplot.jl** package and the underlyng Gnuplot process.  Repeating the last command:
 ```Julia
@@ -126,7 +124,7 @@ name = "\$MyDataSet1"
 # Define a model function to be fitted
 @gp :- "f(x) = a * sin(b + c*x); a = 1; b = 1; c = 1;"  :-
 
-# Fit the function to the :aa dataset
+# Fit the function to the dataset
 @gp :- "fit f(x) $name u 1:2:3 via a, b, c;" :-
 
 # Prepare a multiplot showing the data, the model...
@@ -139,7 +137,6 @@ name = "\$MyDataSet1"
 @gp :- "plot $name u 1:((f(\$1)-\$2) / \$3):(1) w errorbars notit"
 ```
 
-The **Gnuplot.jl** package also provide support 
 As discussed above, **Gnuplot.jl** allows to trasparently exploit all gnuplot functionalities.  E.g., we can show a random image with:
 ```Julia
 @gp randn(Float64, 30, 50) "w image"
@@ -156,7 +153,7 @@ Further documentation for the `@gp` and `@gsp` macros is available in the REPL b
 
 ### Multiple gnuplot istances
 
-The **Gnuplot.jl** package can handle multiple gnuplot istances simultaneously, each idenitified by a unique session name (actually a Julia symbol).  To use a specific session simply name it in a `@gp` or `@gsp` call.  If the session is not yet created it will be automatically started:
+The **Gnuplot.jl** package can handle multiple Gnuplot istances simultaneously, each idenitified by a unique session name (actually a Julia symbol).  To use a specific session simply name it in a `@gp` or `@gsp` call.  If the session is not yet created it will be automatically started:
 
 ``` Julia
 # Plot using session GP1 
@@ -170,18 +167,20 @@ x = 1:10
 @gp x x.^2
 ```
 
-If needed, a specific session can be started by specifying a complete file path for the gnuplot executable, e.g.
+### Customization
+
+A custom command to start a Gnuplot process can be specified as follows
 ``` Julia
-gp = gnuplot(:CUSTOM1, "/path/to/gnuplot/executable")
+Gnuplot.state.cmd = "/path/to/gnuplot/executable"
 ```
 
-Also, a session can be started as a *dry* one, i.e. a session with no underlying gnuplot process, by omitting the path to the Gnuplot executable:
+Also, the package may work in *dry* mode, i.e. without any underlying Gnuplot process:
 ``` Julia
-gp = gnuplot(:DRY_SESSION)
+Gnuplot.state.dry  = true
 ```
 The prupose is to create gnuplot scripts without running them, e.g:
 ```Julia
-@gp :DRY_SESSION x x.^2 "w l" 
+@gp x x.^2 "w l" 
 save("test.gp")
 ```
 The `test.gp` can then be loaded directly in gnuplot with:
@@ -191,17 +190,17 @@ gnuplot> load 'test.gp'
 
 
 ### Direct execution of gnuplot commands
-Both the `@gp` and `@gsp` macros stores data and commands in the package state to allow using multiple statements for a single plot, or to save all data and commands on a script file.  However the user may directly execute command on the underlying gnuplot process using the `gpeval` function.  E.g., we can retrieve the values of the fitting parameters of the previous example:
+Both the `@gp` and `@gsp` macros store data and commands in the package state to allow using multiple statements for a single plot, or to save all data and commands on a script file.  However the user may directly execute command on the underlying Gnuplot process using the `Gnuplot.exec` function.  E.g., we can retrieve the values of the fitting parameters of the previous example:
 ```Julia
 # Retrieve values fr a, b and c
-a = parse(Float64, exec("print a"))
-b = parse(Float64, exec("print b"))
-c = parse(Float64, exec("print c"))
+a = Meta.parse(Gnuplot.exec("print a"))
+b = Meta.parse(Gnuplot.exec("print b"))
+c = Meta.parse(Gnuplot.exec("print c"))
 ```
 
 ### Terminating a session
 A session and the associated gnuplot process can be terminated by a call to `quit`, specifying the session name, e.g.:
 ``` Julia
-julia> quit(:GP1)
+julia> Gnuplot.quit(:GP1)
 ```
-A call to `quitall()` will terminate all active sessions.
+A call to `Gnuplot.quitall()` will terminate all active sessions.
