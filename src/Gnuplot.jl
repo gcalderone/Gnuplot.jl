@@ -1071,7 +1071,7 @@ function contourlines(args...; cntrparam="level auto 10")
     tmpfile = Base.Filesystem.tempname()
     sid = Symbol("j", Base.Libc.getpid())
     if !haskey(Gnuplot.state.sessions, sid)
-        gp = gnuplot(sid, Gnuplot.state.cmd)
+        gp = getsession(sid)
     end
 
     Gnuplot.exec(sid, "set term unknown")
