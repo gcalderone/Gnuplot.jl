@@ -991,6 +991,9 @@ save(             file::AbstractString; kw...) = open(file, "w") do stream; dump
 save(sid::Symbol, file::AbstractString; kw...) = open(file, "w") do stream; dump(getsession(sid), stream; kw...); end
 
 
+# ╭───────────────────────────────────────────────────────────────────╮
+# │                     HIGH LEVEL FACILITIES                         │
+# ╰───────────────────────────────────────────────────────────────────╯
 # --------------------------------------------------------------------
 #=
 Example:
@@ -1031,6 +1034,7 @@ function hist(v::Vector{T}; range=[NaN,NaN], bs=NaN, nbins=0, pad=true) where T 
 end
 
 
+# --------------------------------------------------------------------
 function hist(v1::Vector{T1}, v2::Vector{T2};
               range1=[NaN,NaN], bs1=NaN, nbins1=0,
               range2=[NaN,NaN], bs2=NaN, nbins2=0) where {T1 <: Number, T2 <: Number}
@@ -1061,7 +1065,7 @@ function hist(v1::Vector{T1}, v2::Vector{T2};
 end
 
 
-
+# --------------------------------------------------------------------
 function contourlines(args...; cntrparam="level auto 10")
     tmpfile = Base.Filesystem.tempname()
     sid = Symbol("j", Base.Libc.getpid())
@@ -1139,6 +1143,7 @@ function contourlines(args...; cntrparam="level auto 10")
 end
 
 
+# --------------------------------------------------------------------
 function boxxyerror(x, y; xmin=NaN, ymin=NaN, xmax=NaN, ymax=NaN, cartesian=false)
     @assert length(x) == length(y)
     @assert issorted(x)
@@ -1171,6 +1176,7 @@ function boxxyerror(x, y; xmin=NaN, ymin=NaN, xmax=NaN, ymax=NaN, cartesian=fals
 end
 
 
+# --------------------------------------------------------------------
 function histo2segments(in_x, counts)
     @assert length(in_x) == length(counts)
     x = Vector{Float64}()

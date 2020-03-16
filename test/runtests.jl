@@ -101,7 +101,8 @@ y = 1.5 * sin.(0.3 .+ 0.7x) ;
 noise = randn(length(x))./2;
 e = 0.5 * fill(1, size(x));
 
-@gp hist(noise, nbins=10)
+h = hist(noise, nbins=10)
+@gp h.loc h.counts "w histeps"
 
 
 @gp x y
@@ -129,14 +130,11 @@ name = "\$MyDataSet1"
 @gp :- "plot $name u 1:((f(\$1)-\$2) / \$3):(1) w errorbars notit"
 
 # Retrieve values for a, b and c
-a = 0; b = 0; c = 0;
-try
-    a = parse(Float64, exec("print a"))
-    b = parse(Float64, exec("print b"))
-    c = parse(Float64, exec("print c"))
-catch
-end
-gnuplot(:dry)
+a = Meta.parse(Gnuplot.exec("print a"))
+b = Meta.parse(Gnuplot.exec("print b"))
+c = Meta.parse(Gnuplot.exec("print c"))
+
+
 @gp    :dry "f(x) = a * sin(b + c*x); a = 1; b = 1; c = 1;"  :-
 @gp :- :dry "a = $a; b = $b; c = $c"                         :-
 @gp :- :dry "set multiplot layout 2,1" ylab="Data and model" :-
@@ -148,8 +146,8 @@ name = "\$MyDataSet1"
 @gp :- :dry "plot $name u 1:((f(\$1)-\$2) / \$3):(1) w errorbars notit" :-
 @gp :- :dry
 save("test.gp")        # write on file test.gp
-quitall()
-exec("load 'test.gp'") # load file test.gp
+Gnuplot.quitall()
+Gnuplot.exec("load 'test.gp'") # load file test.gp
 
 #-----------------------------------------------------------------
 @gp("""
@@ -214,4 +212,4 @@ exec("load 'test.gp'") # load file test.gp
 	"splot x8, v, (u<0.5) ? -1 : sinc(x8,v) notitle",
 	"splot x9, v, (u<0.5) ? -1 : sinc(x9,v) notitle")
 
-quitall()
+Gnuplot.quitall()
