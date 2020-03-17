@@ -26,17 +26,17 @@ s = Gnuplot.data2string(x, y, x.+y)
 
 z = [X+Y for X in x, Y in y];
 s = Gnuplot.data2string(z)
-@test all(s .== [" 1 1 5" ,
-                 " 2 1 6" ,
-                 " 3 1 7" ,
-                 ""       ,
-                 " 1 2 6" ,
-                 " 2 2 7" ,
-                 " 3 2 8" ,
-                 ""       ,
-                 " 1 3 7" ,
-                 " 2 3 8" ,
-                 " 3 3 9" ])
+@test all(s .== [" 5" ,
+                 " 6" ,
+                 " 7" ,
+                 ""   ,
+                 " 6" ,
+                 " 7" ,
+                 " 8" ,
+                 ""   ,
+                 " 7" ,
+                 " 8" ,
+                 " 9" ])
 
 
 s = Gnuplot.data2string(x, y, z)

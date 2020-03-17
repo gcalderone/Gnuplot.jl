@@ -1,6 +1,7 @@
 module Gnuplot
 
 using StructC14N, ColorTypes, Printf, StatsBase, ReusePatterns, DataFrames
+using Pkg.Artifacts, ZipFile
 
 import Base.reset
 import Base.println
@@ -59,8 +60,7 @@ Base.@kwdef mutable struct Options
 end
 const sessions = Dict{Symbol, DrySession}()
 const options = Options()
-
-
+const dpalettes = Dict{String, String}()
 
 # ╭───────────────────────────────────────────────────────────────────╮
 # │                         LOW LEVEL FUNCTIONS                       │
@@ -70,7 +70,40 @@ function string(c::ColorTypes.RGB)
     return string(float(c.r)*255) * " " * string(float(c.g)*255) * " " * string(float(c.b)*255)
 end
 
+# ---------------------------------------------------------------------
+palette_list() = keys(dpalettes)
+function palette(choice="")
+    if length(dpalettes) == 0
+        function path()
+            name = "gnuplot-palettes"
+            toml = joinpath(@__DIR__, "Artifacts.toml")
+            hash = artifact_hash(name, toml)
+            if hash == nothing || !artifact_exists(hash)
+                hash = create_artifact() do artifact_dir
+                    download("https://github.com/Gnuplotting/gnuplot-palettes/archive/master.zip", joinpath(artifact_dir, name * ".zip"))
+                end
+                bind_artifact!(toml, name, hash)
+            end
+            return joinpath(artifact_path(hash), name * ".zip")
+        end
 
+        dir = ZipFile.Reader(path())
+        out = Vector{String}()
+        for entry in dir.files
+            (_, file) = splitdir(entry.name)
+            (length(file) > 4)  ||  continue
+            (file[end-3:end] == ".pal")  || continue
+            file = file[1:end-4]
+            dpalettes[file] = join(Char.(read(entry)))
+        end
+        close(dir)
+    end
+    (choice in keys(dpalettes))  &&  (return dpalettes[choice])
+    return " "
+end
+palette()  # Populate dictionary
+
+# ---------------------------------------------------------------------
 """
   # CheckGnuplotVersion
 
@@ -202,7 +235,7 @@ function data2string(args...)
         return accum
     end
 
-    # Multidimensional, add independent indices
+    # Multidimensional, no independent indices
     if firstMultiDim == 1
         #@info "Case 2"
         @assert minimum(lengths) == maximum(lengths) "Array size are incompatible"
@@ -210,7 +243,7 @@ function data2string(args...)
         for CIndex in CartesianIndices(size(args[1]))
             indices = Tuple(CIndex)
             (i > 1)  &&  (indices[end-1] == 1)  &&  (push!(accum, ""))  # blank line
-            v = " " * join(string.(getindex.(Ref(Tuple(indices)), 1:ndims(args[1]))), " ")
+            v = "" # * join(string.(getindex.(Ref(Tuple(indices)), 1:ndims(args[1]))), " ")
             for iarg in 1:length(args)
                 d = args[iarg]
                 v *= " " * string(d[i])
@@ -413,7 +446,7 @@ function println(gp::GPSession, d::DataSet)
     if options.verbose
         v = ""
         printstyled(color=:light_black, "GNUPLOT ($(gp.sid)) $(d.name) << EOD\n")
-        n = min(options.printlines, length(d.lines))
+        n = min(options.datalines, length(d.lines))
         for i in 1:n
             printstyled(color=:light_black, "GNUPLOT ($(gp.sid)) $(d.lines[i])\n")
         end
@@ -563,9 +596,11 @@ function dump(gp::DrySession, stream; term::AbstractString="", output::AbstractS
         for j in 1:length(d.cmds)
             println(stream, d.cmds[j])
         end
-        s = (d.flag3d  ?  "splot "  :  "plot ") * " \\\n  " *
-            join(d.elems, ", \\\n  ")
-        println(stream, s)
+        if length(d.elems) > 0
+            s = (d.flag3d  ?  "splot "  :  "plot ") * " \\\n  " *
+                join(d.elems, ", \\\n  ")
+            println(stream, s)
+        end
     end
     (length(gp.plots) > 1)  &&  println(stream, "unset multiplot")
     (output != "")  &&  println(stream, "set output")
@@ -637,7 +672,7 @@ function driver(args...; flag3d=false)
             if typeof(arg) == Symbol
                 if arg == :-
                     (loop == 1)  &&  (iarg < length(args)) &&  (doReset = false)
-                    (loop == 1)  &&  (iarg >  1)           &&  (doDump  = false)
+                    (loop == 1)  &&  (iarg > 1 )           &&  (doDump  = false)
                 else
                     (loop == 1)  &&  (gp = getsession(arg))
                 end
@@ -659,6 +694,7 @@ function driver(args...; flag3d=false)
                 (loop == 2)  &&  (@assert arg > 0)
                 (loop == 2)  &&  (dataplot = ""; dataCompleted())
                 (loop == 2)  &&  setmulti(gp, arg)
+                (loop == 2)  &&  (gp.plots[gp.curmid].flag3d = flag3d)
             elseif isa(arg, String)
                 # Either a dataname, a plot or a command
                 if loop == 2
@@ -669,9 +705,9 @@ function driver(args...; flag3d=false)
                         dataplot = arg
                         dataCompleted()
                     else
-                        (isPlot, flag3d, cmd) = isPlotCmd(arg)
+                        (isPlot, is3d, cmd) = isPlotCmd(arg)
                         if isPlot
-                            gp.plots[gp.curmid].flag3d = flag3d
+                            gp.plots[gp.curmid].flag3d = is3d
                             newplot(gp, cmd)
                         else
                             newcmd(gp, arg)

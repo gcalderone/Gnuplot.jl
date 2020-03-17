@@ -231,3 +231,24 @@ or
 push!(Gnuplot.options.init, "set term sixelgd")
 ```
 Note that the latter requires Sixel graphics to be enabled (e.g. `xterm -ti vt340`).
+
+
+## Palettes
+The **Gnuplot.jl** package comes with all the [Gnuplot palettes](https://github.com/Gnuplotting/gnuplot-palettes)) readily available.
+The whole list can be retrieved with `print(Gnuplot.palette_list())`.
+
+Individual palette can be accessed with `Gnuplot.palette()` and used as any other command, as in the following example:
+```julia
+pal1 = Gnuplot.palette("rdylgn")
+pal2 = Gnuplot.palette("viridis")
+
+x = -8:0.25:8
+y = -8:0.25:8
+r = [x.^2 .+ y.^2 for x in x, y in y]
+z = sin.(sqrt.(r)) ./ sqrt.(r)
+
+@gsp "set multiplot layout 1,2" "set pm3d depthorder" "set border 0"
+@gsp :- "unset key" "unset xtics" "unset ytics" "unset ztics" "unset colorbox"
+@gsp :- "set view 60, 30, 1.5, 0.9"
+@gsp :- 1 title="rdylgn" pal1 x y z "w pm3d" 2 tit="viridis" pal2 x y z "w pm3d"
+```

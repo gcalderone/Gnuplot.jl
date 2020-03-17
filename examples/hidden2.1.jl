@@ -7,7 +7,7 @@ x = LinRange(-10, 10, 25)
 y = LinRange(-10, 10, 25)
 
 @gsp    "set xyplane at 0"
-@gsp :- "unset key"
+@gsp :- "unset key" :-
 @gsp :- "set palette rgbformulae 31,-11,32"
 @gsp :- "set style fill solid 0.5"
 @gsp :- "set cbrange [-1:1]"
