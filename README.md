@@ -6,9 +6,9 @@
 **Gnuplot.jl** allows easy and fast use of [Gnuplot](http://gnuplot.info/) as a data visualization tool in Julia.  Its main features are:
 
 - transparent interface between Julia and Gnuplot to exploit all functionalities of the latter, both present and future ones;
-  
+
 - fast data transmission to gnuplot through system pipes (no temporary files involved);
-  
+
 - handles multiple Gnuplot process simultaneously;
 
 - support for multiplots;
@@ -52,7 +52,7 @@ noise = randn(length(x))./2;
 e = 0.5 * fill(1., length(x));
 
 @gp("set key horizontal", "set grid", title="My title",
-    xrange=(-7,7), ylabel="Y label", xlab="X label", 
+    xrange=(-7,7), ylabel="Y label", xlab="X label",
     x, y, "w l t 'Real model' dt 2 lw 2 lc rgb 'red'",
     x, y+noise, e, "w errorbars t 'Data'")
 ```
@@ -67,7 +67,7 @@ Note that this simple example already covers the vast majority of use cases, sin
 If you set the verbose option (`Gnuplot.setverbose(true)`, which is `false` by default) you'll be able to see all the communication taking place between the **Gnuplot.jl** package and the underlyng Gnuplot process.  Repeating the last command:
 ```Julia
 julia> @gp("set key horizontal", "set grid", title="My title",
-    xrange=(-7,7), ylabel="Y label", xlab="X label", 
+    xrange=(-7,7), ylabel="Y label", xlab="X label",
     x, y, "w l t 'Real model' dt 2 lw 2 lc rgb 'red'",
     x, y+noise, e, "w errorbars t 'Data'")
 GNUPLOT (default) print GPVAL_TERM
@@ -150,52 +150,26 @@ or show an interactive 3D plots using the `@gsp` macro in place of `@gp`, e.g.:
 Further documentation for the `@gp` and `@gsp` macros is available in the REPL by means of the `@doc` macro or by typing `?` in the REPL followed by the macro name.
 
 
+### Export to image
+TODO
+
+### Save a script file
+TODO
 
 ### Multiple gnuplot istances
 
 The **Gnuplot.jl** package can handle multiple Gnuplot istances simultaneously, each idenitified by a unique session name (actually a Julia symbol).  To use a specific session simply name it in a `@gp` or `@gsp` call.  If the session is not yet created it will be automatically started:
 
 ``` Julia
-# Plot using session GP1 
+# Plot using a session named GP1
 x = 1:10
 @gp :GP1 x x.^2
 
-# Plot using session GP2
+# Plot using a session named GP2
 @gp x x.^2 :GP2
 
-# Plot using default session
+# Plot using default session (i.e. do not specify any session name)
 @gp x x.^2
-```
-
-### Customization
-
-A custom command to start a Gnuplot process can be specified as follows
-``` Julia
-Gnuplot.state.cmd = "/path/to/gnuplot/executable"
-```
-
-Also, the package may work in *dry* mode, i.e. without any underlying Gnuplot process:
-``` Julia
-Gnuplot.state.dry  = true
-```
-The prupose is to create gnuplot scripts without running them, e.g:
-```Julia
-@gp x x.^2 "w l" 
-save("test.gp")
-```
-The `test.gp` can then be loaded directly in gnuplot with:
-```
-gnuplot> load 'test.gp'
-```
-
-
-### Direct execution of gnuplot commands
-Both the `@gp` and `@gsp` macros store data and commands in the package state to allow using multiple statements for a single plot, or to save all data and commands on a script file.  However the user may directly execute command on the underlying Gnuplot process using the `Gnuplot.exec` function.  E.g., we can retrieve the values of the fitting parameters of the previous example:
-```Julia
-# Retrieve values fr a, b and c
-a = Meta.parse(Gnuplot.exec("print a"))
-b = Meta.parse(Gnuplot.exec("print b"))
-c = Meta.parse(Gnuplot.exec("print c"))
 ```
 
 ### Terminating a session
@@ -204,3 +178,56 @@ A session and the associated gnuplot process can be terminated by a call to `qui
 julia> Gnuplot.quit(:GP1)
 ```
 A call to `Gnuplot.quitall()` will terminate all active sessions.
+
+
+
+## Direct execution of gnuplot commands
+Both the `@gp` and `@gsp` macros store data and commands in the package state to allow using multiple statements for a single plot, or to save all data and commands on a script file.  However the user may directly execute command on the underlying Gnuplot process using the `Gnuplot.exec` function.  E.g., we can retrieve the values of the fitting parameters of the previous example:
+```Julia
+# Retrieve values fr a, b and c
+a = Meta.parse(Gnuplot.exec("print a"))
+b = Meta.parse(Gnuplot.exec("print b"))
+c = Meta.parse(Gnuplot.exec("print c"))
+```
+
+
+## Customization
+
+A custom command to start a Gnuplot process can be specified as follows
+``` Julia
+Gnuplot.options.cmd = "/path/to/gnuplot/executable"
+```
+
+Also, the package may work in *dry* mode, i.e. without any underlying Gnuplot process:
+``` Julia
+Gnuplot.options.dry  = true
+```
+The prupose is to create gnuplot scripts without running them, e.g:
+```Julia
+@gp x x.^2 "w l"
+save("test.gp")
+```
+The `test.gp` can then be loaded directly in gnuplot with:
+```
+gnuplot> load 'test.gp'
+```
+
+Finally, you can specify initialising commands to be executed when the Gnuplot process starts, in the same way as you use `.gnuplotrc`.  For instance, to set up a default terminal:
+```julia
+push!(Gnuplot.options.init, "set term sixelgd")
+```
+The above command should be executed *BEFORE* starting a new session. (use `Gnuplot.quitall()` will terminate all active sessions).
+
+
+## Plot in a terminal (no X11)
+Gnuplot supports displaying plot in a terminal application, with no need for X11 or other window frameworks.  This is very useful when you run Julia on a remote shell through `ssh`, through a slow network link.
+
+The Gnuplot terminals able to operate on "terminal" applications are `dumb` and `sixelgd`.  You can use them as default with:
+```julia
+push!(Gnuplot.options.init, "set term dumb")
+```
+or
+```julia
+push!(Gnuplot.options.init, "set term sixelgd")
+```
+Note that the latter requires Sixel graphics to be enabled (e.g. `xterm -ti vt340`).

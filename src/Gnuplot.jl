@@ -49,18 +49,17 @@ end
 
 
 # ---------------------------------------------------------------------
-mutable struct State
-    sessions::Dict{Symbol, DrySession};
-    dry::Bool
-    cmd::String
-    default::Symbol;           # default session name
-    init::Vector{String}       # Commands to initialize the gnuplot session (e.g., to set default terminal)
-    verbose::Bool;             # verbosity level (true/false)
-    printlines::Int;           # How many data lines are printed in log
-    State() = new(Dict{Symbol, DrySession}(), true, "gnuplot", :default, Vector{String}(), false, 4)
+Base.@kwdef mutable struct Options
+    dry::Bool = false                         # Use "dry" sessions (i.e. without an underlying Gnuplot process)
+    cmd::String = "gnuplot"                   # Customizable command to start the Gnuplot process
+    default::Symbol = :default                # Default session name
+    init::Vector{String} = Vector{String}()   # Commands to initialize the gnuplot session (e.g., to set default terminal)
+    verbose::Bool = false                     # verbosity flag (true/false)
+    datalines::Int = 4;                       # How many lines of a dataset are printed in log
 end
-const state = State()
-state.dry = false
+const sessions = Dict{Symbol, DrySession}()
+const options = Options()
+
 
 
 # ╭───────────────────────────────────────────────────────────────────╮
@@ -281,17 +280,17 @@ end
 # ╰───────────────────────────────────────────────────────────────────╯
 # ---------------------------------------------------------------------
 function DrySession(sid::Symbol)
-    global state
-    (sid in keys(state.sessions))  &&  error("Gnuplot session $sid is already active")
+    global options
+    (sid in keys(sessions))  &&  error("Gnuplot session $sid is already active")
     out = DrySession(sid, Vector{DataSet}(), [SinglePlot()], 1)
-    state.sessions[sid] = out
+    sessions[sid] = out
     return out
 end
 
 # ---------------------------------------------------------------------
 function GPSession(sid::Symbol)
     function readTask(sid, stream, channel)
-        global state
+        global options
         saveOutput = false
 
         while isopen(stream)
@@ -313,26 +312,26 @@ function GPSession(sid::Symbol)
             if line == "GNUPLOT_CAPTURE_BEGIN"
                 saveOutput = true
             else
-                if (line != "")  &&  (line != "GNUPLOT_CAPTURE_END")  &&  (state.verbose)
+                if (line != "")  &&  (line != "GNUPLOT_CAPTURE_END")  &&  (options.verbose)
                     printstyled(color=:cyan, "GNUPLOT ($sid) -> $line\n")
                 end
                 (saveOutput)  &&  (put!(channel, line))
                 (line == "GNUPLOT_CAPTURE_END")  &&  (saveOutput = false)
             end
         end
-        delete!(state.sessions, sid)
+        delete!(sessions, sid)
         return nothing
     end
 
-    global state
+    global options
 
-    CheckGnuplotVersion(state.cmd)
+    CheckGnuplotVersion(options.cmd)
     session = DrySession(sid)
 
     pin  = Base.Pipe()
     pout = Base.Pipe()
     perr = Base.Pipe()
-    proc = run(pipeline(`$(state.cmd)`, stdin=pin, stdout=pout, stderr=perr), wait=false)
+    proc = run(pipeline(`$(options.cmd)`, stdin=pin, stdout=pout, stderr=perr), wait=false)
     chan = Channel{String}(32)
 
     # Close unused sides of the pipes
@@ -348,7 +347,7 @@ function GPSession(sid::Symbol)
 
     out = GPSession(getfield.(Ref(session), fieldnames(concretetype(DrySession)))...,
                     pin, pout, perr, proc, chan)
-    state.sessions[sid] = out
+    sessions[sid] = out
 
     # Set window title
     term = writeread(out, "print GPVAL_TERM")[1]
@@ -358,7 +357,7 @@ function GPSession(sid::Symbol)
             writeread(out, "set term $term $opts title 'Gnuplot.jl: $(out.sid)'")
         end
     end
-    for l in state.init
+    for l in options.init
         writeread(out, l)
     end
 
@@ -367,16 +366,16 @@ end
 
 
 # ---------------------------------------------------------------------
-function getsession(sid::Symbol=state.default)
-    global state
-    if !(sid in keys(state.sessions))
-        if state.dry
+function getsession(sid::Symbol=options.default)
+    global options
+    if !(sid in keys(sessions))
+        if options.dry
             DrySession(sid)
         else
             GPSession(sid)
         end
     end
-    return state.sessions[sid]
+    return sessions[sid]
 end
 
 
@@ -398,8 +397,8 @@ end
 """
 println(gp::DrySession, str::AbstractString) = nothing
 function println(gp::GPSession, str::AbstractString)
-    global state
-    if state.verbose
+    global options
+    if options.verbose
         printstyled(color=:light_yellow, "GNUPLOT ($(gp.sid)) $str\n")
     end
     w = write(gp.pin, strip(str) * "\n")
@@ -411,10 +410,10 @@ end
 
 println(gp::DrySession, d::DataSet) = nothing
 function println(gp::GPSession, d::DataSet)
-    if state.verbose
+    if options.verbose
         v = ""
         printstyled(color=:light_black, "GNUPLOT ($(gp.sid)) $(d.name) << EOD\n")
-        n = min(state.printlines, length(d.lines))
+        n = min(options.printlines, length(d.lines))
         for i in 1:n
             printstyled(color=:light_black, "GNUPLOT ($(gp.sid)) $(d.lines[i])\n")
         end
@@ -434,18 +433,18 @@ end
 # ---------------------------------------------------------------------
 writeread(gp::DrySession, str::AbstractString) = [""]
 function writeread(gp::GPSession, str::AbstractString)
-    global state
-    verbose = state.verbose
+    global options
+    verbose = options.verbose
 
-    state.verbose = false
+    options.verbose = false
     println(gp, "print 'GNUPLOT_CAPTURE_BEGIN'")
 
-    state.verbose = verbose
+    options.verbose = verbose
     println(gp, str)
 
-    state.verbose = false
+    options.verbose = false
     println(gp, "print 'GNUPLOT_CAPTURE_END'")
-    state.verbose = verbose
+    options.verbose = verbose
 
     out = Vector{String}()
     while true
@@ -517,8 +516,8 @@ end
 
 # ---------------------------------------------------------------------
 function quit(gp::DrySession)
-    global state
-    delete!(state.sessions, gp.sid)
+    global options
+    delete!(sessions, gp.sid)
     return 0
 end
 
@@ -882,8 +881,8 @@ end
 #   Read/evaluate/print/loop
 # """
 # function repl(sid::Symbol)
-#     verb = state.verbose
-#     state.verbose = 0
+#     verb = options.verbose
+#     options.verbose = 0
 #     gp = getsession(sid)
 #     while true
 #         line = readline(stdin)
@@ -893,12 +892,12 @@ end
 #             println(line)
 #         end
 #     end
-#     state.verbose = verb
+#     options.verbose = verb
 #     return nothing
 # end
 # function repl()
-#     global state
-#     return repl(state.default)
+#     global options
+#     return repl(options.default)
 # end
 
 
@@ -913,11 +912,11 @@ end
   Quit the session and the associated gnuplot process (if any).
 """
 function quit(sid::Symbol)
-    global state
-    if !(sid in keys(state.sessions))
+    global options
+    if !(sid in keys(sessions))
         error("Gnuplot session $sid do not exists")
     end
-    return quit(state.sessions[sid])
+    return quit(sessions[sid])
 end
 
 """
@@ -926,8 +925,8 @@ end
   Quit all the sessions and the associated gnuplot processes.
 """
 function quitall()
-    global state
-    for sid in keys(state.sessions)
+    global options
+    for sid in keys(sessions)
         quit(sid)
     end
     return nothing
@@ -947,7 +946,7 @@ exec("plot sin(x)")
 ```
 """
 function exec(sid::Symbol, s::Vector{String})
-    global state
+    global options
     gp = getsession(sid)
     answer = Vector{String}()
     for v in s
@@ -956,8 +955,8 @@ function exec(sid::Symbol, s::Vector{String})
     return join(answer, "\n")
 end
 function exec(s::String)
-    global state
-    exec(state.default, [s])
+    global options
+    exec(options.default, [s])
 end
 exec(sid::Symbol, s::String) = exec(sid, [s])
 
@@ -969,8 +968,8 @@ exec(sid::Symbol, s::String) = exec(sid, [s])
 Set verbose flag to `true` or `false` (default: `false`).
 """
 function setverbose(b::Bool)
-    global state
-    state.verbose = b
+    global options
+    options.verbose = b
 end
 
 
@@ -1076,7 +1075,7 @@ end
 function contourlines(args...; cntrparam="level auto 10")
     tmpfile = Base.Filesystem.tempname()
     sid = Symbol("j", Base.Libc.getpid())
-    if !haskey(Gnuplot.state.sessions, sid)
+    if !haskey(Gnuplot.sessions, sid)
         gp = getsession(sid)
     end
 
