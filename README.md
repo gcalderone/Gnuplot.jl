@@ -233,14 +233,13 @@ push!(Gnuplot.options.init, "set term sixelgd")
 Note that the latter requires Sixel graphics to be enabled (e.g. `xterm -ti vt340`).
 
 
-## Palettes
-The **Gnuplot.jl** package comes with all the [Gnuplot palettes](https://github.com/Gnuplotting/gnuplot-palettes)) readily available.
-The whole list can be retrieved with `print(Gnuplot.palette_list())`.
+## Line styles and palettes
+The **Gnuplot.jl** package comes with all the [ColorSchemes](https://juliagraphics.github.io/ColorSchemes.jl/stable/basics/#Pre-defined-schemes-1) palettes readily available.
 
-Individual palette can be accessed with `Gnuplot.palette()` and used as any other command, as in the following example:
+A gnuplot-compliant palette can be retrieved with `palette()` and used as any other command, as in the following example:
 ```julia
-pal1 = Gnuplot.palette("rdylgn")
-pal2 = Gnuplot.palette("viridis")
+pal1 = palette(:deepsea)
+pal2 = palette(:viridis)
 
 x = -8:0.25:8
 y = -8:0.25:8
@@ -250,5 +249,14 @@ z = sin.(sqrt.(r)) ./ sqrt.(r)
 @gsp "set multiplot layout 1,2" "set pm3d depthorder" "set border 0"
 @gsp :- "unset key" "unset xtics" "unset ytics" "unset ztics" "unset colorbox"
 @gsp :- "set view 60, 30, 1.5, 0.9"
-@gsp :- 1 title="rdylgn" pal1 x y z "w pm3d" 2 tit="viridis" pal2 x y z "w pm3d"
+@gsp :- 1 title="deepsea (discrete)" pal1 x y z "w pm3d" 2 tit="viridis (continuous)" pal2 x y z "w pm3d"
+```
+
+The [ColorSchemes](https://juliagraphics.github.io/ColorSchemes.jl/stable/basics/#Pre-defined-schemes-1) palettes can also be used to generate line styles, e.g.
+```julia
+@gp linestyles(:deepsea)
+x = 1:0.1:4pi
+for i in 1:5
+    @gp :- x i.* sin.(x) "w l notit ls $i lw 10"
+end
 ```

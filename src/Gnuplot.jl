@@ -1,7 +1,7 @@
 module Gnuplot
 
 using StructC14N, ColorTypes, Printf, StatsBase, ReusePatterns, DataFrames
-using Pkg.Artifacts, ZipFile
+using ColorSchemes
 
 import Base.reset
 import Base.println
@@ -9,7 +9,7 @@ import Base.iterate
 import Base.convert
 import Base.string
 
-export @gp, @gsp, save, contourlines, hist
+export @gp, @gsp, save, linestyles, palette, contourlines, hist
 
 # ╭───────────────────────────────────────────────────────────────────╮
 # │                           TYPE DEFINITIONS                        │
@@ -60,7 +60,6 @@ Base.@kwdef mutable struct Options
 end
 const sessions = Dict{Symbol, DrySession}()
 const options = Options()
-const dpalettes = Dict{String, String}()
 
 # ╭───────────────────────────────────────────────────────────────────╮
 # │                         LOW LEVEL FUNCTIONS                       │
@@ -70,38 +69,6 @@ function string(c::ColorTypes.RGB)
     return string(float(c.r)*255) * " " * string(float(c.g)*255) * " " * string(float(c.b)*255)
 end
 
-# ---------------------------------------------------------------------
-palette_list() = keys(dpalettes)
-function palette(choice="")
-    if length(dpalettes) == 0
-        function path()
-            name = "gnuplot-palettes"
-            toml = joinpath(@__DIR__, "Artifacts.toml")
-            hash = artifact_hash(name, toml)
-            if hash == nothing || !artifact_exists(hash)
-                hash = create_artifact() do artifact_dir
-                    download("https://github.com/Gnuplotting/gnuplot-palettes/archive/master.zip", joinpath(artifact_dir, name * ".zip"))
-                end
-                bind_artifact!(toml, name, hash)
-            end
-            return joinpath(artifact_path(hash), name * ".zip")
-        end
-
-        dir = ZipFile.Reader(path())
-        out = Vector{String}()
-        for entry in dir.files
-            (_, file) = splitdir(entry.name)
-            (length(file) > 4)  ||  continue
-            (file[end-3:end] == ".pal")  || continue
-            file = file[1:end-4]
-            dpalettes[file] = join(Char.(read(entry)))
-        end
-        close(dir)
-    end
-    (choice in keys(dpalettes))  &&  (return dpalettes[choice])
-    return " "
-end
-palette()  # Populate dictionary
 
 # ---------------------------------------------------------------------
 """
@@ -1036,6 +1003,27 @@ save(sid::Symbol, file::AbstractString; kw...) = open(file, "w") do stream; dump
 # ╭───────────────────────────────────────────────────────────────────╮
 # │                     HIGH LEVEL FACILITIES                         │
 # ╰───────────────────────────────────────────────────────────────────╯
+# ---------------------------------------------------------------------
+linestyles(s::Symbol) = linestyles(colorschemes[s])
+function linestyles(cmap::ColorScheme)
+    styles = Vector{String}()
+    for i in 1:length(cmap.colors)
+        push!(styles, "set style line $i lt 1 lc rgb '#" * Base.hex(cmap.colors[i]))
+    end
+    return join(styles, "\n")
+end
+
+# --------------------------------------------------------------------
+palette(s::Symbol) = palette(colorschemes[s])
+function palette(cmap::ColorScheme)
+    levels = Vector{String}()
+    for x in LinRange(0, 1, length(cmap.colors))
+        color = get(cmap, x)
+        push!(levels, "$x '#" * Base.hex(color) * "'")
+    end
+    return "set palette defined (" * join(levels, ", ") * ")\nset palette maxcol $(length(cmap.colors))\n"
+end
+
 # --------------------------------------------------------------------
 #=
 Example:
