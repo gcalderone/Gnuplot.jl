@@ -495,7 +495,7 @@ newdataset(gp::DrySession, args...; name="") = newdataset(gp, data2string(args..
 function newcmd(gp::DrySession, v::String; mid::Int=0)
     setmulti(gp, mid)
     (v != "")  &&  (push!(gp.plots[gp.curmid].cmds, v))
-    (length(gp.plots) == 1)  &&  (println(gp, v))
+    (length(gp.plots) == 1)  &&  (exec(gp, v))  # execute now to check against errors
     return nothing
 end
 
@@ -537,8 +537,8 @@ end
 # ╰───────────────────────────────────────────────────────────────────╯
 # ---------------------------------------------------------------------
 dump(gp::DrySession; kw...) = dump(gp, gp; kw...)
-function dump(gp::DrySession, stream; term::AbstractString="", output::AbstractString="")
-    println(stream, "reset")
+function dump(gp::DrySession, stream; all=false, term::AbstractString="", output::AbstractString="")
+    all  &&  println(stream, "reset session")
     if term != ""
         former_term = writeread(gp, "print GPVAL_TERM")[1]
         former_opts = writeread(gp, "print GPVAL_TERMOPTIONS")[1]
@@ -546,8 +546,7 @@ function dump(gp::DrySession, stream; term::AbstractString="", output::AbstractS
     end
     (output != "")  &&  println(stream, "set output '$output'")
 
-    if !(typeof(stream) <: DrySession)
-        # Dump datasets
+    if all    # Dump datasets
         for i in 1:length(gp.datas)
             d = gp.datas[i]
             println(stream, d.name * " << EOD")
@@ -948,20 +947,28 @@ exec("print GPVAL_TERM")
 exec("plot sin(x)")
 ```
 """
-function exec(sid::Symbol, s::Vector{String})
-    global options
-    gp = getsession(sid)
+function exec(gp::DrySession, command::String)
     answer = Vector{String}()
-    for v in s
-        push!(answer, writeread(gp, v)...)
+    push!(answer, writeread(gp, command)...)
+
+    errno = writeread(gp, "print GPVAL_ERRNO")[1]
+    if errno != "0"
+        printstyled(color=:red, "GNUPLOT ERROR $(gp.sid) -> ERRNO=$errno\n")
+        errmsg = writeread(gp, "print GPVAL_ERRMSG")
+        write(gp.pin, "reset error\n")
+        for line in errmsg
+            printstyled(color=:red, "GNUPLOT ERROR $(gp.sid) -> $line\n")
+        end
+        error("Gnuplot process raised an error")
     end
+
     return join(answer, "\n")
 end
 function exec(s::String)
     global options
-    exec(options.default, [s])
+    exec(getsession(), s)
 end
-exec(sid::Symbol, s::String) = exec(sid, [s])
+exec(sid::Symbol, s::String) = exec(getsession(sid), s)
 
 
 # --------------------------------------------------------------------
@@ -992,12 +999,12 @@ To save the data and command from a specific session pass the ID as first argume
 
 In all cases the `term` keyword allows to specify a gnuplot terminal, and the `output` keyword allows to specify an output file.
 """
-save(                                 ; kw...) =                            dump(getsession()           ; kw...)
-save(sid::Symbol                      ; kw...) =                            dump(getsession(sid)        ; kw...)
-save(             stream::IO          ; kw...) =                            dump(getsession()   , stream; kw...)
-save(sid::Symbol, stream::IO          ; kw...) =                            dump(getsession(sid), stream; kw...)
-save(             file::AbstractString; kw...) = open(file, "w") do stream; dump(getsession()   , stream; kw...); end
-save(sid::Symbol, file::AbstractString; kw...) = open(file, "w") do stream; dump(getsession(sid), stream; kw...); end
+save(                                 ; kw...) =                            dump(getsession()           ; all=true, kw...)
+save(sid::Symbol                      ; kw...) =                            dump(getsession(sid)        ; all=true, kw...)
+save(             stream::IO          ; kw...) =                            dump(getsession()   , stream; all=true, kw...)
+save(sid::Symbol, stream::IO          ; kw...) =                            dump(getsession(sid), stream; all=true, kw...)
+save(             file::AbstractString; kw...) = open(file, "w") do stream; dump(getsession()   , stream; all=true, kw...); end
+save(sid::Symbol, file::AbstractString; kw...) = open(file, "w") do stream; dump(getsession(sid), stream; all=true, kw...); end
 
 
 # ╭───────────────────────────────────────────────────────────────────╮

@@ -115,7 +115,7 @@ name = "\$MyDataSet1"
 @gp x y name "plot $name w l" "pl $name u 1:(2*\$2) w l"
 
 @gsp randn(Float64, 30, 50)
-@gp randn(Float64, 30, 50) "w image"
+@gp 1:30 1:50 randn(Float64, 30, 50) "w image"
 @gsp x y y
 
 @gp("set key horizontal", "set grid",
