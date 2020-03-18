@@ -999,8 +999,6 @@ To save the data and command from a specific session pass the ID as first argume
 
 In all cases the `term` keyword allows to specify a gnuplot terminal, and the `output` keyword allows to specify an output file.
 """
-save(                                 ; kw...) =                            dump(getsession()           ; all=true, kw...)
-save(sid::Symbol                      ; kw...) =                            dump(getsession(sid)        ; all=true, kw...)
 save(             stream::IO          ; kw...) =                            dump(getsession()   , stream; all=true, kw...)
 save(sid::Symbol, stream::IO          ; kw...) =                            dump(getsession(sid), stream; all=true, kw...)
 save(             file::AbstractString; kw...) = open(file, "w") do stream; dump(getsession()   , stream; all=true, kw...); end
