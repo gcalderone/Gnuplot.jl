@@ -71,6 +71,11 @@ s = Gnuplot.data2string(u, v, z)
                  " 2 6 8" ,
                  " 3 6 9" ])
 
+#-----------------------------------------------------------------
+pal = palette(:deepsea)
+@test pal == "set palette defined (0.0 '#2B004D', 0.25 '#4E0F99', 0.5 '#3C54D4', 0.75 '#48A9F8', 1.0 '#C5ECFF')\nset palette maxcol 5\n"
+ls = linestyles(:deepsea)
+@test ls == "set style line 1 lt 1 lc rgb '#2B004D\nset style line 2 lt 1 lc rgb '#4E0F99\nset style line 3 lt 1 lc rgb '#3C54D4\nset style line 4 lt 1 lc rgb '#48A9F8\nset style line 5 lt 1 lc rgb '#C5ECFF"
 
 #-----------------------------------------------------------------
 x = collect(1.:100);
