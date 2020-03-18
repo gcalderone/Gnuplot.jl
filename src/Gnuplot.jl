@@ -4,7 +4,7 @@ using StructC14N, ColorTypes, Printf, StatsBase, ReusePatterns, DataFrames
 using ColorSchemes
 
 import Base.reset
-import Base.println
+import Base.write
 import Base.iterate
 import Base.convert
 import Base.string
@@ -380,23 +380,23 @@ end
 
 
 # ╭───────────────────────────────────────────────────────────────────╮
-# │                      println() and writeread()                    │
+# │                       write() and writeread()                     │
 # ╰───────────────────────────────────────────────────────────────────╯
 # ---------------------------------------------------------------------
 """
-  # println
+  # write
 
   Send a string to gnuplot's STDIN.
 
-  The commands sent through `println` are not stored in the current
+  The commands sent through `write` are not stored in the current
   session (use `newcmd` to save commands in the current session).
 
   ## Arguments:
   - `gp`: a `DrySession` object;
   - `str::String`: command to be sent;
 """
-println(gp::DrySession, str::AbstractString) = nothing
-function println(gp::GPSession, str::AbstractString)
+write(gp::DrySession, str::AbstractString) = nothing
+function write(gp::GPSession, str::AbstractString)
     global options
     if options.verbose
         printstyled(color=:light_yellow, "GNUPLOT ($(gp.sid)) $str\n")
@@ -408,8 +408,8 @@ function println(gp::GPSession, str::AbstractString)
 end
 
 
-println(gp::DrySession, d::DataSet) = nothing
-function println(gp::GPSession, d::DataSet)
+write(gp::DrySession, d::DataSet) = nothing
+function write(gp::GPSession, d::DataSet)
     if options.verbose
         v = ""
         printstyled(color=:light_black, "GNUPLOT ($(gp.sid)) $(d.name) << EOD\n")
@@ -437,13 +437,13 @@ function writeread(gp::GPSession, str::AbstractString)
     verbose = options.verbose
 
     options.verbose = false
-    println(gp, "print 'GNUPLOT_CAPTURE_BEGIN'")
+    write(gp, "print 'GNUPLOT_CAPTURE_BEGIN'")
 
     options.verbose = verbose
-    println(gp, str)
+    write(gp, str)
 
     options.verbose = false
-    println(gp, "print 'GNUPLOT_CAPTURE_END'")
+    write(gp, "print 'GNUPLOT_CAPTURE_END'")
     options.verbose = verbose
 
     out = Vector{String}()
@@ -464,7 +464,7 @@ function reset(gp::DrySession)
     gp.datas = Vector{DataSet}()
     gp.plots = [SinglePlot()]
     gp.curmid = 1
-    println(gp, "reset session")
+    exec(gp, "reset session")
     return nothing
 end
 
@@ -485,7 +485,7 @@ function newdataset(gp::DrySession, accum::Vector{String}; name="")
     name = "\$$name"
     d = DataSet(name, accum)
     push!(gp.datas, d)
-    println(gp, d) # Send now to gnuplot process
+    write(gp, d) # Send now to gnuplot process
     return name
 end
 newdataset(gp::DrySession, args...; name="") = newdataset(gp, data2string(args...), name=name)
@@ -533,28 +533,54 @@ end
 
 
 # ╭───────────────────────────────────────────────────────────────────╮
-# │                      dump() and driver()                          │
+# │                 execall(), dump() and driver()                    │
 # ╰───────────────────────────────────────────────────────────────────╯
 # ---------------------------------------------------------------------
-dump(gp::DrySession; kw...) = dump(gp, gp; kw...)
-function dump(gp::DrySession, stream; all=false, term::AbstractString="", output::AbstractString="")
-    all  &&  println(stream, "reset session")
+execall(gp::DrySession; term::AbstractString="", output::AbstractString="") = nothing
+function execall(gp::GPSession; term::AbstractString="", output::AbstractString="")
     if term != ""
         former_term = writeread(gp, "print GPVAL_TERM")[1]
         former_opts = writeread(gp, "print GPVAL_TERMOPTIONS")[1]
+        exec(gp, "set term $term")
+    end
+    (output != "")  &&  exec(gp, "set output '$output'")
+
+    for i in 1:length(gp.plots)
+        d = gp.plots[i]
+        for j in 1:length(d.cmds)
+            exec(gp, d.cmds[j])
+        end
+        if length(d.elems) > 0
+            s = (d.flag3d  ?  "splot "  :  "plot ") * " \\\n  " *
+                join(d.elems, ", \\\n  ")
+            exec(gp, s)
+        end
+    end
+    (length(gp.plots) > 1)  &&  exec(gp, "unset multiplot")
+    (output != "")  &&  exec(gp, "set output")
+    if term != ""
+        exec(gp, "set term $former_term $former_opts")
+    end
+    return nothing
+end
+
+
+function savescript(gp::DrySession, filename; term::AbstractString="", output::AbstractString="")
+    stream = open(filename, "w")
+
+    println(stream, "reset session")
+    if term != ""
         println(stream, "set term $term")
     end
     (output != "")  &&  println(stream, "set output '$output'")
 
-    if all    # Dump datasets
-        for i in 1:length(gp.datas)
-            d = gp.datas[i]
-            println(stream, d.name * " << EOD")
-            for j in 1:length(d.lines)
-                println(stream, d.lines[j])
-            end
-            println(stream, "EOD")
+    for i in 1:length(gp.datas)
+        d = gp.datas[i]
+        println(stream, d.name * " << EOD")
+        for j in 1:length(d.lines)
+            println(stream, d.lines[j])
         end
+        println(stream, "EOD")
     end
 
     for i in 1:length(gp.plots)
@@ -569,11 +595,9 @@ function dump(gp::DrySession, stream; all=false, term::AbstractString="", output
         end
     end
     (length(gp.plots) > 1)  &&  println(stream, "unset multiplot")
-    (output != "")  &&  println(stream, "set output")
-    if term != ""
-        println(stream, "set term $former_term $former_opts")
-    end
-    return output
+    println(stream, "set output")
+    close(stream)
+    return nothing
 end
 
 
@@ -581,7 +605,7 @@ end
 function driver(args...; flag3d=false)
     if length(args) == 0
         gp = getsession()
-        dump(gp)
+        execall(gp)
         return nothing
     end
 
@@ -664,7 +688,7 @@ function driver(args...; flag3d=false)
             elseif isa(arg, String)
                 # Either a dataname, a plot or a command
                 if loop == 2
-                    if arg[1] == '$'
+                    if isa(arg, String)  &&  (length(arg) > 1)  &&  (arg[1] == '$')
                         dataname = arg[2:end]
                         dataCompleted()
                     elseif length(data) > 0
@@ -688,7 +712,7 @@ function driver(args...; flag3d=false)
 
     dataplot = ""
     dataCompleted()
-    (doDump)  &&  (dump(gp))
+    (doDump)  &&  (execall(gp))
 
     return nothing
 end
@@ -876,34 +900,6 @@ macro gsp(args...)
 end
 
 
-# # --------------------------------------------------------------------
-# """
-#   # repl
-#
-#   Read/evaluate/print/loop
-# """
-# function repl(sid::Symbol)
-#     verb = options.verbose
-#     options.verbose = 0
-#     gp = getsession(sid)
-#     while true
-#         line = readline(stdin)
-#         (line == "")  &&  break
-#         answer = send(gp, line, true)
-#         for line in answer
-#             println(line)
-#         end
-#     end
-#     options.verbose = verb
-#     return nothing
-# end
-# function repl()
-#     global options
-#     return repl(options.default)
-# end
-
-
-
 # ╭───────────────────────────────────────────────────────────────────╮
 # │              FUNCTIONS MEANT TO BE INVOKED BY USERS               │
 # ╰───────────────────────────────────────────────────────────────────╯
@@ -947,11 +943,16 @@ exec("print GPVAL_TERM")
 exec("plot sin(x)")
 ```
 """
-function exec(gp::DrySession, command::String)
+exec(gp::DrySession, command::String) = nothing
+function exec(gp::GPSession, command::String)
     answer = Vector{String}()
     push!(answer, writeread(gp, command)...)
 
+    verbose = options.verbose
+    options.verbose = false
     errno = writeread(gp, "print GPVAL_ERRNO")[1]
+    options.verbose = verbose
+
     if errno != "0"
         printstyled(color=:red, "GNUPLOT ERROR $(gp.sid) -> ERRNO=$errno\n")
         errmsg = writeread(gp, "print GPVAL_ERRMSG")
@@ -994,15 +995,14 @@ Save the data and commands in the current session to either:
 
 To save the data and command from a specific session pass the ID as first argument, i.e.:
 - `save(sid::Symbol, term="", output="")`;
-- `save(sid::Symbol, stream::IO; term="", output="")`;
 - `save(sid::Symbol, file::AbstractStrings; term="", output="")`.
 
 In all cases the `term` keyword allows to specify a gnuplot terminal, and the `output` keyword allows to specify an output file.
 """
-save(             stream::IO          ; kw...) =                            dump(getsession()   , stream; all=true, kw...)
-save(sid::Symbol, stream::IO          ; kw...) =                            dump(getsession(sid), stream; all=true, kw...)
-save(             file::AbstractString; kw...) = open(file, "w") do stream; dump(getsession()   , stream; all=true, kw...); end
-save(sid::Symbol, file::AbstractString; kw...) = open(file, "w") do stream; dump(getsession(sid), stream; all=true, kw...); end
+save(           ; kw...) = execall(getsession()   ; kw...)
+save(sid::Symbol; kw...) = execall(getsession(sid); kw...)
+save(             file::AbstractString; kw...) = savescript(getsession()   , file, kw...)
+save(sid::Symbol, file::AbstractString; kw...) = savescript(getsession(sid), file, kw...)
 
 
 # ╭───────────────────────────────────────────────────────────────────╮
@@ -1028,6 +1028,36 @@ function palette(cmap::ColorScheme)
     end
     return "set palette defined (" * join(levels, ", ") * ")\nset palette maxcol $(length(cmap.colors))\n"
 end
+
+
+# ╭───────────────────────────────────────────────────────────────────╮
+# │                     EXPERIMENTAL FUNCTIONS                        │
+# ╰───────────────────────────────────────────────────────────────────╯
+# # --------------------------------------------------------------------
+# """
+#   # repl
+#
+#   Read/evaluate/print/loop
+# """
+# function repl(sid::Symbol)
+#     verb = options.verbose
+#     options.verbose = 0
+#     gp = getsession(sid)
+#     while true
+#         line = readline(stdin)
+#         (line == "")  &&  break
+#         answer = send(gp, line, true)
+#         for line in answer
+#             println(line)
+#         end
+#     end
+#     options.verbose = verb
+#     return nothing
+# end
+# function repl()
+#     global options
+#     return repl(options.default)
+# end
 
 # --------------------------------------------------------------------
 #=

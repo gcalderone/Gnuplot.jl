@@ -40,7 +40,7 @@ using Gnuplot
 
 A slightly more complicated one showing a parabola with a solid line and a legend:
 ``` Julia
-x = 1:10
+x = 1:100
 @gp x x.^2 "w l tit 'Parabola'"
 ```
 
@@ -71,10 +71,10 @@ julia> @gp("set key horizontal", "set grid", title="My title",
     x, y, "w l t 'Real model' dt 2 lw 2 lc rgb 'red'",
     x, y+noise, e, "w errorbars t 'Data'")
 GNUPLOT (default) print GPVAL_TERM
-GNUPLOT (default) -> qt
+GNUPLOT (default) -> wxt
 GNUPLOT (default) print GPVAL_TERMOPTIONS
-GNUPLOT (default) -> 0 font "Sans,9"
-GNUPLOT (default) set term qt 0 font "Sans,9" title 'Gnuplot.jl: default'
+GNUPLOT (default) -> 0 enhanced
+GNUPLOT (default) set term wxt 0 enhanced title 'Gnuplot.jl: default'
 GNUPLOT (default) reset session
 GNUPLOT (default) set key horizontal
 GNUPLOT (default) set grid
@@ -90,13 +90,12 @@ GNUPLOT (default)  -5.90238619765355 0.9548956415530343
 GNUPLOT (default) ...
 GNUPLOT (default) EOD
 GNUPLOT (default) $data1 << EOD
-GNUPLOT (default)  -6.283185307179586 1.9916843919829947 0.5
-GNUPLOT (default)  -6.156252270670907 0.33627277530403243 0.5
-GNUPLOT (default)  -6.029319234162229 0.2532754844189571 0.5
-GNUPLOT (default)  -5.90238619765355 1.083699870620209 0.5
+GNUPLOT (default)  -6.283185307179586 2.4842815808516905 0.5
+GNUPLOT (default)  -6.156252270670907 1.2062036112716572 0.5
+GNUPLOT (default)  -6.029319234162229 1.206937328889227 0.5
+GNUPLOT (default)  -5.90238619765355 0.23435472973538996 0.5
 GNUPLOT (default) ...
 GNUPLOT (default) EOD
-GNUPLOT (default) reset
 GNUPLOT (default) set key horizontal
 GNUPLOT (default) set grid
 GNUPLOT (default) set title  "My title"
@@ -117,7 +116,7 @@ Note the different color in the reply (if your terminal is able to display color
 
 So far we have shown how to produce plots with a single command, however such task can also be performed using multiple statements.  The syntax is exactly the same, but we should use the `:-` symbol at the beginning of each statement (except the first) and at the end of each statement (except the last), e.g.:
 ``` Julia
-# Reset the gnuplot session and give the dataset the name `MyDataSet1`
+# Reset the gnuplot session and use a dataset named `MyDataSet1`
 name = "\$MyDataSet1"
 @gp x y+noise e name :-
 
@@ -139,7 +138,7 @@ name = "\$MyDataSet1"
 
 As discussed above, **Gnuplot.jl** allows to trasparently exploit all gnuplot functionalities.  E.g., we can show a random image with:
 ```Julia
-@gp randn(Float64, 30, 50) "w image"
+@gp 1:30 2:50 randn(Float64, 30, 50) "w image"
 ```
 or show an interactive 3D plots using the `@gsp` macro in place of `@gp`, e.g.:
 
