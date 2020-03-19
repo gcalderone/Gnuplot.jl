@@ -1,6 +1,5 @@
 using Test, Gnuplot
-@info "Gnuplot version: " * string(Gnuplot.CheckGnuplotVersion())
-CheckGnuplotVersion
+@info "Gnuplot version: " * string(Gnuplot.CheckGnuplotVersion(Gnuplot.options.cmd))
 Gnuplot.setverbose(true)
 push!(Gnuplot.options.init, "set term unknown")
 
