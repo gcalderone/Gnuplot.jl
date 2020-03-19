@@ -79,6 +79,7 @@ end
   blocks).
 """
 function CheckGnuplotVersion(cmd::AbstractString)
+    setverbose(true)
     icmd = `$(cmd) --version`
     @info "Checking gnuplot version with command: " icmd
 
