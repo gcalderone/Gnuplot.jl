@@ -79,9 +79,7 @@ end
   blocks).
 """
 function CheckGnuplotVersion(cmd::AbstractString)
-    setverbose(true)
     icmd = `$(cmd) --version`
-    @info "Checking gnuplot version with command: " icmd
 
     proc = open(`$icmd`, read=true)
     s = String(read(proc))
@@ -102,7 +100,7 @@ function CheckGnuplotVersion(cmd::AbstractString)
     if ver < v"4.7"
         error("gnuplot ver. >= 4.7 is required, but " * string(ver) * " was found.")
     end
-    @info "  Gnuplot version: " * string(ver)
+    #@info "  Gnuplot version: " * string(ver)
     return ver
 end
 

@@ -1,4 +1,8 @@
 using Test, Gnuplot
+@info "Gnuplot version: " * string(Gnuplot.CheckGnuplotVersion())
+CheckGnuplotVersion
+Gnuplot.setverbose(true)
+push!(Gnuplot.options.init, "set term unknown")
 
 x = [1, 2, 3]
 y = [4, 5, 6]
