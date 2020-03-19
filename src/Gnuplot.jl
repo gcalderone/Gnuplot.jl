@@ -618,7 +618,7 @@ function driver(args...; flag3d=false)
             AllArraysAreNotEmpty = true
             for i in 1:length(data)
                 if (typeof(data[i]) <: AbstractArray)  &&  (length(data[i]) == 0)
-                    @warn "Input array is empty"
+                    #@warn "Input array is empty"
                     AllArraysAreNotEmpty = false
                     break
                 end

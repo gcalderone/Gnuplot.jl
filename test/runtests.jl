@@ -80,6 +80,12 @@ ls = linestyles(:deepsea)
 @test ls == "set style line 1 lt 1 lc rgb '#2B004D\nset style line 2 lt 1 lc rgb '#4E0F99\nset style line 3 lt 1 lc rgb '#3C54D4\nset style line 4 lt 1 lc rgb '#48A9F8\nset style line 5 lt 1 lc rgb '#C5ECFF"
 
 #-----------------------------------------------------------------
+# Test wth empty dataset
+@gp Float64[]
+@gsp Float64[]
+
+
+#-----------------------------------------------------------------
 x = collect(1.:100);
 
 for i in 1:10
