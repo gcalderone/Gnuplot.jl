@@ -893,7 +893,7 @@ end
   See documentation for `@gp`.
 """
 macro gsp(args...)
-    out = Expr(:macrocall, Symbol("@gp"), LineNumberNode(1, "Gnuplot.jl"))
+    out = Expr(:macrocall, Symbol("@gp"), LineNumberNode(1, nothing))
     push!(out.args, args...)
     push!(out.args, Expr(:kw, :flag3d, true))
     return esc(out)
