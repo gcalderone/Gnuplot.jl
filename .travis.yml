@@ -18,8 +18,10 @@ matrix:
 
 addons:
   apt:
-      packages:
-      - gnuplot5
+      packages: gnuplot5
+  homebrew:
+      packages: gnuplot
+
 
 ## uncomment the following lines to override the default test script
 #script:
