@@ -202,7 +202,7 @@ function data2string(args...)
         return accum
     end
 
-    # Multidimensional, no independent indices
+    # Multidimensional, no independent 1D indices
     if firstMultiDim == 1
         #@info "Case 2"
         @assert minimum(lengths) == maximum(lengths) "Array size are incompatible"
@@ -210,7 +210,13 @@ function data2string(args...)
         for CIndex in CartesianIndices(size(args[1]))
             indices = Tuple(CIndex)
             (i > 1)  &&  (indices[end-1] == 1)  &&  (push!(accum, ""))  # blank line
-            v = "" # * join(string.(getindex.(Ref(Tuple(indices)), 1:ndims(args[1]))), " ")
+            if length(args) == 1
+                # Add independent indices (useful when plotting "with image")
+                v = join(string.(getindex.(Ref(Tuple(indices)), 1:ndims(args[1]))), " ")
+            else
+                # Do not add independent indices since there is no way to identify the distinguish a "z" array from additional arrays
+                v = ""
+            end
             for iarg in 1:length(args)
                 d = args[iarg]
                 v *= " " * string(d[i])
