@@ -129,7 +129,7 @@ noise = randn(length(x))./2;
 e = 0.5 * fill(1, size(x));
 
 h = hist(noise, nbins=10)
-@gp h.loc h.counts "w histeps"
+@gp h.bins h.counts "w histeps"
 
 
 @gp x y
