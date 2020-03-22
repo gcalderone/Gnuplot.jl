@@ -1135,6 +1135,22 @@ mutable struct ContourLine
     ContourLine(z) = new(1, Vector{Float64}(), Vector{Float64}(), z)
 end
 
+mutable struct IsoContourLines
+    lines::Vector{ContourLine}
+    paths::Vector{String}
+    z::Float64
+    function IsoContourLines(lines::Vector{ContourLine})
+        z = unique(getfield.(lines, :z))
+        @assert length(z) == 1
+        paths = Vector{String}()
+        for i in 1:length(lines)
+            append!(paths, data2string(lines[i].x, lines[i].y))
+            push!(paths, "")
+        end
+        return new(lines, paths, z[1])
+    end
+end
+
 function contourlines(args...; cntrparam="level auto 10")
     tmpfile = Base.Filesystem.tempname()
     sid = Symbol("j", Base.Libc.getpid())
@@ -1151,16 +1167,16 @@ function contourlines(args...; cntrparam="level auto 10")
     Gnuplot.exec(sid, "reset")
 
     cur = ContourLine(NaN)
-    out = Vector{ContourLine}()
+    lines = Vector{ContourLine}()
     for l in readlines(tmpfile)
         l = strip(l)
         if l == ""
-            (length(cur.x) > 2)  &&  push!(out, cur)
+            (length(cur.x) > 2)  &&  push!(lines, cur)
             cur = ContourLine(cur.z)
             continue
         end
         if !isnothing(findfirst("# Contour ", l))
-            (length(cur.x) > 2)  &&  push!(out, cur)
+            (length(cur.x) > 2)  &&  push!(lines, cur)
             cur = ContourLine(Meta.parse(strip(split(l, ':')[2])))
             continue
         end
@@ -1171,17 +1187,15 @@ function contourlines(args...; cntrparam="level auto 10")
         push!(cur.x, n[1])
         push!(cur.y, n[2])
     end
-    (length(cur.x) > 2)  &&  push!(out, cur)
+    (length(cur.x) > 2)  &&  push!(lines, cur)
     rm(tmpfile)
+    @assert length(lines) > 0
+    lines = lines[sortperm(getfield.(lines, :z))]
 
-    if length(out) > 0
-        out = out[sortperm(getfield.(out, :z))]
-        for i in 2:length(out)
-            @assert out[i].z >= out[i-1].z
-            if out[i].z > out[i-1].z
-                out[i].level = out[i-1].level + 1
-            end
-        end
+    out = Vector{IsoContourLines}()
+    for z in unique(getfield.(lines, :z))
+        i = findall(getfield.(lines, :z) .== z)
+        push!(out, IsoContourLines(lines[i]))
     end
     return out
 end
