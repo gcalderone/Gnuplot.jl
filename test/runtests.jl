@@ -28,18 +28,30 @@ s = Gnuplot.data2string(x, y, x.+y)
 
 z = [X+Y for X in x, Y in y];
 s = Gnuplot.data2string(z)
-@test all(s .== [" 5" ,
-                 " 6" ,
-                 " 7" ,
-                 ""   ,
-                 " 6" ,
-                 " 7" ,
-                 " 8" ,
-                 ""   ,
-                 " 7" ,
-                 " 8" ,
-                 " 9" ])
+@test all(s .== ["1 1 5",
+                 "2 1 6",
+                 "3 1 7",
+                 ""     ,
+                 "1 2 6",
+                 "2 2 7",
+                 "3 2 8",
+                 ""     ,
+                 "1 3 7",
+                 "2 3 8",
+                 "3 3 9"])
 
+s = Gnuplot.data2string(z, z)
+@test all(s .== [" 5 5",
+                 " 6 6",
+                 " 7 7",
+                 ""    ,
+                 " 6 6",
+                 " 7 7",
+                 " 8 8",
+                 ""    ,
+                 " 7 7",
+                 " 8 8",
+                 " 9 9"])
 
 s = Gnuplot.data2string(x, y, z)
 @test all(s .== [" 1 4 5" ,
@@ -137,7 +149,7 @@ name = "\$MyDataSet1"
 @gp :- "set multiplot layout 2,1"                     :-
 @gp :- "plot $name w points" ylab="Data and model"    :-
 @gp :- "plot $name u 1:(f(\$1)) w lines"              :-
-@gp :- 2 xlab="X label" ylab="Residuals"              :- 
+@gp :- 2 xlab="X label" ylab="Residuals"              :-
 @gp :- "plot $name u 1:((f(\$1)-\$2) / \$3):(1) w errorbars notit"
 
 # Retrieve values for a, b and c
@@ -153,7 +165,7 @@ name = "\$MyDataSet1"
 @gp :- :dry x y+noise e name                                 :-
 @gp :- :dry "plot $name w points"                            :-
 @gp :- :dry "plot $name u 1:(f(\$1)) w lines"                :-
-@gp :- :dry 2 xlab="X label" ylab="Residuals"                :- 
+@gp :- :dry 2 xlab="X label" ylab="Residuals"                :-
 @gp :- :dry "plot $name u 1:((f(\$1)-\$2) / \$3):(1) w errorbars notit" :-
 @gp :- :dry
 save("test.gp")        # write on file test.gp

@@ -1,12 +1,9 @@
 module Gnuplot
 
-using StructC14N, ColorTypes, Printf, StatsBase, ReusePatterns, DataFrames
-using ColorSchemes
+using StatsBase, ColorSchemes, ColorTypes, StructC14N, ReusePatterns
 
 import Base.reset
 import Base.write
-import Base.iterate
-import Base.convert
 import Base.string
 
 export @gp, @gsp, save, linestyles, palette, contourlines, hist
@@ -1069,7 +1066,7 @@ end
 #=
 Example:
 v = randn(1000)
-h = hist(v, bs=0.2)
+h = hist(v, bs=0.5)
 @gp h.loc h.counts "w histep" h.loc h.counts "w l"
 =#
 function hist(v::Vector{T}; range=[NaN,NaN], bs=NaN, nbins=0, pad=true) where T <: Number
@@ -1137,6 +1134,14 @@ end
 
 
 # --------------------------------------------------------------------
+mutable struct ContourLine
+    level::Int
+    x::Vector{Float64}
+    y::Vector{Float64}
+    z::Float64
+    ContourLine(z) = new(1, Vector{Float64}(), Vector{Float64}(), z)
+end
+
 function contourlines(args...; cntrparam="level auto 10")
     tmpfile = Base.Filesystem.tempname()
     sid = Symbol("j", Base.Libc.getpid())
@@ -1152,62 +1157,37 @@ function contourlines(args...; cntrparam="level auto 10")
     Gnuplot.exec(sid, "unset table")
     Gnuplot.exec(sid, "reset")
 
-    out = DataFrame()
-    curlevel = NaN
-    curx = Vector{Float64}()
-    cury = Vector{Float64}()
-    curid = 1
-    elength(x, y) = sqrt.((x[2:end] .- x[1:end-1]).^2 .+
-                          (y[2:end] .- y[1:end-1]).^2)
-    function dump()
-        ((length(curx) < 2)  ||  isnan(curlevel))  &&  return nothing
-        tmp = DataFrame([Int, Float64, Vector{Float64}, Vector{Float64}, Vector{Float64}],
-                        [:id, :level , :len           , :x             , :y])
-        push!(tmp, (curid, curlevel, [0.; elength(curx, cury)], [curx...], [cury...]))
-        append!(out, tmp)
-        curid += 1
-        # d = cumsum(elength(curx, cury))
-        # i0 = findall(d .<= width); sort!(i0)
-        # i1 = findall(d .>  width)
-        # if (length(i0) > 0)  &&  (length(i1) > 0)
-        #     rot1 = atan(cury[i0[end]]-cury[i0[1]], curx[i0[end]]-curx[i0[1]]) * 180 / pi
-        #     rot = round(mod(rot1, 360))
-        #     x = mean(curx[i0])
-        #     y = mean(cury[i0])
-        #     push!(outl, "set label " * string(length(outl)+1) * " '$curlevel' at $x, $y center front rotate by $rot")
-        #     curx = curx[i1]
-        #     cury = cury[i1]
-        # end
-        empty!(curx)
-        empty!(cury)
-    end
-
+    cur = ContourLine(NaN)
+    out = Vector{ContourLine}()
     for l in readlines(tmpfile)
-        if length(strip(l)) == 0
-            dump()
+        l = strip(l)
+        if l == ""
+            (length(cur.x) > 2)  &&  push!(out, cur)
+            cur = ContourLine(cur.z)
             continue
         end
         if !isnothing(findfirst("# Contour ", l))
-            dump()
-            curlevel = Meta.parse(strip(split(l, ':')[2]))
+            (length(cur.x) > 2)  &&  push!(out, cur)
+            cur = ContourLine(Meta.parse(strip(split(l, ':')[2])))
             continue
         end
         (l[1] == '#')  &&  continue
 
         n = Meta.parse.(split(l))
         @assert length(n) == 3
-        push!(curx, n[1])
-        push!(cury, n[2])
+        push!(cur.x, n[1])
+        push!(cur.y, n[2])
     end
+    (length(cur.x) > 2)  &&  push!(out, cur)
     rm(tmpfile)
 
-    if nrow(out) > 0
-        levels = unique(out.level)
-        sort!(levels)
-        out[!, :levelcount] .= 0
-        for i in 1:length(levels)
-            j = findall(out.level .== levels[i])
-            out[j, :levelcount] .= i
+    if length(out) > 0
+        out = out[sortperm(getfield.(out, :z))]
+        for i in 2:length(out)
+            @assert out[i].z >= out[i-1].z
+            if out[i].z > out[i-1].z
+                out[i].level = out[i-1].level + 1
+            end
         end
     end
     return out
