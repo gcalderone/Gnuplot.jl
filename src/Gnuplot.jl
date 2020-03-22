@@ -220,7 +220,6 @@ function data2string(args...)
 
     # Multidimensional (independent indices provided in input)
     if firstMultiDim >= 2
-        @assert (firstMultiDim-1 == dims[firstMultiDim]) "Not enough independent variables"
         refLength = lengths[firstMultiDim]
         @assert all(lengths[firstMultiDim:end] .== refLength) "Array size are incompatible"
 
@@ -1061,7 +1060,7 @@ end
 Example:
 v = randn(1000)
 h = hist(v, bs=0.5)
-@gp h.loc h.counts "w histep" h.loc h.counts "w l"
+@gp h.bins h.counts "w histep" h.bins h.counts "w l"
 =#
 function hist(v::Vector{T}; range=[NaN,NaN], bs=NaN, nbins=0, pad=true) where T <: Number
     i = findall(isfinite.(v))
@@ -1092,7 +1091,7 @@ function hist(v::Vector{T}; range=[NaN,NaN], bs=NaN, nbins=0, pad=true) where T 
         x = [x[1]-binsize, x..., x[end]+binsize]
         h = [0, h..., 0]
     end
-    return (loc=x, counts=h, binsize=binsize)
+    return (bins=x, counts=h, bs=binsize)
 end
 
 
@@ -1100,21 +1099,21 @@ end
 function hist(v1::Vector{T1}, v2::Vector{T2};
               range1=[NaN,NaN], bs1=NaN, nbins1=0,
               range2=[NaN,NaN], bs2=NaN, nbins2=0) where {T1 <: Number, T2 <: Number}
-    i = findall(isfinite.(v2))
+    @assert length(v1) == length(v2)
+    i = findall(isfinite.(v1)  .&  isfinite.(v2))
     isnan(range1[1])  &&  (range1[1] = minimum(v1[i]))
     isnan(range1[2])  &&  (range1[2] = maximum(v1[i]))
-    i = findall(isfinite.(v2))
     isnan(range2[1])  &&  (range2[1] = minimum(v2[i]))
     isnan(range2[2])  &&  (range2[2] = maximum(v2[i]))
 
-    i1 = findall(isfinite.(v1)  .&  (v1.>= range1[1])  .&  (v1.<= range1[2]))
-    i2 = findall(isfinite.(v2)  .&  (v2.>= range2[1])  .&  (v2.<= range2[2]))
+    i = findall(isfinite.(v1)  .&  (v1.>= range1[1])  .&  (v1.<= range1[2])  .&
+                 isfinite.(v2)  .&  (v2.>= range2[1])  .&  (v2.<= range2[2]))
     (nbins1 > 0)  &&  (bs1 = (range1[2] - range1[1]) / nbins1)
     (nbins2 > 0)  &&  (bs2 = (range2[2] - range2[1]) / nbins2)
     if isfinite(bs1) &&  isfinite(bs2)
-        hh = fit(Histogram, (v1[i1], v2[i2]), (range1[1]:bs1:range1[2], range2[1]:bs2:range2[2]), closed=:left)
+        hh = fit(Histogram, (v1[i], v2[i]), (range1[1]:bs1:range1[2], range2[1]:bs2:range2[2]), closed=:left)
     else
-        hh = fit(Histogram, (v1[i1], v2[i2]), closed=:left)
+        hh = fit(Histogram, (v1[i], v2[i]), closed=:left)
     end
     x1 = collect(hh.edges[1])
     x1 = (x1[1:end-1] .+ x1[2:end]) ./ 2
@@ -1123,7 +1122,7 @@ function hist(v1::Vector{T1}, v2::Vector{T2};
 
     binsize1 = x1[2] - x1[1]
     binsize2 = x2[2] - x2[1]
-    return (loc1=x1, loc2=x2, counts=hh.weights, binsize1=binsize1)
+    return (bins1=x1, bins2=x2, counts=hh.weights, bs1=binsize1, bs2=binsize2)
 end
 
 
@@ -1190,33 +1189,31 @@ end
 
 # --------------------------------------------------------------------
 function boxxyerror(x, y; xmin=NaN, ymin=NaN, xmax=NaN, ymax=NaN, cartesian=false)
-    @assert length(x) == length(y)
+    function box(v; vmin=NaN, vmax=NaN)
+        vlow  = Vector{Float64}(undef, length(v))
+        vhigh = Vector{Float64}(undef, length(v))
+        for i in 2:length(v)-1
+            vlow[i]  = (v[i-1] + v[i]) / 2
+            vhigh[i] = (v[i+1] + v[i]) / 2
+        end
+        vlow[1]    = v[ 1 ] - (v[ 2 ] - v[ 1 ]  ) / 2
+        vlow[end]  = v[end] - (v[end] - v[end-1]) / 2
+        vhigh[1]   = v[ 1 ] + (v[ 2 ] - v[ 1 ]  ) / 2
+        vhigh[end] = v[end] + (v[end] - v[end-1]) / 2
+
+        isfinite(vmin)  &&  (vlow[  1 ] = vmin)
+        isfinite(vmax)  &&  (vhigh[end] = vmax)
+        return (vlow, vhigh)
+    end
     @assert issorted(x)
     @assert issorted(y)
-    xlow  = Vector{Float64}(undef, length(x))
-    xhigh = Vector{Float64}(undef, length(x))
-    ylow  = Vector{Float64}(undef, length(x))
-    yhigh = Vector{Float64}(undef, length(x))
-    for i in 2:length(x)-1
-        xlow[i]  = (x[i-1] + x[i]) / 2
-        ylow[i]  = (y[i-1] + y[i]) / 2
-        xhigh[i] = (x[i+1] + x[i]) / 2
-        yhigh[i] = (y[i+1] + y[i]) / 2
-    end
-    xlow[1]    = (isfinite(xmin)  ?  xmin  :  (x[1] - (x[2]-x[1])/2))
-    ylow[1]    = (isfinite(ymin)  ?  ymin  :  (y[1] - (y[2]-y[1])/2))
-    xlow[end]  = (x[end] - (x[end]-x[end-1])/2)
-    ylow[end]  = (y[end] - (y[end]-y[end-1])/2)
-    xhigh[1]   = (x[1] + (x[2]-x[1])/2)
-    yhigh[1]   = (y[1] + (y[2]-y[1])/2)
-    xhigh[end] = (isfinite(xmax)  ?  xmax  :  (x[end] + (x[end]-x[end-1])/2))
-    yhigh[end] = (isfinite(ymax)  ?  ymax  :  (y[end] + (y[end]-y[end-1])/2))
+    xlow, xhigh = box(x, vmin=xmin, vmax=xmax)
+    ylow, yhigh = box(y, vmin=ymin, vmax=ymax)
     if !cartesian
         return (x, y, xlow, xhigh, ylow, yhigh)
     end
-    n = length(x)
-    i = repeat(1:n, outer=n)
-    j = repeat(1:n, inner=n)
+    i = repeat(1:length(x), outer=length(y))
+    j = repeat(1:length(y), inner=length(x))
     return (x[i], y[j], xlow[i], xhigh[i], ylow[j], yhigh[j])
 end
 
