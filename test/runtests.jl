@@ -66,8 +66,6 @@ s = Gnuplot.data2string(x, y, z)
                  " 2 6 8" ,
                  " 3 6 9" ])
 
-
-
 c = [[X, Y] for Y in y for X in x];  # First Y (i.e. rows) then X (i.e. columns)
 u = getindex.(c, 1)
 v = getindex.(c, 2)
@@ -84,6 +82,12 @@ s = Gnuplot.data2string(u, v, z)
                  " 1 6 7" ,
                  " 2 6 8" ,
                  " 3 6 9" ])
+
+s = Gnuplot.data2string(1:3, 1:3, ["One", "Two", "Three"])
+@test all(s .== [ " 1 1 \"One\""  ,
+                  " 2 2 \"Two\""  ,
+                  " 3 3 \"Three\""])
+
 
 #-----------------------------------------------------------------
 pal = palette(:deepsea)

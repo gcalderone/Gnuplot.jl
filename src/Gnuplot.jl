@@ -4,7 +4,6 @@ using StatsBase, ColorSchemes, ColorTypes, StructC14N, ReusePatterns
 
 import Base.reset
 import Base.write
-import Base.string
 
 export @gp, @gsp, save, linestyles, palette, contourlines, hist
 
@@ -61,11 +60,6 @@ const options = Options()
 # ╭───────────────────────────────────────────────────────────────────╮
 # │                         LOW LEVEL FUNCTIONS                       │
 # ╰───────────────────────────────────────────────────────────────────╯
-# ---------------------------------------------------------------------
-function string(c::ColorTypes.RGB)
-    return string(float(c.r)*255) * " " * string(float(c.g)*255) * " " * string(float(c.b)*255)
-end
-
 
 # ---------------------------------------------------------------------
 """
@@ -97,7 +91,6 @@ function CheckGnuplotVersion(cmd::AbstractString)
     if ver < v"4.7"
         error("gnuplot ver. >= 4.7 is required, but " * string(ver) * " was found.")
     end
-    #@info "  Gnuplot version: " * string(ver)
     return ver
 end
 
@@ -134,6 +127,10 @@ end
 
 
 # ---------------------------------------------------------------------
+tostring(v) = string(v)
+tostring(c::ColorTypes.RGB) = string(float(c.r)*255) * " " * string(float(c.g)*255) * " " * string(float(c.b)*255)
+tostring(v::AbstractString) = "\"" * string(v) * "\""
+
 function data2string(args...)
     @assert length(args) > 0
 
@@ -145,12 +142,9 @@ function data2string(args...)
         if typeof(d) <: Number
             ok = true
         elseif typeof(d) <: AbstractArray
-            if typeof(d[1]) <: Number
-                ok = true
-            end
-            if typeof(d[1]) <: ColorTypes.RGB
-                ok = true
-            end
+            (typeof(d[1]) <: String)  &&  (ok = true)
+            (typeof(d[1]) <: Number)  &&  (ok = true)
+            (typeof(d[1]) <: ColorTypes.RGB)  &&  (ok = true)
         end
         @assert ok "Invalid argument type at position $iarg"
     end
@@ -176,7 +170,7 @@ function data2string(args...)
         v = ""
         for iarg in 1:length(args)
             d = args[iarg]
-            v *= " " * string(d)
+            v *= " " * tostring(d)
         end
         push!(accum, v)
         return accum
@@ -192,7 +186,7 @@ function data2string(args...)
             v = ""
             for iarg in 1:length(args)
                 d = args[iarg]
-                v *= " " * string(d[i])
+                v *= " " * tostring(d[i])
             end
             push!(accum, v)
         end
@@ -216,7 +210,7 @@ function data2string(args...)
             end
             for iarg in 1:length(args)
                 d = args[iarg]
-                v *= " " * string(d[i])
+                v *= " " * tostring(d[i])
             end
             i += 1
             push!(accum, v)
@@ -243,11 +237,11 @@ function data2string(args...)
                 v = ""
                 for iarg in 1:firstMultiDim-1
                     d = args[iarg]
-                    v *= " " * string(d[indices[iarg]])
+                    v *= " " * tostring(d[indices[iarg]])
                 end
                 for iarg in firstMultiDim:length(args)
                     d = args[iarg]
-                    v *= " " * string(d[i])
+                    v *= " " * tostring(d[i])
                 end
                 i += 1
                 push!(accum, v)
@@ -265,7 +259,7 @@ function data2string(args...)
                 v = ""
                 for iarg in 1:length(args)
                     d = args[iarg]
-                    v *= " " * string(d[i])
+                    v *= " " * tostring(d[i])
                 end
                 i += 1
                 push!(accum, v)
