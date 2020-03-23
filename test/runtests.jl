@@ -136,7 +136,7 @@ h = hist(noise, nbins=10)
 @gp x y "w l"
 
 name = "\$MyDataSet1"
-@gp x y name "plot $name w l" "pl $name u 1:(2*\$2) w l"
+@gp name=>(x, y) "plot $name w l" "pl $name u 1:(2*\$2) w l"
 
 @gsp randn(Float64, 30, 50)
 @gp 1:30 1:50 randn(Float64, 30, 50) "w image"
@@ -148,7 +148,7 @@ name = "\$MyDataSet1"
     x, y+noise, e, "w errorbars t 'Data'")
 
 @gp "f(x) = a * sin(b + c*x); a = 1; b = 1; c = 1;"   :-
-@gp :- x y+noise e name                               :-
+@gp :- name=>(x, y+noise, e)                          :-
 @gp :- "fit f(x) $name u 1:2:3 via a, b, c;"          :-
 @gp :- "set multiplot layout 2,1"                     :-
 @gp :- "plot $name w points" ylab="Data and model"    :-
@@ -166,7 +166,7 @@ c = Meta.parse(Gnuplot.exec("print c"))
 @gp :- :dry "a = $a; b = $b; c = $c"                         :-
 @gp :- :dry "set multiplot layout 2,1" ylab="Data and model" :-
 name = "\$MyDataSet1"
-@gp :- :dry x y+noise e name                                 :-
+@gp :- :dry name=>(x, y+noise, e,)                           :-
 @gp :- :dry "plot $name w points"                            :-
 @gp :- :dry "plot $name u 1:(f(\$1)) w lines"                :-
 @gp :- :dry 2 xlab="X label" ylab="Residuals"                :-

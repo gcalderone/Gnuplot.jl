@@ -467,18 +467,18 @@ end
 
 # ---------------------------------------------------------------------
 function setmulti(gp::DrySession, mid::Int)
-    @assert mid >= 0 "Multiplot ID must be a >= 0"
-    for i in length(gp.plots)+1:mid
+    @assert mid >= 1 "Multiplot ID must be a >= 1"
+    while length(gp.plots) < mid
         push!(gp.plots, SinglePlot())
     end
-    (mid > 0)  &&  (gp.curmid = mid)
+    gp.curmid = mid
 end
 
 
 # ---------------------------------------------------------------------
 function newdataset(gp::DrySession, accum::Vector{String}; name="")
-    (name == "")  &&  (name = string("data", length(gp.datas)))
-    name = "\$$name"
+    (name == "")  &&  (name = string("\$data", length(gp.datas)))
+    #name = "\$$name"
     d = DataSet(name, accum)
     push!(gp.datas, d)
     write(gp, d) # Send now to gnuplot process
@@ -488,24 +488,22 @@ newdataset(gp::DrySession, args...; name="") = newdataset(gp, data2string(args..
 
 
 # ---------------------------------------------------------------------
-function newcmd(gp::DrySession, v::String; mid::Int=0)
-    setmulti(gp, mid)
+function newcmd(gp::DrySession, v::String)
     (v != "")  &&  (push!(gp.plots[gp.curmid].cmds, v))
     (length(gp.plots) == 1)  &&  (exec(gp, v))  # execute now to check against errors
     return nothing
 end
 
-function newcmd(gp::DrySession; mid::Int=0, args...)
+function newcmd(gp::DrySession; args...)
     for v in parseKeywords(;args...)
-        newcmd(gp, v, mid=mid)
+        newcmd(gp, v)
     end
     return nothing
 end
 
 
 # ---------------------------------------------------------------------
-function newplot(gp::DrySession, name, opt=""; mid=0)
-    setmulti(gp, mid)
+function newplot(gp::DrySession, name, opt="")
     push!(gp.plots[gp.curmid].elems, "$name $opt")
 end
 
@@ -534,6 +532,7 @@ end
 # ---------------------------------------------------------------------
 execall(gp::DrySession; term::AbstractString="", output::AbstractString="") = nothing
 function execall(gp::GPSession; term::AbstractString="", output::AbstractString="")
+    exec(gp, "reset")
     if term != ""
         former_term = writeread(gp, "print GPVAL_TERM")[1]
         former_opts = writeread(gp, "print GPVAL_TERMOPTIONS")[1]
@@ -599,35 +598,6 @@ end
 
 # ---------------------------------------------------------------------
 function driver(args...; flag3d=false)
-    if length(args) == 0
-        gp = getsession()
-        execall(gp)
-        return nothing
-    end
-
-    data = Vector{Any}()
-    dataname = ""
-    dataplot = nothing
-
-    function dataCompleted()
-        if length(data) > 0
-            AllArraysAreNotEmpty = true
-            for i in 1:length(data)
-                if (typeof(data[i]) <: AbstractArray)  &&  (length(data[i]) == 0)
-                    #@warn "Input array is empty"
-                    AllArraysAreNotEmpty = false
-                    break
-                end
-            end
-            if AllArraysAreNotEmpty
-                last = newdataset(gp, data...; name=dataname)
-                (dataplot != nothing)  &&  (newplot(gp, last, dataplot))
-            end
-        end
-        data = Vector{Any}()
-        dataname = ""
-        dataplot = nothing
-    end
     function isPlotCmd(s::String)
         (length(s) >= 2)  &&  (s[1:2] ==  "p "    )  &&  (return (true, false, strip(s[2:end])))
         (length(s) >= 3)  &&  (s[1:3] ==  "pl "   )  &&  (return (true, false, strip(s[3:end])))
@@ -641,73 +611,116 @@ function driver(args...; flag3d=false)
         return (false, false, "")
     end
 
+    if length(args) == 0
+        gp = getsession()
+        execall(gp)
+        return nothing
+    end
+
+    # First pass: check for ":-" and session names
     gp = nothing
     doDump  = true
     doReset = true
+    for iarg in 1:length(args)
+        arg = args[iarg]
 
-    for loop in 1:2
-        if loop == 2
-            (gp == nothing)  &&  (gp = getsession())
-            doReset  &&  reset(gp)
-            gp.plots[gp.curmid].flag3d = flag3d
-        end
-
-        for iarg in 1:length(args)
-            arg = args[iarg]
-
-            if typeof(arg) == Symbol
-                if arg == :-
-                    (loop == 1)  &&  (iarg < length(args)) &&  (doReset = false)
-                    (loop == 1)  &&  (iarg > 1 )           &&  (doDump  = false)
+        if typeof(arg) == Symbol
+            if arg == :-
+                if iarg == 1
+                    doReset = false
+                elseif iarg == length(args)
+                    doDump  = false
                 else
-                    (loop == 1)  &&  (gp = getsession(arg))
-                end
-            elseif isa(arg, Tuple)  &&  length(arg) == 2  &&  isa(arg[1], Symbol)
-                if arg[1] == :term
-                    if loop == 1
-                        if typeof(arg[2]) == String
-                            term = (deepcopy(arg[2]), "")
-                        elseif length(arg[2]) == 2
-                            term = deepcopy(arg[2])
-                        else
-                            error("The term tuple must contain at most two strings")
-                        end
-                    end
-                else
-                    (loop == 2)  &&  newcmd(gp; [arg]...) # A cmd keyword
-                end
-            elseif isa(arg, Int)
-                (loop == 2)  &&  (@assert arg > 0)
-                (loop == 2)  &&  (dataplot = ""; dataCompleted())
-                (loop == 2)  &&  setmulti(gp, arg)
-                (loop == 2)  &&  (gp.plots[gp.curmid].flag3d = flag3d)
-            elseif isa(arg, String)
-                # Either a dataname, a plot or a command
-                if loop == 2
-                    if isa(arg, String)  &&  (length(arg) > 1)  &&  (arg[1] == '$')
-                        dataname = arg[2:end]
-                        dataCompleted()
-                    elseif length(data) > 0
-                        dataplot = arg
-                        dataCompleted()
-                    else
-                        (isPlot, is3d, cmd) = isPlotCmd(arg)
-                        if isPlot
-                            gp.plots[gp.curmid].flag3d = is3d
-                            newplot(gp, cmd)
-                        else
-                            newcmd(gp, arg)
-                        end
-                    end
+                    @warn ":- at position $iarg in argument list has no meaning."
                 end
             else
-                (loop == 2)  &&  push!(data, arg) # a data set
+                @assert isnothing(gp) "Only one session at a time can be addressed"
+                gp = getsession(arg)
             end
         end
     end
+    (gp == nothing)  &&  (gp = getsession())
+    doReset  &&  reset(gp)
 
-    dataplot = ""
-    dataCompleted()
+    dataset = Vector{Any}()
+    setname = ""
+    plotspec = nothing
+
+    function dataset_completed()
+        if length(dataset) > 0
+            AllArraysAreNotEmpty = true
+            for i in 1:length(dataset)
+                if (typeof(dataset[i]) <: AbstractArray)  &&  (length(dataset[i]) == 0)
+                    AllArraysAreNotEmpty = false
+                    break
+                end
+            end
+            if AllArraysAreNotEmpty
+                name = newdataset(gp, dataset...; name=setname)
+                if !isnothing(plotspec)
+                    newplot(gp, name, plotspec)
+                    gp.plots[gp.curmid].flag3d = flag3d
+                end
+            end
+        end
+        dataset = Vector{Any}()
+        setname = ""
+        plotspec = nothing
+    end
+
+    # Second pass
+    for iarg in 1:length(args)
+        arg = args[iarg]
+        isa(arg, Symbol)  &&  continue  # already handled
+        
+        if isa(arg, Int)
+            # Change current multiplot index
+            @assert arg > 0
+            #@info "Multiplot ID" iarg typeof(arg) arg
+            plotspec = "" # use an empty plotspec for pending dataset
+            dataset_completed()
+            setmulti(gp, arg)
+            gp.plots[gp.curmid].flag3d = flag3d
+        elseif isa(arg, String)
+            # Either a plotspec or a command
+            arg = string(strip(arg))
+            if length(dataset) > 0
+                #@info "Plot spec." iarg typeof(arg) arg
+                plotspec = arg
+                dataset_completed()
+            else
+                (isPlot, is3d, cmd) = isPlotCmd(arg)
+                if isPlot
+                    #@info "Plot command" iarg typeof(arg) arg
+                    gp.plots[gp.curmid].flag3d = is3d
+                    newplot(gp, cmd)
+                else
+                    #@info "Command (string)" iarg typeof(arg) arg
+                    newcmd(gp, arg)
+                end
+            end            
+        elseif isa(arg, Tuple)  &&  length(arg) == 2  &&  isa(arg[1], Symbol)
+            #@info "Command (tuple)" iarg typeof(arg) arg
+            newcmd(gp; [arg]...)            
+        elseif isa(arg, Pair)
+            # A named dataset
+            #@info "Named dataset" iarg typeof(arg) arg
+            @assert typeof(arg[1]) == String
+            @assert arg[1][1] == '$'
+            setname = arg[1]
+            for d in arg[2]
+                push!(dataset, d)
+            end
+            dataset_completed()
+        else
+             # A dataset
+            #@info "Dataset element" iarg typeof(arg) arg
+            push!(dataset, arg)
+        end
+    end
+
+    plotspec = ""
+    dataset_completed()
     (doDump)  &&  (execall(gp))
 
     return nothing
