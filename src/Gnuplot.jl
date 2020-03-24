@@ -63,14 +63,14 @@ const options = Options()
 
 # ---------------------------------------------------------------------
 """
-  # CheckGnuplotVersion
+  # gpversion
 
-  Check whether gnuplot is runnable with the command given in `cmd`.
-  Also check that gnuplot version is >= 4.7 (required to use data
+  Check whether gnuplot is runnable with the default command.
+  Raise an error if version is < 4.7 (required to use data
   blocks).
 """
-function CheckGnuplotVersion(cmd::AbstractString)
-    icmd = `$(cmd) --version`
+function gpversion()
+    icmd = `$(options.cmd) --version`
 
     proc = open(`$icmd`, read=true)
     s = String(read(proc))
@@ -101,6 +101,7 @@ function parseKeywords(; kwargs...)
                 yrange=NTuple{2, Real},
                 zrange=NTuple{2, Real},
                 cbrange=NTuple{2, Real},
+                key=AbstractString,
                 title=AbstractString,
                 xlabel=AbstractString,
                 ylabel=AbstractString,
@@ -115,6 +116,7 @@ function parseKeywords(; kwargs...)
     ismissing(kw.yrange ) || (push!(out, "set yrange  [" * join(kw.yrange , ":") * "]"))
     ismissing(kw.zrange ) || (push!(out, "set zrange  [" * join(kw.zrange , ":") * "]"))
     ismissing(kw.cbrange) || (push!(out, "set cbrange [" * join(kw.cbrange, ":") * "]"))
+    ismissing(kw.key    ) || (push!(out, "set key " * kw.key  * ""))
     ismissing(kw.title  ) || (push!(out, "set title  \"" * kw.title  * "\""))
     ismissing(kw.xlabel ) || (push!(out, "set xlabel \"" * kw.xlabel * "\""))
     ismissing(kw.ylabel ) || (push!(out, "set ylabel \"" * kw.ylabel * "\""))
@@ -322,7 +324,7 @@ function GPSession(sid::Symbol)
 
     global options
 
-    CheckGnuplotVersion(options.cmd)
+    gpversion()
     session = DrySession(sid)
 
     pin  = Base.Pipe()
@@ -478,7 +480,7 @@ end
 
 # ---------------------------------------------------------------------
 function newdataset(gp::DrySession, accum::Vector{String}; name="")
-    (name == "")  &&  (name = string("\$data", length(gp.datas)))
+    (name == "")  &&  (name = string("\$data", length(gp.datas)+1))
     #name = "\$$name"
     d = DataSet(name, accum)
     push!(gp.datas, d)
