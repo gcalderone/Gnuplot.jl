@@ -1,14 +1,25 @@
 # Installation
 
 ## Prerequisite
-In order to use the **Gnuplot.jl** package you'll need [gnuplot](http://gnuplot.info/) (ver. >= 5.0) installed on your system, and its executable available in your path.
+In order to use the **Gnuplot.jl** package you'll need [`gnuplot`](http://gnuplot.info/) (ver. >= 4.7) installed on your system, and its executable available in your path.
 
+If `gnuplot` is not available in your platform you can still use **Gnuplot.jl** in "*dry*" mode (see [Dry sessions](@ref)).  In this case a plot can not be generated, but you may still generate [Gnuplot scripts](@ref).
 
-## Installation
-
+## Package installation
 In the Julia REPL type:
-``` julia
-using Pkg
-Pkg.add("Gnuplot")
-using Gnuplot
+``` julia-repl
+julia> ]add Gnuplot
+```
+Then hit backspace key to return to Julia REPL.
+
+## Check installation
+Check execution and version of the underlying `gnuplot` process:
+```julia-repl
+julia> using Gnuplot
+julia> Gnuplot.gpversion()
+```
+
+Generate the first plot:
+```julia-repl
+julia> @gp 1:9
 ```

@@ -1,6 +1,5 @@
 # Gnuplot.jl
 ## A Julia interface to Gnuplot.
----
 
 The **Gnuplot.jl** package allows easy and fast use of [`gnuplot`](http://gnuplot.info/) as a data visualization tool in Julia.  Have a look at [Basic usage](@ref) and [Examples](@ref) for a quick overview.  The package main features are:
 
@@ -16,7 +15,7 @@ The **Gnuplot.jl** package allows easy and fast use of [`gnuplot`](http://gnuplo
 
 - availability of all the palettes from [ColorSchemes](https://github.com/JuliaGraphics/ColorSchemes.jl);
 
-- support for multiple plots in one window, mulitple plotting windows, as well as ASCII and Sixel plots (to plot directly in a terminal);
+- support for multiple plots in one window, multiple plotting windows, as well as ASCII and Sixel plots (to plot directly in a terminal);
 
 - support for histograms (both 1D and 2D);
 
@@ -24,12 +23,12 @@ The **Gnuplot.jl** package allows easy and fast use of [`gnuplot`](http://gnuplo
 
 - export to a huge number of formats such as `pdf`, `png`, ``\LaTeX``, `svg`, etc. (actually all those supported by `gnuplot`);
 
-- save sessions into `gnuplot` scripts enables easy plot reproducibility and modfications.
+- save sessions into `gnuplot` scripts enables easy plot reproducibility and modifications.
 
----
+
 ## Yet another plotting package?
 
-A powerful plottig framework is among the most important tool in the toolbox of any modern scientist and engineer. As such, it is hard to find a single package to fit all needs, and many solutions are indeed available in the Julia [ecosystem](https://github.com/JuliaPlots).
+A powerful plotting framework is among the most important tool in the toolbox of any modern scientist and engineer. As such, it is hard to find a single package to fit all needs, and many solutions are indeed available in the Julia [ecosystem](https://github.com/JuliaPlots).
 
 **Gnuplot.jl** package fills the niche of users who needs:
 1. publication-quality plots, by exploiting the capabilities of a widely used tool such as `gnuplot`, and its many output formats available;
@@ -45,7 +44,6 @@ The **Gnuplot.jl** package development follows a minimalistic approach: it is es
 The functionalities 1, 2 and 3 listed above are similar to those provided by the [Gaston](https://github.com/mbaz/Gaston.jl) package.  **Gnuplot.jl** also provides features 4 and 5, as well as the minimalistic approach.
 
 
----
 ## Do Gnuplot.jl suits my needs?
 
 Any modern plotting package is able to produce a simple scatter plot, with custom symbols, line styles, colors and axis labels.  Indeed, this is exactly the example that is reported in every package documentation (also here: see [Plots in 2D](@ref)). Still, producing complex and publication-quality plots is not an easy task.  As a consequence is also not easy to determine whether a package can cope with the most difficult cases (unless you actually try it out) and a reasonable choice is typically to rely on the size of the user base, the availability of documentation / tutorials, and the possibility to preview complex examples.
@@ -54,14 +52,14 @@ Any modern plotting package is able to produce a simple scatter plot, with custo
 
 Last but not least, have a look at the **Gnuplot.jl** [Examples](#ref) page.
 
----
+
 ## Notation
 In this documentation:
 - **Gnuplot.jl** refers to the Julia package;
 - `gnuplot` refers to the [gnuplot](http://gnuplot.info/) application.
 
 
-### Table of Contents
+## Table of Contents
 ```@contents
 Pages = ["index.md", "install.md", "basic.md", "advanced.md", "examples.md", "api.md"]
 ```
