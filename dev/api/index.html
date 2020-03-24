@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>API · Gnuplot.jl</title><link href="https://fonts.googleapis.com/css?family=Lato|Roboto+Mono" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.11.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.11.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.11.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.11.1/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL=".."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../assets/documenter.js"></script><script src="../siteinfo.js"></script><script src="../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-dark.css" data-theme-name="documenter-dark"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><a class="docs-logo" href="../"><img src="../assets/logo.png" alt="Gnuplot.jl logo"/></a><div class="docs-package-name"><span class="docs-autofit">Gnuplot.jl</span></div><form class="docs-search" action="../search/"><input class="docs-search-query" id="documenter-search-query" name="q" type="text" placeholder="Search docs"/></form><ul class="docs-menu"><li><a class="tocitem" href="../">Home</a></li><li><a class="tocitem" href="../install/">Installation</a></li><li><a class="tocitem" href="../basic/">Basic usage</a></li><li><a class="tocitem" href="../advanced/">Advanced usage</a></li><li><a class="tocitem" href="../examples/">Examples</a></li><li class="is-active"><a class="tocitem" href>API</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><nav class="breadcrumb"><ul class="is-hidden-mobile"><li class="is-active"><a href>API</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>API</a></li></ul></nav><div class="docs-right"><a class="docs-edit-link" href="https://github.com/gcalderone/Gnuplot.jl/blob/master/docs/src/api.md" title="Edit on GitHub"><span class="docs-icon fab"></span><span class="docs-label is-hidden-touch">Edit on GitHub</span></a><a class="docs-settings-button fas fa-cog" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-sidebar-button fa fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a></div></header><article class="content" id="documenter-page"><article class="docstring"><header><a class="docstring-binding" id="Gnuplot.@gp" href="#Gnuplot.@gp"><code>Gnuplot.@gp</code></a> — <span class="docstring-category">Macro</span></header><section><div><p><code>@gp args...</code></p><p>The <code>@gp</code> macro (and its companion <code>@gsp</code>, for <code>splot</code> operations) allows to exploit all of the <strong>Gnuplot</strong> package functionalities using an extremely efficient and concise syntax.  Both macros accept the same syntax, as described below.</p><p>The macros accepts any number of arguments, with the following meaning:</p><ul><li>a symbol: the name of the session to use;</li><li>a string: a command (e.g. &quot;set key left&quot;) or plot specification (e.g. &quot;with lines&quot;);</li><li>a string starting with a <code>$</code> sign: a data set name;</li><li>an <code>Int</code> &gt; 0: the plot destination in a multiplot session;</li><li>a keyword/value pair: a keyword value (see below);</li><li>any other type: a dataset to be passed to Gnuplot.  Each dataset must be terminated by either:<ul><li>a string starting with a <code>$</code> sign (i.e. the data set name);</li><li>or a string with the plot specifications (e.g. &quot;with lines&quot;);</li></ul></li><li>the <code>:-</code> symbol, used as first argument, avoids resetting the Gnuplot session.  Used as last argument avoids immediate execution  of the plot/splot command.  This symbol can be used to split a  single call into multiple ones.</li></ul><p>All entries are optional, and there is no mandatory order.  The plot specification can either be:</p><ul><li>a complete plot/splot command (e.g., &quot;plot sin(x)&quot;, both &quot;plot&quot; and &quot;splot&quot; can be abbreviated to &quot;p&quot; and &quot;s&quot; respectively);</li><li>or a partial specification starting with the &quot;with&quot; clause (if it follows a data set).</li></ul><p>The list of accepted keyword is as follows:</p><ul><li><code>title::String</code>: plot title;</li><li><code>xlabel::String</code>: X axis label;</li><li><code>ylabel::String</code>: Y axis label;</li><li><code>zlabel::String</code>: Z axis label;</li><li><code>xlog::Bool</code>: logarithmic scale for X axis;</li><li><code>ylog::Bool</code>: logarithmic scale for Y axis;</li><li><code>zlog::Bool</code>: logarithmic scale for Z axis;</li><li><code>xrange::NTuple{2, Number}</code>: X axis range;</li><li><code>yrange::NTuple{2, Number}</code>: Y axis range;</li><li><code>zrange::NTuple{2, Number}</code>: Z axis range;</li><li><code>cbrange::NTuple{2, Number}</code>: Color box axis range;</li></ul><p>The symbol for the above-mentioned keywords may also be used in a shortened form, as long as there is no ambiguity with other keywords.  E.g. you can use: <code>xr=(1,10)</code> in place of <code>xrange=(1,10)</code>.</p><p><strong>Examples:</strong></p><p><strong>Simple examples with no data:</strong></p><pre><code class="language-none">@gp &quot;plot sin(x)&quot;
+@gp &quot;plot sin(x)&quot; &quot;pl cos(x)&quot;
+@gp &quot;plo sin(x)&quot; &quot;s cos(x)&quot;
+
+# Split a `@gp` call in two
+@gp &quot;plot sin(x)&quot; :-
+@gp :- &quot;plot cos(x)&quot;
+
+# Insert a 3 second pause between one plot and the next
+@gp &quot;plot sin(x)&quot; 2 xr=(-2pi,2pi) &quot;pause 3&quot; &quot;plot cos(4*x)&quot;</code></pre><p><strong>Simple examples with data:</strong></p><pre><code class="language-none">@gp &quot;set key left&quot; tit=&quot;My title&quot; xr=(1,12) 1:10 &quot;with lines tit &#39;Data&#39;&quot;
+
+x = collect(1.:10)
+@gp x
+@gp x x
+@gp x -x
+@gp x x.^2
+@gp x x.^2 &quot;w l&quot;
+
+lw = 3
+@gp x x.^2 &quot;w l lw $lw&quot;</code></pre><p><strong>A more complex example</strong></p><pre><code class="language-none">@gp(&quot;set grid&quot;, &quot;set key left&quot;, xlog=true, ylog=true,
+    title=&quot;My title&quot;, xlab=&quot;X label&quot;, ylab=&quot;Y label&quot;,
+    x, x.^0.5, &quot;w l tit &#39;Pow 0.5&#39; dt 2 lw 2 lc rgb &#39;red&#39;&quot;,
+    x, x     , &quot;w l tit &#39;Pow 1&#39;   dt 1 lw 3 lc rgb &#39;blue&#39;&quot;,
+    x, x.^2  , &quot;w l tit &#39;Pow 2&#39;   dt 3 lw 2 lc rgb &#39;purple&#39;&quot;)</code></pre><p><strong>Multiplot example:</strong></p><pre><code class="language-none">@gp(xr=(-2pi,2pi), &quot;unset key&quot;,
+    &quot;set multi layout 2,2 title &#39;Multiplot title&#39;&quot;,
+    1, &quot;p sin(x)&quot;  ,
+    2, &quot;p sin(2*x)&quot;,
+    3, &quot;p sin(3*x)&quot;,
+    4, &quot;p sin(4*x)&quot;)</code></pre><p>or equivalently</p><pre><code class="language-none">@gp xr=(-2pi,2pi) &quot;unset key&quot; &quot;set multi layout 2,2 title &#39;Multiplot title&#39;&quot; :-
+for i in 1:4
+  @gp :- i &quot;p sin($i*x)&quot; :-
+end
+@gp</code></pre><p><strong>Multiple gnuplot sessions</strong></p><pre><code class="language-none">@gp :GP1 &quot;plot sin(x)&quot;
+@gp :GP2 &quot;plot sin(x)&quot;
+
+Gnuplot.quitall()</code></pre><p><strong>Further examples</strong></p><pre><code class="language-none">x = range(-2pi, stop=2pi, length=100);
+y = 1.5 * sin.(0.3 .+ 0.7x) ;
+noise = randn(length(x))./2;
+e = 0.5 * fill(1, size(x));
+
+name = &quot;\$MyDataSet1&quot;
+@gp x y name &quot;plot $name w l&quot; &quot;pl $name u 1:(2*\$2) w l&quot;
+
+@gsp randn(Float64, 30, 50)
+@gp randn(Float64, 30, 50) &quot;w image&quot;
+@gsp x y y
+
+@gp(&quot;set key horizontal&quot;, &quot;set grid&quot;,
+    xrange=(-7,7), ylabel=&quot;Y label&quot;,
+    x, y, &quot;w l t &#39;Real model&#39; dt 2 lw 2 lc rgb &#39;red&#39;&quot;,
+    x, y+noise, e, &quot;w errorbars t &#39;Data&#39;&quot;)
+
+@gp &quot;f(x) = a * sin(b + c*x); a = 1; b = 1; c = 1;&quot;   :-
+@gp :- x y+noise e name                               :-
+@gp :- &quot;fit f(x) $name u 1:2:3 via a, b, c;&quot;         :-
+@gp :- &quot;set multiplot layout 2,1&quot;                     :-
+@gp :- &quot;plot $name w points&quot; ylab=&quot;Data and model&quot;   :-
+@gp :- &quot;plot $name u 1:(f(\$1)) w lines&quot;           :-
+@gp :- 2 xlab=&quot;X label&quot; ylab=&quot;Residuals&quot;              :-
+@gp :- &quot;plot $name u 1:((f(\$1)-\$2) / \$3):(1) w errorbars notit&quot;
+
+# Retrieve values for a, b and c
+a = Meta.parse(Gnuplot.exec(&quot;print a&quot;))
+b = Meta.parse(Gnuplot.exec(&quot;print b&quot;))
+c = Meta.parse(Gnuplot.exec(&quot;print c&quot;))
+
+# Save to a PDF file
+save(term=&quot;pdf&quot;, output=&quot;gnuplot.pdf&quot;)</code></pre><p><strong>Display an image</strong></p><pre><code class="language-none">using TestImages
+img = testimage(&quot;lena&quot;);
+@gp img &quot;w image&quot;
+@gp &quot;set size square&quot; img &quot;w rgbimage&quot; # Color image with correct proportions
+@gp &quot;set size square&quot; img &quot;u 2:(-\$1):3:4:5 with rgbimage&quot; # Correct orientation</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/gcalderone/Gnuplot.jl/blob/9d1581dc2b4b8f52ab68fd96499b0801b139b02b/src/Gnuplot.jl#L736-L882">source</a></section></article></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../examples/">« Examples</a></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Tuesday 24 March 2020 12:50">Tuesday 24 March 2020</span>. Using Julia version 1.3.1.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
