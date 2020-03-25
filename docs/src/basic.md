@@ -16,25 +16,40 @@ The above lists all the required concepts to follow the examples presented below
 
 [^1]: a previous knowledge of [`gnuplot`](http://gnuplot.sourceforge.net/documentation.html) usage is, nevertheless, required.
 
-## Plots in 2D
+## [2D plots](@id plots2d)
 
 Here we will show a few examples to generate 2D plots.  The examples are intentionally very simple to highlight the behavior of **Gnuplot.jl**.  See [Examples](@ref) for more complex ones.
+
+Remember to run:
+```julia
+using Gnuplot
+```
+before running the examples.
+
+```@setup abc
+using Gnuplot
+Gnuplot.quitall()
+push!(Gnuplot.options.init, "set term unknown")
+saveas(file) = save(term="pngcairo size 480,360", output="assets/$file")
+```
+
 
 
 ### Simple examples involving just `gnuplot` commands:
 
+---
 #### Plot a sinusoid:
-```julia
+```@example abc
 @gp "plot sin(x)"
-save(term="png size 480,360", output="src/assets/basic1.png") # hide
+saveas("basic1.png") # hide
 ```
 ![](assets/basic1.png)
 
 ---
 #### Plot two curves:
-```julia
+```@example abc
 @gp "set key left" "plot sin(x)" "pl cos(x)"
-save(term="png size 480,360", output="src/assets/basic2.png") # hide
+saveas("basic2.png") # hide
 ```
 ![](assets/basic2.png)
 
@@ -43,11 +58,11 @@ save(term="png size 480,360", output="src/assets/basic2.png") # hide
 
 ---
 #### Split a `@gp` call in three statements:
-```julia
+```@example abc
 @gp    "set grid"  :-
 @gp :- "p sin(x)"  :-
 @gp :- "plo cos(x)"
-save(term="png size 480,360", output="src/assets/basic3.png") # hide
+saveas("basic3.png") # hide
 ```
 ![](assets/basic3.png)
 
@@ -55,32 +70,32 @@ save(term="png size 480,360", output="src/assets/basic3.png") # hide
 ### Send data from Julia to `gnuplot`:
 
 #### Plot a parabola
-```julia
-@gp (1:20).^2 
-save(term="png size 480,360", output="src/assets/basic4.png") # hide
+```@example abc
+@gp (1:20).^2
+saveas("basic4.png") # hide
 ```
 ![](assets/basic4.png)
 
 
 ---
 #### Plot a parabola with scaled x axis, lines and legend
-```julia
+```@example abc
 x = 1:20
 @gp "set key left"   x ./ 20   x.^2   "with lines tit 'Parabola'"
-save(term="png size 480,360", output="src/assets/basic5.png") # hide
+saveas("basic5.png") # hide
 ```
 ![](assets/basic5.png)
 
 ---
 #### Multiple datasets, logarithmic axis, labels and colors, etc.
-```julia
+```@example abc
 x = 1:0.1:10
 @gp    "set grid" "set key left" "set logscale y"
 @gp :- "set title 'Plot title'" "set label 'X label'" "set xrange [0:12]"
 @gp :- x x.^0.5 "w l tit 'Pow 0.5' dt 2 lw 2 lc rgb 'red'"
 @gp :- x x      "w l tit 'Pow 1'   dt 1 lw 3 lc rgb 'blue'"
 @gp :- x x.^2   "w l tit 'Pow 2'   dt 3 lw 2 lc rgb 'purple'"
-save(term="png size 480,360", output="src/assets/basic6.png") # hide
+saveas("basic6.png") # hide
 ```
 ![](assets/basic6.png)
 
@@ -119,62 +134,61 @@ can be replaced with a shorter version:
 ## Plot images
 
 **Gnuplot.jl** can also display images, i.e. 2D arrays:
-```julia
+```@example abc
 img = randn(Float64, 30, 50)
 img[10,:] .= -4
 @gp img "w image notit"
-save(term="jpeg size 480,360", output="src/assets/basic7a.png") # hide
+saveas("basic7a.png") # hide
 ```
 ![](assets/basic7a.png)
 
 Note that the first index corresponds to the `X` coordinate when the image is displayed.
 
 The following example shows how to fix orientation of an image by means of the `using` clause (the `TestImages` package is required to run this example):
-```julia
+```@example abc
 using TestImages
 img = testimage("lena");
-@gp "set size square" img "u 2:(-\$1):3:4:5 with rgbimage notit"
-save(term="jpeg size 480,360", output="src/assets/basic7b.jpg") # hide
+@gp "set size square" "set autoscale fix" img "u 2:(-\$1):3:4:5 with rgbimage notit"
+save(term="jpeg size 480,360", output="assets/basic7b.jpg") # hide
 ```
 ![](assets/basic7b.jpg)
 
 
-## Plots in 3D
+## [3D plots](@id plots3d)
 3D plots follow the same rules as 2D ones, just replace the `@gp` macro with `@gsp` and add the required columns (according to the plotting style).
 
 E.g., to plot a spiral increasing in size along the `X` direction:
-```julia
+```@example abc
 x = 0:0.1:10pi
-@gsp x  sin.(x) .* x  cos.(x) .* x  x./15  "w p pt 7 ps var lc pal"
-save(term="jpeg size 640,480", output="src/assets/basic8.jpg") # hide
+@gsp x  sin.(x) .* x  cos.(x) .* x  x./20  "w p pt 7 ps var lc pal"
+saveas("basic8.png") # hide
 ```
-![](assets/basic8.jpg)
+![](assets/basic8.png)
 
 The keywords discussed above can also be used in 3D plots.
-
 
 ## Palettes and line styles
 The **Gnuplot.jl** package comes with all the [ColorSchemes](https://juliagraphics.github.io/ColorSchemes.jl/stable/basics/#Pre-defined-schemes-1) palettes readily available.
 
 A `gnuplot`-compliant palette can be retrieved with `palette()`, and used as any other command.  The previous example may use an alternative palette with:
-```julia
+```@example abc
 x = 0:0.1:10pi
-@gsp palette(:viridis) x  sin.(x) .* x  cos.(x) .* x  x./15  "w p pt 7 ps var lc pal"
-save(term="jpeg size 640,480", output="src/assets/basic8a.jpg") # hide
+@gsp palette(:viridis) x  sin.(x) .* x  cos.(x) .* x  x./20  "w p pt 7 ps var lc pal"
+saveas("basic8a.png") # hide
 ```
-![](assets/basic8a.jpg)
+![](assets/basic8a.png)
 
 
 The [ColorSchemes](https://juliagraphics.github.io/ColorSchemes.jl/stable/basics/#Pre-defined-schemes-1) palettes can also be used to generate line styles, by means of the `linestyles()` function, e.g.
-```julia
+```@example abc
 @gp linestyles(:deepsea)
 x = 1:0.1:4pi
 for i in 1:5
     @gp :- x i.* sin.(x) "w l notit ls $i lw 5"
 end
-save(term="jpeg size 480,360", output="src/assets/basic9.jpg") # hide
+saveas("basic9.png") # hide
 ```
-![](assets/basic9.jpg)
+![](assets/basic9.png)
 
 
 
@@ -185,11 +199,11 @@ The `save()` function allows to export all plots (as well as multiplots, see [Mu
 
 All plots in this page have been saved with:
 ```julia
-save(term="png size 480,360", output="output.png")
+save(term="pngcairo size 480,360", output="assets/output.png")
 ```
 except the *Lena* image, saved with the `jpeg` terminal:
 ```julia
-save(term="jpeg size 480,360", output="output.png")
+save(term="jpeg size 480,360", output="assets/output.png")
 ```
 
 ## Gnuplot scripts

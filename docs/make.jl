@@ -9,6 +9,7 @@ makedocs(sitename="Gnuplot.jl",
              "Installation" => "install.md",
              "Basic usage" => "basic.md",
              "Advanced techniques" => "advanced.md",
+             "Tips" => "tips.md",
              "Examples" => "examples.md",
              "API" => "api.md"
          ])
@@ -39,7 +40,7 @@ git clone --single-branch --branch gh-pages  https://github.com/gcalderone/Gnupl
 
 Now copy the documentation "build" directory into, e.g., "dev", then
 git add dev/*
-git commit -m 'Updated'
+git commit -m 'Docs updated'
 git push origin gh-pages
 
 - Documentation will be available online at:

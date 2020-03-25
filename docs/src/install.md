@@ -7,16 +7,16 @@ If `gnuplot` is not available in your platform you can still use **Gnuplot.jl** 
 
 ## Package installation
 In the Julia REPL type:
-``` julia-repl
+```julia-repl
 julia> ]add Gnuplot
 ```
 Then hit backspace key to return to Julia REPL.
 
 ## Check installation
 Check execution and version of the underlying `gnuplot` process:
-```julia-repl
-julia> using Gnuplot
-julia> Gnuplot.gpversion()
+```@repl
+using Gnuplot
+Gnuplot.gpversion()
 ```
 
 Generate the first plot:
