@@ -147,6 +147,10 @@ function data2string(args...)
             (typeof(d[1]) <: String)  &&  (ok = true)
             (typeof(d[1]) <: Number)  &&  (ok = true)
             (typeof(d[1]) <: ColorTypes.RGB)  &&  (ok = true)
+        elseif typeof(d) <: Histogram1D
+            ok = true
+        elseif typeof(d) <: Histogram2D
+            ok = true
         end
         @assert ok "Invalid argument type at position $iarg"
     end
@@ -675,7 +679,7 @@ function driver(args...; flag3d=false)
     for iarg in 1:length(args)
         arg = args[iarg]
         isa(arg, Symbol)  &&  continue  # already handled
-        
+
         if isa(arg, Int)
             # Change current multiplot index
             @assert arg > 0
@@ -701,10 +705,10 @@ function driver(args...; flag3d=false)
                     #@info "Command (string)" iarg typeof(arg) arg
                     newcmd(gp, arg)
                 end
-            end            
+            end
         elseif isa(arg, Tuple)  &&  length(arg) == 2  &&  isa(arg[1], Symbol)
             #@info "Command (tuple)" iarg typeof(arg) arg
-            newcmd(gp; [arg]...)            
+            newcmd(gp; [arg]...)
         elseif isa(arg, Pair)
             # A named dataset
             #@info "Named dataset" iarg typeof(arg) arg
@@ -714,6 +718,19 @@ function driver(args...; flag3d=false)
             for d in arg[2]
                 push!(dataset, d)
             end
+            dataset_completed()
+        elseif isa(arg, Histogram1D)
+            newcmd(gp, "set grid")
+            push!(dataset, arg.bins)
+            push!(dataset, arg.counts)
+            plotspec = "w histep notit lw 2 lc rgb 'black'"
+            dataset_completed()
+        elseif isa(arg, Histogram2D)
+            newcmd(gp, "set autoscale fix")
+            push!(dataset, arg.bins1)
+            push!(dataset, arg.bins2)
+            push!(dataset, arg.counts)
+            plotspec = "w image notit"
             dataset_completed()
         else
              # A dataset
@@ -972,7 +989,7 @@ function exec(gp::GPSession, command::String)
         for line in errmsg
             printstyled(color=:red, "GNUPLOT ERROR $(gp.sid) -> $line\n")
         end
-        error("Gnuplot process raised an error")
+        error("Gnuplot process raised an error: $errmsg")
     end
 
     return join(answer, "\n")
@@ -1076,8 +1093,25 @@ end
 Example:
 v = randn(1000)
 h = hist(v, bs=0.5)
+@gp h  # preview
 @gp h.bins h.counts "w histep" h.bins h.counts "w l"
 =#
+
+mutable struct Histogram1D
+    bins::Vector{Float64}
+    counts::Vector{Float64}
+    binsize::Float64
+end
+
+mutable struct Histogram2D
+    bins1::Vector{Float64}
+    bins2::Vector{Float64}
+    counts::Matrix{Float64}
+    binsize1::Float64
+    binsize2::Float64
+end
+
+
 function hist(v::Vector{T}; range=[NaN,NaN], bs=NaN, nbins=0, pad=true) where T <: Number
     i = findall(isfinite.(v))
     isnan(range[1])  &&  (range[1] = minimum(v[i]))
@@ -1107,7 +1141,7 @@ function hist(v::Vector{T}; range=[NaN,NaN], bs=NaN, nbins=0, pad=true) where T 
         x = [x[1]-binsize, x..., x[end]+binsize]
         h = [0, h..., 0]
     end
-    return (bins=x, counts=h, bs=binsize)
+    return Histogram1D(x, h, binsize)
 end
 
 
@@ -1138,7 +1172,7 @@ function hist(v1::Vector{T1}, v2::Vector{T2};
 
     binsize1 = x1[2] - x1[1]
     binsize2 = x2[2] - x2[1]
-    return (bins1=x1, bins2=x2, counts=hh.weights, bs1=binsize1, bs2=binsize2)
+    return Histogram2D(x1, x2, hh.weights, binsize1, binsize2)
 end
 
 
