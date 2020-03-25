@@ -29,8 +29,9 @@ before running the examples.
 ```@setup abc
 using Gnuplot
 Gnuplot.quitall()
-push!(Gnuplot.options.init, "set term unknown")
+Gnuplot.splash("assets/logo.png")
 saveas(file) = save(term="pngcairo size 480,360", output="assets/$file")
+push!(Gnuplot.options.init, "set term unknown")
 ```
 
 

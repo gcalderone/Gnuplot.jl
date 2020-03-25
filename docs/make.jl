@@ -14,7 +14,6 @@ makedocs(sitename="Gnuplot.jl",
              "API" => "api.md"
          ])
 
-
 #=
 - Make documentation:
 cd <repo>/docs
