@@ -1291,7 +1291,7 @@ end
 
 
 # --------------------------------------------------------------------
-terminals() = split(exec("print GPVAL_TERMINALS"), " ")
+terminals() = split(strip(exec("print GPVAL_TERMINALS")), " ")
 terminal() = exec("print GPVAL_TERM") * " " * exec("print GPVAL_TERMOPTIONS")
 
 # --------------------------------------------------------------------
