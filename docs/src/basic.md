@@ -29,8 +29,10 @@ before running the examples.
 ```@setup abc
 using Gnuplot
 Gnuplot.quitall()
+mkdir("assets")
 Gnuplot.splash("assets/logo.png")
-saveas(file) = save(term="pngcairo size 480,360", output="assets/$file")
+saveas(file) = save(term="pngcairo size 480,360", output="assets/$(file).png")
+empty!(Gnuplot.options.init)
 push!(Gnuplot.options.init, "set term unknown")
 ```
 
@@ -42,7 +44,7 @@ push!(Gnuplot.options.init, "set term unknown")
 #### Plot a sinusoid:
 ```@example abc
 @gp "plot sin(x)"
-saveas("basic1.png") # hide
+saveas("basic1") # hide
 ```
 ![](assets/basic1.png)
 
@@ -50,7 +52,7 @@ saveas("basic1.png") # hide
 #### Plot two curves:
 ```@example abc
 @gp "set key left" "plot sin(x)" "pl cos(x)"
-saveas("basic2.png") # hide
+saveas("basic2") # hide
 ```
 ![](assets/basic2.png)
 
@@ -63,7 +65,7 @@ saveas("basic2.png") # hide
 @gp    "set grid"  :-
 @gp :- "p sin(x)"  :-
 @gp :- "plo cos(x)"
-saveas("basic3.png") # hide
+saveas("basic3") # hide
 ```
 ![](assets/basic3.png)
 
@@ -73,7 +75,7 @@ saveas("basic3.png") # hide
 #### Plot a parabola
 ```@example abc
 @gp (1:20).^2
-saveas("basic4.png") # hide
+saveas("basic4") # hide
 ```
 ![](assets/basic4.png)
 
@@ -83,7 +85,7 @@ saveas("basic4.png") # hide
 ```@example abc
 x = 1:20
 @gp "set key left"   x ./ 20   x.^2   "with lines tit 'Parabola'"
-saveas("basic5.png") # hide
+saveas("basic5") # hide
 ```
 ![](assets/basic5.png)
 
@@ -96,7 +98,7 @@ x = 1:0.1:10
 @gp :- x x.^0.5 "w l tit 'Pow 0.5' dt 2 lw 2 lc rgb 'red'"
 @gp :- x x      "w l tit 'Pow 1'   dt 1 lw 3 lc rgb 'blue'"
 @gp :- x x.^2   "w l tit 'Pow 2'   dt 3 lw 2 lc rgb 'purple'"
-saveas("basic6.png") # hide
+saveas("basic6") # hide
 ```
 ![](assets/basic6.png)
 
@@ -139,7 +141,7 @@ can be replaced with a shorter version:
 img = randn(Float64, 30, 50)
 img[10,:] .= -4
 @gp img "w image notit"
-saveas("basic7a.png") # hide
+saveas("basic7a") # hide
 ```
 ![](assets/basic7a.png)
 
@@ -162,32 +164,32 @@ E.g., to plot a spiral increasing in size along the `X` direction:
 ```@example abc
 x = 0:0.1:10pi
 @gsp x  sin.(x) .* x  cos.(x) .* x  x./20  "w p pt 7 ps var lc pal"
-saveas("basic8.png") # hide
+saveas("basic8") # hide
 ```
 ![](assets/basic8.png)
 
 The keywords discussed above can also be used in 3D plots.
 
-## Palettes and line styles
+## Palettes and line types
 The **Gnuplot.jl** package comes with all the [ColorSchemes](https://juliagraphics.github.io/ColorSchemes.jl/stable/basics/#Pre-defined-schemes-1) palettes readily available.
 
 A `gnuplot`-compliant palette can be retrieved with `palette()`, and used as any other command.  The previous example may use an alternative palette with:
 ```@example abc
 x = 0:0.1:10pi
 @gsp palette(:viridis) x  sin.(x) .* x  cos.(x) .* x  x./20  "w p pt 7 ps var lc pal"
-saveas("basic8a.png") # hide
+saveas("basic8a") # hide
 ```
 ![](assets/basic8a.png)
 
 
-The [ColorSchemes](https://juliagraphics.github.io/ColorSchemes.jl/stable/basics/#Pre-defined-schemes-1) palettes can also be used to generate line styles, by means of the `linestyles()` function, e.g.
+The [ColorSchemes](https://juliagraphics.github.io/ColorSchemes.jl/stable/basics/#Pre-defined-schemes-1) palettes can also be used to generate line types (actually just color attributes), by means of the `linetypes()` function, e.g.
 ```@example abc
-@gp linestyles(:deepsea)
+@gp linetypes(:deepsea)
 x = 1:0.1:4pi
 for i in 1:5
-    @gp :- x i.* sin.(x) "w l notit ls $i lw 5"
+    @gp :- x i.* sin.(x) "w l notit lw 5"
 end
-saveas("basic9.png") # hide
+saveas("basic9") # hide
 ```
 ![](assets/basic9.png)
 
