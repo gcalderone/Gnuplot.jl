@@ -92,8 +92,8 @@ s = Gnuplot.data2string(1:3, 1:3, ["One", "Two", "Three"])
 #-----------------------------------------------------------------
 pal = palette(:deepsea)
 @test pal == "set palette defined (0.0 '#2B004D', 0.25 '#4E0F99', 0.5 '#3C54D4', 0.75 '#48A9F8', 1.0 '#C5ECFF')\nset palette maxcol 5\n"
-ls = linestyles(:deepsea)
-@test ls == "set style line 1 lt 1 lc rgb '#2B004D\nset style line 2 lt 1 lc rgb '#4E0F99\nset style line 3 lt 1 lc rgb '#3C54D4\nset style line 4 lt 1 lc rgb '#48A9F8\nset style line 5 lt 1 lc rgb '#C5ECFF"
+ls = linetypes(:deepsea)
+@test ls == "set linetype 1 lc rgb '#2B004D\nset linetype 2 lc rgb '#4E0F99\nset linetype 3 lc rgb '#3C54D4\nset linetype 4 lc rgb '#48A9F8\nset linetype 5 lc rgb '#C5ECFF\nset linetype cycle 5\n"
 
 #-----------------------------------------------------------------
 # Test wth empty dataset

@@ -5,7 +5,7 @@ using StatsBase, ColorSchemes, ColorTypes, StructC14N, ReusePatterns
 import Base.reset
 import Base.write
 
-export @gp, @gsp, save, linestyles, palette, contourlines, hist, terminal, terminals
+export @gp, @gsp, save, linetypes, palette, contourlines, hist, terminal, terminals, test_terminal
 
 # ╭───────────────────────────────────────────────────────────────────╮
 # │                           TYPE DEFINITIONS                        │
@@ -133,7 +133,7 @@ end
 
 # ---------------------------------------------------------------------
 tostring(v) = string(v)
-tostring(c::ColorTypes.RGB) = string(float(c.r)*255) * " " * string(float(c.g)*255) * " " * string(float(c.b)*255)
+tostring(c::ColorTypes.RGB) = string(Int(c.r*255)) * " " * string(Int(c.g*255)) * " " * string(Int(c.b*255))
 tostring(v::AbstractString) = "\"" * string(v) * "\""
 
 function data2string(args...)
@@ -425,9 +425,17 @@ function write(gp::GPSession, d::DataSet)
         printstyled(color=:light_black, "GNUPLOT ($(gp.sid)) EOD\n")
     end
     write(gp.pin, "$(d.name) << EOD\n")
-    write(gp.pin, join(d.lines, "\n") * "\n")
+    buf = join(d.lines, "\n") * "\n"
+    #if length(buf) > 1e4
+    #    s = "Writing data to gnuplot (length=$(length(buf)) bytes) ..."
+    #    printstyled(color=:light_black, s)
+    #end
+    write(gp.pin, buf)
     write(gp.pin, "EOD\n")
     flush(gp.pin)
+    #if length(buf) > 1e4
+    #    write(stdout, "\r" * *(fill(" ", length(s))...) * "\r")
+    #end
     return nothing
 end
 
@@ -1027,13 +1035,13 @@ save(sid::Symbol, file::AbstractString; kw...) = savescript(getsession(sid), fil
 # │                     HIGH LEVEL FACILITIES                         │
 # ╰───────────────────────────────────────────────────────────────────╯
 # ---------------------------------------------------------------------
-linestyles(s::Symbol) = linestyles(colorschemes[s])
-function linestyles(cmap::ColorScheme)
-    styles = Vector{String}()
+linetypes(s::Symbol) = linetypes(colorschemes[s])
+function linetypes(cmap::ColorScheme)
+    out = Vector{String}()
     for i in 1:length(cmap.colors)
-        push!(styles, "set style line $i lt 1 lc rgb '#" * Base.hex(cmap.colors[i]))
+        push!(out, "set linetype $i lc rgb '#" * Base.hex(cmap.colors[i]))
     end
-    return join(styles, "\n")
+    return join(out, "\n") * "\nset linetype cycle " * string(length(cmap.colors)) * "\n"
 end
 
 # --------------------------------------------------------------------
@@ -1326,6 +1334,19 @@ function splash(outputfile="")
     @gp :- :splash ["0.35 0.65 @ 13253682'", "0.85 0.65 g 3774278", "1.3 0.65 p 9591203"] "w labels notit font 'Mono,160' tc rgb var"
     (outputfile == "")  ||  save(:splash, term="pngcairo transparent noenhanced size 600,300", output=outputfile)
     nothing
+end
+
+function test_terminal(term=nothing; linetypes=nothing, palette=nothing)
+    quit(:test_term)
+    quit(:test_palette)
+    if !isnothing(term)
+        exec(:test_term    , "set term $term;")
+        exec(:test_palette , "set term $term")
+    end
+    s = (isnothing(linetypes)  ?  ""  :  Gnuplot.linetypes(linetypes))
+    exec(:test_term    , "$s; test")
+    s = (isnothing(palette)  ?  ""  :  Gnuplot.palette(palette))
+    exec(:test_palette , "$s; test palette")
 end
 
 end #module
