@@ -352,16 +352,17 @@ function GPSession(sid::Symbol)
                     pin, pout, perr, proc, chan)
     sessions[sid] = out
 
-    # Set window title
+    for l in options.init
+        writeread(out, l)
+    end
+
+    # Set window title (if not already set)
     term = writeread(out, "print GPVAL_TERM")[1]
     if term in ("aqua", "x11", "qt", "wxt")
         opts = writeread(out, "print GPVAL_TERMOPTIONS")[1]
         if findfirst("title", opts) == nothing
             writeread(out, "set term $term $opts title 'Gnuplot.jl: $(out.sid)'")
         end
-    end
-    for l in options.init
-        writeread(out, l)
     end
 
     return out
