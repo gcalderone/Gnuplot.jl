@@ -1046,20 +1046,34 @@ end
 
 
 # --------------------------------------------------------------------
-#=
-Example:
-v = randn(1000)
-h = hist(v, bs=0.5)
-@gp h  # preview
-@gp h.bins h.counts "w histep" h.bins h.counts "w l"
-=#
+"""
+    Histogram1D
 
+A structure containing histogram data.
+
+# Fields
+- `bins::Vector{Float64}`: middle points of the bins;
+- `counts::Vector{Float64}`: couts in the bins;
+- `binsize::Float64`: size of each bin;
+"""
 mutable struct Histogram1D
     bins::Vector{Float64}
     counts::Vector{Float64}
     binsize::Float64
 end
 
+"""
+    Histogram2D
+
+A structure containing 2D histogram data.
+
+# Fields
+- `bins1::Vector{Float64}`: middle points of the bins along first dimension;
+- `bins2::Vector{Float64}`: middle points of the bins along second dimension;
+- `counts::Vector{Float64}`: couts in the bins;
+- `binsize1::Float64`: size of each bin along first dimension;
+- `binsize2::Float64`: size of each bin along second dimension;
+"""
 mutable struct Histogram2D
     bins1::Vector{Float64}
     bins2::Vector{Float64}
@@ -1070,6 +1084,28 @@ end
 
 
 # --------------------------------------------------------------------
+"""
+    hist(v::Vector{T}; range=extrema(v), bs=NaN, nbins=0, pad=true) where T <: Number
+
+Calculates the histogram of the values in `v` and returns a [`Histogram1D`](@ref) structure.
+
+# Arguments
+- `v`: a vector of values to compute the histogra;
+- `range`: values of the left edge of the first bin and of the right edge of the last bin;
+- `bs`: size of histogram bins;
+- `nbins`: number of bins in the histogram;
+- `pad`: if true add one dummy bins with zero counts before the first bin and after the last.
+
+If `bs` is given `nbins` is ignored.
+
+# Example
+```julia
+v = randn(1000)
+h = hist(v, bs=0.5)
+@gp h  # preview
+@gp h.bins h.counts "w histep notit"
+```
+"""
 function hist(v::Vector{T}; range=[NaN,NaN], bs=NaN, nbins=0, pad=true) where T <: Number
     i = findall(isfinite.(v))
     isnan(range[1])  &&  (range[1] = minimum(v[i]))
@@ -1103,6 +1139,32 @@ function hist(v::Vector{T}; range=[NaN,NaN], bs=NaN, nbins=0, pad=true) where T 
 end
 
 
+"""
+    hist(v1::Vector{T1 <: Number}, v2::Vector{T2 <: Number}; range1=[NaN,NaN], bs1=NaN, nbins1=0, range2=[NaN,NaN], bs2=NaN, nbins2=0)
+
+Calculates the 2D histogram of the values in `v1` and `v2` and returns a [`Histogram2D`](@ref) structure.
+
+# Arguments
+- `v1`: a vector of values along the first dimension;
+- `v2`: a vector of values along the second dimension;
+- `range1`: values of the left edge of the first bin and of the right edge of the last bin, along the first dimension;
+- `range1`: values of the left edge of the first bin and of the right edge of the last bin, along the second dimension;
+- `bs1`: size of histogram bins along the first dimension;
+- `bs2`: size of histogram bins along the second dimension;
+- `nbins1`: number of bins along the first dimension;
+- `nbins2`: number of bins along the second dimension;
+
+If `bs1` (`bs2`) is given `nbins1` (`nbins2`) is ignored.
+
+# Example
+```julia
+v1 = randn(1000)
+v2 = randn(1000)
+h = hist(v1, v2, bs1=0.5, bs2=0.5)
+@gp h  # preview
+@gp "set size ratio -1" "set auto fix" h.bins1 h.bins2 h.counts "w image notit"
+```
+"""
 function hist(v1::Vector{T1}, v2::Vector{T2};
               range1=[NaN,NaN], bs1=NaN, nbins1=0,
               range2=[NaN,NaN], bs2=NaN, nbins2=0) where {T1 <: Number, T2 <: Number}
