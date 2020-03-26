@@ -528,13 +528,10 @@ function exec(gp::GPSession, command::String)
     options.verbose = verbose
 
     if errno != "0"
-        printstyled(color=:red, "GNUPLOT ERROR $(gp.sid) -> ERRNO=$errno\n")
+        @error "\n" * join(answer, "\n")
         errmsg = writeread(gp, "print GPVAL_ERRMSG")
         write(gp.pin, "reset error\n")
-        for line in errmsg
-            printstyled(color=:red, "GNUPLOT ERROR $(gp.sid) -> $line\n")
-        end
-        error("Gnuplot process raised an error: $errmsg")
+        error("Gnuplot error: $errmsg")
     end
 
     return join(answer, "\n")
@@ -756,7 +753,7 @@ end
 """
     Gnuplot.version()
 
-Returns the **Gnuplot.jl** package version.
+Return the **Gnuplot.jl** package version.
 """
 version() = v"1.0-dev"
 
@@ -764,7 +761,7 @@ version() = v"1.0-dev"
 """
     Gnuplot.gpversion()
 
-Returns the *gnuplot* application version.
+Return the *gnuplot* application version.
 
 Raise an error if version is < 4.7 (required to use data blocks).
 """
@@ -928,33 +925,6 @@ save(sid::Symbol, file::AbstractString; kw...) = savescript(getsession(sid), fil
 # ╭───────────────────────────────────────────────────────────────────╮
 # │                     HIGH LEVEL FACILITIES                         │
 # ╰───────────────────────────────────────────────────────────────────╯
-# ---------------------------------------------------------------------
-linetypes(s::Symbol) = linetypes(colorschemes[s])
-function linetypes(cmap::ColorScheme)
-    out = Vector{String}()
-    for i in 1:length(cmap.colors)
-        push!(out, "set linetype $i lc rgb '#" * Base.hex(cmap.colors[i]))
-    end
-    return join(out, "\n") * "\nset linetype cycle " * string(length(cmap.colors)) * "\n"
-end
-
-
-# --------------------------------------------------------------------
-palette(s::Symbol) = palette(colorschemes[s])
-function palette(cmap::ColorScheme)
-    levels = Vector{String}()
-    for x in LinRange(0, 1, length(cmap.colors))
-        color = get(cmap, x)
-        push!(levels, "$x '#" * Base.hex(color) * "'")
-    end
-    return "set palette defined (" * join(levels, ", ") * ")\nset palette maxcol $(length(cmap.colors))\n"
-end
-
-
-# --------------------------------------------------------------------
-terminals() = split(strip(exec("print GPVAL_TERMINALS")), " ")
-terminal() = exec("print GPVAL_TERM") * " " * exec("print GPVAL_TERMOPTIONS")
-
 # --------------------------------------------------------------------
 function splash(outputfile="")
     quit(:splash)
@@ -989,11 +959,83 @@ function splash(outputfile="")
     nothing
 end
 
+
+# ---------------------------------------------------------------------
+"""
+    linetypes(cmap::ColorScheme)
+    linetypes(s::Symbol)
+
+Convert a `ColorScheme` object into a string containing the *gnuplot* commands to set up *linetype* colors.
+
+If the argument is a `Symbol` it is interpreted as the name of one of the predefined schemes in [ColorSchemes](https://juliagraphics.github.io/ColorSchemes.jl/stable/basics/#Pre-defined-schemes-1).
+"""
+linetypes(s::Symbol) = linetypes(colorschemes[s])
+function linetypes(cmap::ColorScheme)
+    out = Vector{String}()
+    for i in 1:length(cmap.colors)
+        push!(out, "set linetype $i lc rgb '#" * Base.hex(cmap.colors[i]))
+    end
+    return join(out, "\n") * "\nset linetype cycle " * string(length(cmap.colors)) * "\n"
+end
+
+
+# --------------------------------------------------------------------
+"""
+    palette(cmap::ColorScheme)
+    palette(s::Symbol)
+
+Convert a `ColorScheme` object into a string containing the *gnuplot* commands to set up the corresponding palette.
+
+If the argument is a `Symbol` it is interpreted as the name of one of the predefined schemes in [ColorSchemes](https://juliagraphics.github.io/ColorSchemes.jl/stable/basics/#Pre-defined-schemes-1).
+"""
+palette(s::Symbol) = palette(colorschemes[s])
+function palette(cmap::ColorScheme)
+    levels = Vector{String}()
+    for x in LinRange(0, 1, length(cmap.colors))
+        color = get(cmap, x)
+        push!(levels, "$x '#" * Base.hex(color) * "'")
+    end
+    return "set palette defined (" * join(levels, ", ") * ")\nset palette maxcol $(length(cmap.colors))\n"
+end
+
+
+# --------------------------------------------------------------------
+"""
+    terminals()
+
+Return a `Vector{String}` with the names of all the available *gnuplot* terminals.
+"""
+terminals() = split(strip(exec("print GPVAL_TERMINALS")), " ")
+
+
+# --------------------------------------------------------------------
+"""
+    terminal(sid::Symbol = :default)
+
+Return a `String` with the current *gnuplot* terminal (and its options) of the process associated to session `sid`.
+"""
+terminal(sid::Symbol=options.default) = exec(getsession(sid), "print GPVAL_TERM") * " " * exec(getsession(sid), "print GPVAL_TERMOPTIONS")
+
+
+# --------------------------------------------------------------------
+"""
+    test_terminal(term=nothing; linetypes=nothing, palette=nothing)
+
+Run the `test` and `test palette` commands on a *gnuplot* terminal.
+
+If no `term` is given it will use the default terminal. If `linetypes` and `palette` are given they are used as input to the [`linetypes`](@ref) and [`palette`](@ref) function repsetcively to load the associated color scheme.
+
+# Examples
+```julia
+test_terminal()
+test_terminal("wxt", linetypes=:rust, palette=:viridis)
+```
+"""
 function test_terminal(term=nothing; linetypes=nothing, palette=nothing)
     quit(:test_term)
     quit(:test_palette)
     if !isnothing(term)
-        exec(:test_term    , "set term $term;")
+        exec(:test_term    , "set term $term")
         exec(:test_palette , "set term $term")
     end
     s = (isnothing(linetypes)  ?  ""  :  Gnuplot.linetypes(linetypes))
@@ -1027,6 +1069,7 @@ mutable struct Histogram2D
 end
 
 
+# --------------------------------------------------------------------
 function hist(v::Vector{T}; range=[NaN,NaN], bs=NaN, nbins=0, pad=true) where T <: Number
     i = findall(isfinite.(v))
     isnan(range[1])  &&  (range[1] = minimum(v[i]))
@@ -1060,7 +1103,6 @@ function hist(v::Vector{T}; range=[NaN,NaN], bs=NaN, nbins=0, pad=true) where T 
 end
 
 
-# --------------------------------------------------------------------
 function hist(v1::Vector{T1}, v2::Vector{T2};
               range1=[NaN,NaN], bs1=NaN, nbins1=0,
               range2=[NaN,NaN], bs2=NaN, nbins2=0) where {T1 <: Number, T2 <: Number}
