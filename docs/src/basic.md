@@ -2,7 +2,7 @@
 
 The main purpose of the **Gnuplot.jl** package is to send data and commands to the underlying `gnuplot` process, in order to generate plots.  Unlike other packages, however, the actual commands to plot, or the plot attributes, are not specified through function calls.  This is what makes **Gnuplot.jl** *easy to learn and use*: there are no functions or keywords names to memorize[^1].
 
-The most important symbols exported by the package are the `@gp` (for 2D plots) and `@gsp` (for 3D plots) macros, both accepting any number of arguments, and whose meaning is interpreted as follows:
+The most important symbols exported by the package are the [`@gp`](@ref) (for 2D plots) and [`@gsp`](@ref) (for 3D plots) macros, both accepting any number of arguments, and whose meaning is interpreted as follows:
 
 - one, or a group of consecutive, array(s) build up a dataset.  The different arrays are accessible as columns 1, 2, etc. from the `gnuplot` process.  The number of required input arrays depends on the chosen plot style (see `gnuplot` documentation);
 
@@ -10,9 +10,9 @@ The most important symbols exported by the package are the `@gp` (for 2D plots) 
 
 - a string occurring immediately after a dataset is interpreted as a *plot element* for the dataset, by which you can specify `using` clause, `with` clause, line styles, etc.;
 
-- the special symbol `:-`, whose meaning is to avoid creating a new plot (if given as first argument), or to avoid immediately running all commands to create the final plot (if given as last argument).  Its purpose is to allow splitting one long statement into multiple (shorter) ones.
+- the special symbol `:-`, whose meaning is to avoid starting a new plot (if given as first argument), or to avoid immediately running all commands to create the final plot (if given as last argument).  Its purpose is to allow splitting one long statement into multiple (shorter) ones.
 
-The above lists all the required concepts to follow the examples presented below.  The `@gp` and `@gsp` macros also accepts further arguments, but their use will be discussed in [Advanced techniques](@ref).
+The above lists all the required concepts to follow the examples presented below.  The [`@gp`](@ref) and [`@gsp`](@ref) macros also accepts further arguments, but their use will be discussed in [Advanced techniques](@ref).
 
 [^1]: a previous knowledge of [`gnuplot`](http://gnuplot.sourceforge.net/documentation.html) usage is, nevertheless, required.
 

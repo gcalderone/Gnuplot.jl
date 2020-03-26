@@ -15,7 +15,7 @@ fxy = [fz(x,y) for x in x, y in y]
 @gsp :- 2 x y fxy "w pm3d notit"
 
 ```
-## Multiple processes
+## Multiple sessions
 ## Named datasets
 ## Histograms (1D)
 ## Histograms (2D)
