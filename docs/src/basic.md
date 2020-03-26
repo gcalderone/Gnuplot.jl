@@ -33,7 +33,7 @@ mkdir("assets")
 Gnuplot.splash("assets/logo.png")
 saveas(file) = save(term="pngcairo size 480,360", output="assets/$(file).png")
 empty!(Gnuplot.options.init)
-push!(Gnuplot.options.init, "set term unknown")
+Gnuplot.exec("set term unknown")
 ```
 
 

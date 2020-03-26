@@ -1049,7 +1049,7 @@ end
 """
     Histogram1D
 
-A structure containing histogram data.
+A 1D histogram data.
 
 # Fields
 - `bins::Vector{Float64}`: middle points of the bins;
@@ -1065,7 +1065,7 @@ end
 """
     Histogram2D
 
-A structure containing 2D histogram data.
+A 2D histogram data.
 
 # Fields
 - `bins1::Vector{Float64}`: middle points of the bins along first dimension;
@@ -1196,81 +1196,6 @@ end
 
 
 # --------------------------------------------------------------------
-mutable struct ContourLine
-    level::Int
-    x::Vector{Float64}
-    y::Vector{Float64}
-    z::Float64
-    ContourLine(z) = new(1, Vector{Float64}(), Vector{Float64}(), z)
-end
-
-mutable struct IsoContourLines
-    lines::Vector{ContourLine}
-    paths::Vector{String}
-    z::Float64
-    function IsoContourLines(lines::Vector{ContourLine})
-        z = unique(getfield.(lines, :z))
-        @assert length(z) == 1
-        paths = Vector{String}()
-        for i in 1:length(lines)
-            append!(paths, arrays2datablock(lines[i].x, lines[i].y))
-            push!(paths, "")
-        end
-        return new(lines, paths, z[1])
-    end
-end
-
-function contourlines(args...; cntrparam="level auto 10")
-    tmpfile = Base.Filesystem.tempname()
-    sid = Symbol("j", Base.Libc.getpid())
-    if !haskey(Gnuplot.sessions, sid)
-        gp = getsession(sid)
-    end
-
-    Gnuplot.exec(sid, "set term unknown")
-    @gsp    sid "set contour base" "unset surface" :-
-    @gsp :- sid "set cntrparam $cntrparam" :-
-    @gsp :- sid "set table '$tmpfile'" :-
-    @gsp :- sid args...
-    Gnuplot.exec(sid, "unset table")
-    Gnuplot.exec(sid, "reset")
-
-    cur = ContourLine(NaN)
-    lines = Vector{ContourLine}()
-    for l in readlines(tmpfile)
-        l = strip(l)
-        if l == ""
-            (length(cur.x) > 2)  &&  push!(lines, cur)
-            cur = ContourLine(cur.z)
-            continue
-        end
-        if !isnothing(findfirst("# Contour ", l))
-            (length(cur.x) > 2)  &&  push!(lines, cur)
-            cur = ContourLine(Meta.parse(strip(split(l, ':')[2])))
-            continue
-        end
-        (l[1] == '#')  &&  continue
-
-        n = Meta.parse.(split(l))
-        @assert length(n) == 3
-        push!(cur.x, n[1])
-        push!(cur.y, n[2])
-    end
-    (length(cur.x) > 2)  &&  push!(lines, cur)
-    rm(tmpfile)
-    @assert length(lines) > 0
-    lines = lines[sortperm(getfield.(lines, :z))]
-
-    out = Vector{IsoContourLines}()
-    for z in unique(getfield.(lines, :z))
-        i = findall(getfield.(lines, :z) .== z)
-        push!(out, IsoContourLines(lines[i]))
-    end
-    return out
-end
-
-
-# --------------------------------------------------------------------
 function boxxyerror(x, y; xmin=NaN, ymin=NaN, xmax=NaN, ymax=NaN, cartesian=false)
     function box(v; vmin=NaN, vmax=NaN)
         vlow  = Vector{Float64}(undef, length(v))
@@ -1298,6 +1223,132 @@ function boxxyerror(x, y; xmin=NaN, ymin=NaN, xmax=NaN, ymax=NaN, cartesian=fals
     i = repeat(1:length(x), outer=length(y))
     j = repeat(1:length(y), inner=length(x))
     return (x[i], y[j], xlow[i], xhigh[i], ylow[j], yhigh[j])
+end
+
+
+# --------------------------------------------------------------------
+"""
+    Path2d
+
+A path in 2D.
+
+# Fields
+- `x::Vector{Float64}`
+- `y::Vector{Float64}`
+"""
+mutable struct Path2d
+    x::Vector{Float64}
+    y::Vector{Float64}
+    Path2d() = new(Vector{Float64}(), Vector{Float64}())
+end
+
+
+"""
+    IsoContourLines
+
+Coordinates of all contour lines of a given level.
+
+# Fields
+ - `paths::Vector{Path2d}`: vector of [`Path2d`](@ref) objects, one for each continuous path;
+ - `data::Vector{String}`: vector with string representation of all paths (ready to be sent to *gnuplot*);
+ - `z::Float64`: level of the contour lines.
+"""
+mutable struct IsoContourLines
+    paths::Vector{Path2d}
+    data::Vector{String}
+    z::Float64
+    function IsoContourLines(paths::Vector{Path2d}, z)
+        @assert length(z) == 1
+        data = Vector{String}()
+        for i in 1:length(paths)
+            append!(data, arrays2datablock(paths[i].x, paths[i].y))
+            push!(data, "")
+        end
+        return new(paths, data, z)
+    end
+end
+
+
+"""
+    contourlines(x::Vector{Float64}, y::Vector{Float64}, h::Matrix{Float64}; cntrparam="level auto 10")
+
+Compute paths of contour lines for 2D data, and return a vector of [`IsoContourLines`](@ref) object.
+
+# Arguments:
+- `x`, `y`: Coordinates;
+- `h`: the levels on which iso contour lines are to be calculated
+- `cntrparam`: settings to compute contour line paths (see *gnuplot* documentation for `cntrparam`).
+
+# Example
+```julia
+x = randn(5000);
+y = randn(5000);
+h = hist(x, y, nbins1=20, nbins2=20);
+clines = contourlines(h.bins1, h.bins2, h.counts, cntrparam="levels discrete 15, 30, 45");
+@gp "set size ratio -1"
+for i in 1:length(clines)
+    @gp :- clines[i].data "w l t '\$(clines[i].z)' dt \$i"
+end
+```
+"""
+function contourlines(args...; cntrparam="level auto 10")
+    tmpfile = Base.Filesystem.tempname()
+    sid = Symbol("j", Base.Libc.getpid())
+    if !haskey(Gnuplot.sessions, sid)
+        gp = getsession(sid)
+    end
+
+    Gnuplot.exec(sid, "set term unknown")
+    @gsp    sid "set contour base" "unset surface" :-
+    @gsp :- sid "set cntrparam $cntrparam" :-
+    @gsp :- sid "set table '$tmpfile'" :-
+    @gsp :- sid args...
+    Gnuplot.exec(sid, "unset table")
+    Gnuplot.exec(sid, "reset")
+
+    level = NaN
+    path = Path2d()
+    paths = Vector{Path2d}()
+    levels = Vector{Float64}()
+    for l in readlines(tmpfile)
+        l = strip(l)
+        if (l == "")  ||
+            !isnothing(findfirst("# Contour ", l))
+            if length(path.x) > 2
+                push!(paths, path)
+                push!(levels, level)
+            end
+            path = Path2d()
+
+            if l != ""
+                level = Meta.parse(strip(split(l, ':')[2]))
+            end
+            continue
+        end
+        (l[1] == '#')  &&  continue
+
+        n = Meta.parse.(split(l))
+        @assert length(n) == 3
+        push!(path.x, n[1])
+        push!(path.y, n[2])
+    end
+    if length(path.x) > 2
+        push!(paths, path)
+        push!(levels, level)
+    end
+    rm(tmpfile)
+    @assert length(paths) > 0
+    i = sortperm(levels)
+    paths  = paths[ i]
+    levels = levels[i]
+
+    # Join paths with the same level
+    out = Vector{IsoContourLines}()
+    for z in unique(levels)
+        i = findall(levels .== z)
+        push!(out, IsoContourLines(paths[i], z))
+    end
+    return out
 end
 
 end #module

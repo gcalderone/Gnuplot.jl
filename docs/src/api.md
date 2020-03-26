@@ -1,12 +1,23 @@
 # API
 
+## Index
+```@index
+```
+
 ## Exported symbols
 The list of **Gnuplot.jl** exported symbols is as follows:
 
 ```@docs
 @gp
 @gsp
+contourlines
+hist
+linetypes
+palette
 save
+terminals
+terminal
+test_terminal
 ```
 
 
@@ -16,6 +27,10 @@ The following functions are not exported by the **Gnuplot.jl** package since the
 In order to call these functions you should add the `Gnuplot.` prefix to the function name.
 
 ```@docs
+Gnuplot.Histogram1D
+Gnuplot.Histogram2D
+Gnuplot.IsoContourLines
+Gnuplot.Path2d
 Gnuplot.exec
 Gnuplot.gpversion
 Gnuplot.quit
