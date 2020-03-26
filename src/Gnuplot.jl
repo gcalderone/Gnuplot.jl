@@ -364,17 +364,13 @@ end
 # │                       write() and writeread()                     │
 # ╰───────────────────────────────────────────────────────────────────╯
 # ---------------------------------------------------------------------
+
 """
-  # write
+    write(gp, str)
 
-  Send a string to gnuplot's STDIN.
+Send a string to gnuplot's STDIN.
 
-  The commands sent through `write` are not stored in the current
-  session (use `newcmd` to save commands in the current session).
-
-  ## Arguments:
-  - `gp`: a `DrySession` object;
-  - `str::String`: command to be sent;
+The commands sent through `write` are not stored in the current session (use `newcmd` to save commands in the current session).
 """
 write(gp::DrySession, str::AbstractString) = nothing
 function write(gp::GPSession, str::AbstractString)
