@@ -5,29 +5,29 @@ push!(Gnuplot.options.init, "set term unknown")
 x = [1, 2, 3]
 y = [4, 5, 6]
 
-s = Gnuplot.data2string(1)
+s = Gnuplot.arrays2datablock(1)
 @test all(s .== [" 1"])
 
-s = Gnuplot.data2string(1, 2)
+s = Gnuplot.arrays2datablock(1, 2)
 @test all(s .== [" 1 2"])
 
-s = Gnuplot.data2string(x)
+s = Gnuplot.arrays2datablock(x)
 @test all(s .== [" 1"   ,
                  " 2"   ,
                  " 3"   ])
 
-s = Gnuplot.data2string(x, y)
+s = Gnuplot.arrays2datablock(x, y)
 @test all(s .== [" 1 4",
                  " 2 5",
                  " 3 6"])
 
-s = Gnuplot.data2string(x, y, x.+y)
+s = Gnuplot.arrays2datablock(x, y, x.+y)
 @test all(s .== [" 1 4 5",
                  " 2 5 7",
                  " 3 6 9"])
 
 z = [X+Y for X in x, Y in y];
-s = Gnuplot.data2string(z)
+s = Gnuplot.arrays2datablock(z)
 @test all(s .== ["1 1 5",
                  "2 1 6",
                  "3 1 7",
@@ -40,7 +40,7 @@ s = Gnuplot.data2string(z)
                  "2 3 8",
                  "3 3 9"])
 
-s = Gnuplot.data2string(z, z)
+s = Gnuplot.arrays2datablock(z, z)
 @test all(s .== [" 5 5",
                  " 6 6",
                  " 7 7",
@@ -53,7 +53,7 @@ s = Gnuplot.data2string(z, z)
                  " 8 8",
                  " 9 9"])
 
-s = Gnuplot.data2string(x, y, z)
+s = Gnuplot.arrays2datablock(x, y, z)
 @test all(s .== [" 1 4 5" ,
                  " 2 4 6" ,
                  " 3 4 7" ,
@@ -70,7 +70,7 @@ c = [[X, Y] for Y in y for X in x];  # First Y (i.e. rows) then X (i.e. columns)
 u = getindex.(c, 1)
 v = getindex.(c, 2)
 
-s = Gnuplot.data2string(u, v, z)
+s = Gnuplot.arrays2datablock(u, v, z)
 @test all(s .== [" 1 4 5" ,
                  " 2 4 6" ,
                  " 3 4 7" ,
@@ -83,7 +83,7 @@ s = Gnuplot.data2string(u, v, z)
                  " 2 6 8" ,
                  " 3 6 9" ])
 
-s = Gnuplot.data2string(1:3, 1:3, ["One", "Two", "Three"])
+s = Gnuplot.arrays2datablock(1:3, 1:3, ["One", "Two", "Three"])
 @test all(s .== [ " 1 1 \"One\""  ,
                   " 2 2 \"Two\""  ,
                   " 3 3 \"Three\""])

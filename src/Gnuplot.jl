@@ -54,49 +54,17 @@ Base.@kwdef mutable struct Options
     verbose::Bool = false                     # verbosity flag (true/false)
     datalines::Int = 4;                       # How many lines of a dataset are printed in log
 end
+
+# ╭───────────────────────────────────────────────────────────────────╮
+# │                         GLOBAL VARIABLES                          │
+# ╰───────────────────────────────────────────────────────────────────╯
 const sessions = Dict{Symbol, DrySession}()
 const options = Options()
+
 
 # ╭───────────────────────────────────────────────────────────────────╮
 # │                         LOW LEVEL FUNCTIONS                       │
 # ╰───────────────────────────────────────────────────────────────────╯
-
-version() = v"1.0-dev"
-
-# ---------------------------------------------------------------------
-"""
-  # gpversion
-
-  Check whether gnuplot is runnable with the default command.
-  Raise an error if version is < 4.7 (required to use data
-  blocks).
-"""
-function gpversion()
-    options.dry  &&  (return v"0.0.0")
-    icmd = `$(options.cmd) --version`
-
-    proc = open(`$icmd`, read=true)
-    s = String(read(proc))
-    if !success(proc)
-        error("An error occurred while running: " * string(icmd))
-    end
-
-    s = split(s, " ")
-    ver = ""
-    for token in s
-        try
-            ver = VersionNumber("$token")
-            break
-        catch
-        end
-    end
-
-    if ver < v"4.7"
-        error("gnuplot ver. >= 4.7 is required, but " * string(ver) * " was found.")
-    end
-    return ver
-end
-
 
 # ---------------------------------------------------------------------
 function parseKeywords(; kwargs...)
@@ -136,7 +104,16 @@ tostring(v) = string(v)
 tostring(c::ColorTypes.RGB) = string(Int(c.r*255)) * " " * string(Int(c.g*255)) * " " * string(Int(c.b*255))
 tostring(v::AbstractString) = "\"" * string(v) * "\""
 
-function data2string(args...)
+"""
+    Gnuplot.arrays2datablock(arrays...)
+
+Convert one (or more) arrays into an `Vector{String}`, ready to be ingested as an *inline datablock*.
+
+Data are sent from Julia to *gnuplot* in the form of an array of strings, also called *inline datablock* in the *gnuplot* manual.  This function performs such transformation.
+
+If you experience errors when sending data to *gnuplot* try to filter the arrays through this function.
+"""
+function arrays2datablock(args...)
     @assert length(args) > 0
 
     # Check types of args
@@ -290,6 +267,7 @@ function DrySession(sid::Symbol)
     sessions[sid] = out
     return out
 end
+
 
 # ---------------------------------------------------------------------
 function GPSession(sid::Symbol)
@@ -497,7 +475,7 @@ function newdataset(gp::DrySession, accum::Vector{String}; name="")
     write(gp, d) # Send now to gnuplot process
     return name
 end
-newdataset(gp::DrySession, args...; name="") = newdataset(gp, data2string(args...), name=name)
+newdataset(gp::DrySession, args...; name="") = newdataset(gp, arrays2datablock(args...), name=name)
 
 
 # ---------------------------------------------------------------------
@@ -539,8 +517,33 @@ end
 
 
 # ╭───────────────────────────────────────────────────────────────────╮
-# │                 execall(), dump() and driver()                    │
+# │               exec(), execall(), dump() and driver()              │
 # ╰───────────────────────────────────────────────────────────────────╯
+
+# ---------------------------------------------------------------------
+exec(gp::DrySession, command::String) = nothing
+function exec(gp::GPSession, command::String)
+    answer = Vector{String}()
+    push!(answer, writeread(gp, command)...)
+
+    verbose = options.verbose
+    options.verbose = false
+    errno = writeread(gp, "print GPVAL_ERRNO")[1]
+    options.verbose = verbose
+
+    if errno != "0"
+        printstyled(color=:red, "GNUPLOT ERROR $(gp.sid) -> ERRNO=$errno\n")
+        errmsg = writeread(gp, "print GPVAL_ERRMSG")
+        write(gp.pin, "reset error\n")
+        for line in errmsg
+            printstyled(color=:red, "GNUPLOT ERROR $(gp.sid) -> $line\n")
+        end
+        error("Gnuplot process raised an error: $errmsg")
+    end
+
+    return join(answer, "\n")
+end
+
 # ---------------------------------------------------------------------
 execall(gp::DrySession; term::AbstractString="", output::AbstractString="") = nothing
 function execall(gp::GPSession; term::AbstractString="", output::AbstractString="")
@@ -570,7 +573,6 @@ function execall(gp::GPSession; term::AbstractString="", output::AbstractString=
     end
     return nothing
 end
-
 
 function savescript(gp::DrySession, filename; term::AbstractString="", output::AbstractString="")
     stream = open(filename, "w")
@@ -752,157 +754,131 @@ function driver(args...; flag3d=false)
 end
 
 
-#_____________________________________________________________________
-#                         EXPORTED FUNCTIONS
-#_____________________________________________________________________
+# ╭───────────────────────────────────────────────────────────────────╮
+# │        NON-EXPORTED FUNCTIONS MEANT TO BE INVOKED BY USERS        │
+# ╰───────────────────────────────────────────────────────────────────╯
+"""
+    Gnuplot.version()
+
+Returns the **Gnuplot.jl** package version.
+"""
+version() = v"1.0-dev"
+
+# ---------------------------------------------------------------------
+"""
+    Gnuplot.gpversion()
+
+Returns the *gnuplot* application version.
+
+Raise an error if version is < 4.7 (required to use data blocks).
+"""
+function gpversion()
+    options.dry  &&  (return v"0.0.0")
+    icmd = `$(options.cmd) --version`
+
+    proc = open(`$icmd`, read=true)
+    s = String(read(proc))
+    if !success(proc)
+        error("An error occurred while running: " * string(icmd))
+    end
+
+    s = split(s, " ")
+    ver = ""
+    for token in s
+        try
+            ver = VersionNumber("$token")
+            break
+        catch
+        end
+    end
+
+    if ver < v"4.7"
+        error("gnuplot ver. >= 4.7 is required, but " * string(ver) * " was found.")
+    end
+    return ver
+end
+
 
 # --------------------------------------------------------------------
 """
-`@gp args...`
+    Gnuplot.exec(sid::Symbol, command::String)
+    Gnuplot.exec(command::String)
 
-The `@gp` macro (and its companion `@gsp`, for `splot` operations) allows to exploit all of the **Gnuplot** package functionalities using an extremely efficient and concise syntax.  Both macros accept the same syntax, as described below.
+Execute the *gnuplot* command `command` on the underlying *gnuplot* process of the `sid` session, and return the results as a `Vector{String}`.  If a *gnuplot* error arises it is propagated as an `ErrorException`.
 
-The macros accepts any number of arguments, with the following meaning:
-- a symbol: the name of the session to use;
-- a string: a command (e.g. "set key left") or plot specification (e.g. "with lines");
-- a string starting with a `\$` sign: a data set name;
-- an `Int` > 0: the plot destination in a multiplot session;
-- a keyword/value pair: a keyword value (see below);
-- any other type: a dataset to be passed to Gnuplot.  Each dataset must be terminated by either:
-  - a string starting with a `\$` sign (i.e. the data set name);
-  - or a string with the plot specifications (e.g. "with lines");
-- the `:-` symbol, used as first argument, avoids resetting the Gnuplot session.  Used as last argument avoids immediate execution  of the plot/splot command.  This symbol can be used to split a  single call into multiple ones.
+The `sid` argument is (optional): if not given, `:default` is used.
 
-All entries are optional, and there is no mandatory order.  The plot specification can either be:
- - a complete plot/splot command (e.g., "plot sin(x)", both "plot" and "splot" can be abbreviated to "p" and "s" respectively);
- - or a partial specification starting with the "with" clause (if it follows a data set).
-
-The list of accepted keyword is as follows:
-- `title::String`: plot title;
-- `xlabel::String`: X axis label;
-- `ylabel::String`: Y axis label;
-- `zlabel::String`: Z axis label;
-- `xlog::Bool`: logarithmic scale for X axis;
-- `ylog::Bool`: logarithmic scale for Y axis;
-- `zlog::Bool`: logarithmic scale for Z axis;
-- `xrange::NTuple{2, Number}`: X axis range;
-- `yrange::NTuple{2, Number}`: Y axis range;
-- `zrange::NTuple{2, Number}`: Z axis range;
-- `cbrange::NTuple{2, Number}`: Color box axis range;
-
-The symbol for the above-mentioned keywords may also be used in a shortened form, as long as there is no ambiguity with other keywords.  E.g. you can use: `xr=(1,10)` in place of `xrange=(1,10)`.
-
-# Examples:
-
-## Simple examples with no data:
+## Examples:
+```julia-repl
+Gnuplot.exec("print GPVAL_TERM")
+Gnuplot.exec("plot sin(x)")
 ```
-@gp "plot sin(x)"
-@gp "plot sin(x)" "pl cos(x)"
-@gp "plo sin(x)" "s cos(x)"
+"""
+exec(sid::Symbol, s::String) = exec(getsession(sid), s)
+exec(s::String) = exec(getsession(), s)
 
-# Split a `@gp` call in two
-@gp "plot sin(x)" :-
-@gp :- "plot cos(x)"
 
-# Insert a 3 second pause between one plot and the next
-@gp "plot sin(x)" 2 xr=(-2pi,2pi) "pause 3" "plot cos(4*x)"
-```
+# ---------------------------------------------------------------------
+"""
+    Gnuplot.quit(sid::Symbol)
 
-### Simple examples with data:
-```
-@gp "set key left" tit="My title" xr=(1,12) 1:10 "with lines tit 'Data'"
-
-x = collect(1.:10)
-@gp x
-@gp x x
-@gp x -x
-@gp x x.^2
-@gp x x.^2 "w l"
-
-lw = 3
-@gp x x.^2 "w l lw \$lw"
-```
-
-### A more complex example
-```
-@gp("set grid", "set key left", xlog=true, ylog=true,
-    title="My title", xlab="X label", ylab="Y label",
-    x, x.^0.5, "w l tit 'Pow 0.5' dt 2 lw 2 lc rgb 'red'",
-    x, x     , "w l tit 'Pow 1'   dt 1 lw 3 lc rgb 'blue'",
-    x, x.^2  , "w l tit 'Pow 2'   dt 3 lw 2 lc rgb 'purple'")
-```
-
-### Multiplot example:
-```
-@gp(xr=(-2pi,2pi), "unset key",
-    "set multi layout 2,2 title 'Multiplot title'",
-    1, "p sin(x)"  ,
-    2, "p sin(2*x)",
-    3, "p sin(3*x)",
-    4, "p sin(4*x)")
-```
-or equivalently
-```
-@gp xr=(-2pi,2pi) "unset key" "set multi layout 2,2 title 'Multiplot title'" :-
-for i in 1:4
-  @gp :- i "p sin(\$i*x)" :-
+Quit the session identified by `sid` and the associated gnuplot process (if any).
+"""
+function quit(sid::Symbol)
+    (sid in keys(sessions))  ||  (return 0)
+    return quit(sessions[sid])
 end
-@gp
-```
 
-### Multiple gnuplot sessions
-```
-@gp :GP1 "plot sin(x)"
-@gp :GP2 "plot sin(x)"
+"""
+    Gnuplot.quitall()
 
-Gnuplot.quitall()
-```
+Quit all the sessions and the associated *gnuplot* processes.
+"""
+function quitall()
+    for sid in keys(sessions)
+        quit(sid)
+    end
+    return nothing
+end
 
-### Further examples
-```
-x = range(-2pi, stop=2pi, length=100);
-y = 1.5 * sin.(0.3 .+ 0.7x) ;
-noise = randn(length(x))./2;
-e = 0.5 * fill(1, size(x));
 
-name = "\\\$MyDataSet1"
-@gp x y name "plot \$name w l" "pl \$name u 1:(2*\\\$2) w l"
+# ╭───────────────────────────────────────────────────────────────────╮
+# │                       EXPORTED FUNCTIONS                          │
+# ╰───────────────────────────────────────────────────────────────────╯
+# --------------------------------------------------------------------
+"""
+    @gp args...
 
-@gsp randn(Float64, 30, 50)
-@gp randn(Float64, 30, 50) "w image"
-@gsp x y y
+The `@gp` macro, and its companion `@gsp` for 3D plots, allows to send data and commands to the *gnuplot* using an extremely concise syntax.  The macros accepts any number of arguments, with the following meaning:
 
-@gp("set key horizontal", "set grid",
-    xrange=(-7,7), ylabel="Y label",
-    x, y, "w l t 'Real model' dt 2 lw 2 lc rgb 'red'",
-    x, y+noise, e, "w errorbars t 'Data'")
+- one, or a group of consecutive, array(s) build up a dataset.  The different arrays are accessible as columns 1, 2, etc. from the `gnuplot` process.  The number of required input arrays depends on the chosen plot style (see `gnuplot` documentation);
 
-@gp "f(x) = a * sin(b + c*x); a = 1; b = 1; c = 1;"   :-
-@gp :- x y+noise e name                               :-
-@gp :- "fit f(x) \$name u 1:2:3 via a, b, c;"         :-
-@gp :- "set multiplot layout 2,1"                     :-
-@gp :- "plot \$name w points" ylab="Data and model"   :-
-@gp :- "plot \$name u 1:(f(\\\$1)) w lines"           :-
-@gp :- 2 xlab="X label" ylab="Residuals"              :-
-@gp :- "plot \$name u 1:((f(\\\$1)-\\\$2) / \\\$3):(1) w errorbars notit"
+- a string occurring before a dataset is interpreted as a `gnuplot` command (e.g. `set grid`);
 
-# Retrieve values for a, b and c
-a = Meta.parse(Gnuplot.exec("print a"))
-b = Meta.parse(Gnuplot.exec("print b"))
-c = Meta.parse(Gnuplot.exec("print c"))
+- a string occurring immediately after a dataset is interpreted as a *plot element* for the dataset, by which you can specify `using` clause, `with` clause, line styles, etc..  All keywords may be abbreviated following *gnuplot* conventions.  Moreover, "plot" and "splot" can be abbreviated to "p" and "s" respectively;
 
-# Save to a PDF file
-save(term="pdf", output="gnuplot.pdf")
-```
+- the special symbol `:-`, whose meaning is to avoid starting a new plot (if given as first argument), or to avoid immediately running all commands to create the final plot (if given as last argument).  Its purpose is to allow splitting one long statement into multiple (shorter) ones;
 
-### Display an image
-```
-using TestImages
-img = testimage("lena");
-@gp img "w image"
-@gp "set size square" img "w rgbimage" # Color image with correct proportions
-@gp "set size square" img "u 2:(-\\\$1):3:4:5 with rgbimage" # Correct orientation
-```
+- any other symbol is interpreted as a session ID;
+
+- an `Int` (> 0) is interpreted as the plot destination in a multi-plot session (this specification applies to subsequent arguments, not previous ones);
+
+- an input in the form `keyword=value` is interpreted as a keyword/value pair.  The accepted keywords and their corresponding *gnuplot* commands are as follows:
+  - `xrange=[low, high]` => `"set xrange [low:high]`;
+  - `yrange=[low, high]` => `"set yrange [low:high]`;
+  - `zrange=[low, high]` => `"set zrange [low:high]`;
+  - `cbrange=[low, high]`=> `"set cbrange[low:high]`;
+  - `key="..."`  => `"set key ..."`;
+  - `title="..."`  => `"set title \"...\""`;
+  - `xlabel="..."` => `"set xlabel \"...\""`;
+  - `ylabel="..."` => `"set ylabel \"...\""`;
+  - `zlabel="..."` => `"set zlabel \"...\""`;
+  - `xlog=true`   => `set logscale x`;
+  - `ylog=true`   => `set logscale y`;
+  - `zlog=true`   => `set logscale z`.
+All Keyword names can be abbreviated as long as the resulting name is unambiguous.  E.g. you can use `xr=[1,10]` in place of `xrange=[1,10]`;
+
+- an input in the form `"name"=>(array1, array2, etc...)` is interpreted as a named dataset.
 """
 macro gp(args...)
     out = Expr(:call)
@@ -922,9 +898,9 @@ end
 
 
 """
-  # @gsp
+    @gsp args...
 
-  See documentation for `@gp`.
+This macro accepts the same syntax as [`@gp`](@ref), but produces a 3D plot instead of a 2D one.
 """
 macro gsp(args...)
     out = Expr(:macrocall, Symbol("@gp"), LineNumberNode(1, nothing))
@@ -934,96 +910,18 @@ macro gsp(args...)
 end
 
 
-# ╭───────────────────────────────────────────────────────────────────╮
-# │              FUNCTIONS MEANT TO BE INVOKED BY USERS               │
-# ╰───────────────────────────────────────────────────────────────────╯
-# ---------------------------------------------------------------------
-"""
-  `quit()`
-
-  Quit the session and the associated gnuplot process (if any).
-"""
-function quit(sid::Symbol)
-    (sid in keys(sessions))  ||  (return 0)
-    return quit(sessions[sid])
-end
-
-"""
-  `quitall()`
-
-  Quit all the sessions and the associated gnuplot processes.
-"""
-function quitall()
-    for sid in keys(sessions)
-        quit(sid)
-    end
-    return nothing
-end
-
-
 # --------------------------------------------------------------------
 """
-`exec(sid::Symbol, s::Vector{String})`
+    save(sid::Symbol; term="", output="")
+    save(sid::Symbol, script_filename::String, ;term="", output="")
+    save(; term="", output="")
+    save(script_filename::String ;term="", output="")
 
-Directly execute commands on the underlying Gnuplot process, and return the result(s).
+Export a (multi-)plot into the external file name provided in the `output=` keyword.  The *gnuplot* terminal to use is provided through the `term=` keyword.
 
-## Examples:
-```julia
-exec("print GPVAL_TERM")
-exec("plot sin(x)")
-```
-"""
-exec(gp::DrySession, command::String) = nothing
-function exec(gp::GPSession, command::String)
-    answer = Vector{String}()
-    push!(answer, writeread(gp, command)...)
+If the `script_filename` argument is provided a *gnuplot script* will be written in place of the output image.  The latter can then be used in a pure *gnuplot* session (Julia is no longer needed) to generate exactly the same original plot.
 
-    verbose = options.verbose
-    options.verbose = false
-    errno = writeread(gp, "print GPVAL_ERRNO")[1]
-    options.verbose = verbose
-
-    if errno != "0"
-        printstyled(color=:red, "GNUPLOT ERROR $(gp.sid) -> ERRNO=$errno\n")
-        errmsg = writeread(gp, "print GPVAL_ERRMSG")
-        write(gp.pin, "reset error\n")
-        for line in errmsg
-            printstyled(color=:red, "GNUPLOT ERROR $(gp.sid) -> $line\n")
-        end
-        error("Gnuplot process raised an error: $errmsg")
-    end
-
-    return join(answer, "\n")
-end
-exec(sid::Symbol, s::String) = exec(getsession(sid), s)
-exec(s::String) = exec(getsession(), s)
-
-
-# --------------------------------------------------------------------
-"""
-`setverbose(b::Bool)`
-
-Set verbose flag to `true` or `false` (default: `false`).
-"""
-function setverbose(b::Bool)
-    options.verbose = b
-end
-
-
-# --------------------------------------------------------------------
-"""
-`save(...)`
-
-Save the data and commands in the current session to either:
-- the gnuplot process (i.e. produce a plot): `save(term="", output="")`;
-- an IO stream: `save(stream::IO; term="", output="")`;
-- a file: `save(file::AbstractStrings; term="", output="")`.
-
-To save the data and command from a specific session pass the ID as first argument, i.e.:
-- `save(sid::Symbol, term="", output="")`;
-- `save(sid::Symbol, file::AbstractStrings; term="", output="")`.
-
-In all cases the `term` keyword allows to specify a gnuplot terminal, and the `output` keyword allows to specify an output file.
+If the `sid` argument is provided the operation applies to the corresponding session.
 """
 save(           ; kw...) = execall(getsession()   ; kw...)
 save(sid::Symbol; kw...) = execall(getsession(sid); kw...)
@@ -1044,6 +942,7 @@ function linetypes(cmap::ColorScheme)
     return join(out, "\n") * "\nset linetype cycle " * string(length(cmap.colors)) * "\n"
 end
 
+
 # --------------------------------------------------------------------
 palette(s::Symbol) = palette(colorschemes[s])
 function palette(cmap::ColorScheme)
@@ -1056,33 +955,57 @@ function palette(cmap::ColorScheme)
 end
 
 
-# ╭───────────────────────────────────────────────────────────────────╮
-# │                     EXPERIMENTAL FUNCTIONS                        │
-# ╰───────────────────────────────────────────────────────────────────╯
-# # --------------------------------------------------------------------
-# """
-#   # repl
-#
-#   Read/evaluate/print/loop
-# """
-# function repl(sid::Symbol)
-#     verb = options.verbose
-#     options.verbose = 0
-#     gp = getsession(sid)
-#     while true
-#         line = readline(stdin)
-#         (line == "")  &&  break
-#         answer = send(gp, line, true)
-#         for line in answer
-#             println(line)
-#         end
-#     end
-#     options.verbose = verb
-#     return nothing
-# end
-# function repl()
-#     return repl(options.default)
-# end
+# --------------------------------------------------------------------
+terminals() = split(strip(exec("print GPVAL_TERMINALS")), " ")
+terminal() = exec("print GPVAL_TERM") * " " * exec("print GPVAL_TERMOPTIONS")
+
+# --------------------------------------------------------------------
+function splash(outputfile="")
+    quit(:splash)
+    gp = getsession(:splash)
+    if outputfile == ""
+        # Try to set a reasonably modern terminal.  Setting the size
+        # is necessary for the text to be properly sized.  The
+        # `noenhanced` option is required to display the "@" character
+        # (alternatively use "\\\\@", but it doesn't work on all
+        # terminals).
+        terms = terminals()
+        if "wxt" in terms
+            exec(gp, "set term wxt  noenhanced size 600,300")
+        elseif "qt" in terms
+            exec(gp, "set term qt   noenhanced size 600,300")
+        elseif "aqua" in terms
+            exec(gp, "set term aqua noenhanced size 600,300")
+        else
+            @warn "None of the `wxt`, `qt` and `aqua` terminals are available.  Output may look strange.."
+        end
+    else
+        exec(gp, "set term unknown")
+    end
+    @gp :- :splash "set margin 0"  "set border 0" "unset tics"
+    @gp :- :splash xr=[-0.3,1.7] yr=[-0.3,1.1]
+    @gp :- :splash "set origin 0,0" "set size 1,1"
+    @gp :- :splash "set label 1 at graph 1,1 right offset character -1,-1 font 'Verdana,20' tc rgb '#4d64ae' ' Ver: " * string(version()) * "' "
+    @gp :- :splash "set arrow 1 from graph 0.05, 0.15 to graph 0.95, 0.15 size 0.2,20,60  noborder  lw 9 lc rgb '#4d64ae'"
+    @gp :- :splash "set arrow 2 from graph 0.15, 0.05 to graph 0.15, 0.95 size 0.2,20,60  noborder  lw 9 lc rgb '#4d64ae'"
+    @gp :- :splash ["0.35 0.65 @ 13253682'", "0.85 0.65 g 3774278", "1.3 0.65 p 9591203"] "w labels notit font 'Mono,160' tc rgb var"
+    (outputfile == "")  ||  save(:splash, term="pngcairo transparent noenhanced size 600,300", output=outputfile)
+    nothing
+end
+
+function test_terminal(term=nothing; linetypes=nothing, palette=nothing)
+    quit(:test_term)
+    quit(:test_palette)
+    if !isnothing(term)
+        exec(:test_term    , "set term $term;")
+        exec(:test_palette , "set term $term")
+    end
+    s = (isnothing(linetypes)  ?  ""  :  Gnuplot.linetypes(linetypes))
+    exec(:test_term    , "$s; test")
+    s = (isnothing(palette)  ?  ""  :  Gnuplot.palette(palette))
+    exec(:test_palette , "$s; test palette")
+end
+
 
 # --------------------------------------------------------------------
 #=
@@ -1190,7 +1113,7 @@ mutable struct IsoContourLines
         @assert length(z) == 1
         paths = Vector{String}()
         for i in 1:length(lines)
-            append!(paths, data2string(lines[i].x, lines[i].y))
+            append!(paths, arrays2datablock(lines[i].x, lines[i].y))
             push!(paths, "")
         end
         return new(lines, paths, z[1])
@@ -1275,78 +1198,6 @@ function boxxyerror(x, y; xmin=NaN, ymin=NaN, xmax=NaN, ymax=NaN, cartesian=fals
     i = repeat(1:length(x), outer=length(y))
     j = repeat(1:length(y), inner=length(x))
     return (x[i], y[j], xlow[i], xhigh[i], ylow[j], yhigh[j])
-end
-
-
-# --------------------------------------------------------------------
-function histo2segments(in_x, counts)
-    @assert length(in_x) == length(counts)
-    x = Vector{Float64}()
-    y = Vector{Float64}()
-    push!(x, in_x[1])
-    push!(y, counts[1])
-    for i in 2:length(in_x)
-        xx = (in_x[i-1] + in_x[i]) / 2.
-        push!(x, xx)
-        push!(y, counts[i-1])
-        push!(x, xx)
-        push!(y, counts[i])
-    end
-    push!(x, in_x[end])
-    push!(y, counts[end])
-    return (x, y)
-end
-
-
-# --------------------------------------------------------------------
-terminals() = split(strip(exec("print GPVAL_TERMINALS")), " ")
-terminal() = exec("print GPVAL_TERM") * " " * exec("print GPVAL_TERMOPTIONS")
-
-# --------------------------------------------------------------------
-function splash(outputfile="")
-    quit(:splash)
-    gp = getsession(:splash)
-    if outputfile == ""
-        # Try to set a reasonably modern terminal.  Setting the size
-        # is necessary for the text to be properly sized.  The
-        # `noenhanced` option is required to display the "@" character
-        # (alternatively use "\\\\@", but it doesn't work on all
-        # terminals).
-        terms = terminals()
-        if "wxt" in terms
-            exec(gp, "set term wxt  noenhanced size 600,300")
-        elseif "qt" in terms
-            exec(gp, "set term qt   noenhanced size 600,300")
-        elseif "aqua" in terms
-            exec(gp, "set term aqua noenhanced size 600,300")
-        else
-            @warn "None of the `wxt`, `qt` and `aqua` terminals are available.  Output may look strange.."
-        end
-    else
-        exec(gp, "set term unknown")
-    end
-    @gp :- :splash "set margin 0"  "set border 0" "unset tics"
-    @gp :- :splash xr=[-0.3,1.7] yr=[-0.3,1.1]
-    @gp :- :splash "set origin 0,0" "set size 1,1"
-    @gp :- :splash "set label 1 at graph 1,1 right font 'Verdana,20' tc rgb '#4d64ae' ' Ver: " * string(version()) * "' "
-    @gp :- :splash "set arrow 1 from graph 0.05, 0.15 to graph 0.95, 0.15 size 0.2,20,60  noborder  lw 9 lc rgb '#4d64ae'"
-    @gp :- :splash "set arrow 2 from graph 0.15, 0.05 to graph 0.15, 0.95 size 0.2,20,60  noborder  lw 9 lc rgb '#4d64ae'"
-    @gp :- :splash ["0.35 0.65 @ 13253682'", "0.85 0.65 g 3774278", "1.3 0.65 p 9591203"] "w labels notit font 'Mono,160' tc rgb var"
-    (outputfile == "")  ||  save(:splash, term="pngcairo transparent noenhanced size 600,300", output=outputfile)
-    nothing
-end
-
-function test_terminal(term=nothing; linetypes=nothing, palette=nothing)
-    quit(:test_term)
-    quit(:test_palette)
-    if !isnothing(term)
-        exec(:test_term    , "set term $term;")
-        exec(:test_palette , "set term $term")
-    end
-    s = (isnothing(linetypes)  ?  ""  :  Gnuplot.linetypes(linetypes))
-    exec(:test_term    , "$s; test")
-    s = (isnothing(palette)  ?  ""  :  Gnuplot.palette(palette))
-    exec(:test_palette , "$s; test palette")
 end
 
 end #module
