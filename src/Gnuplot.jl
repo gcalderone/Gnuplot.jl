@@ -466,7 +466,6 @@ end
 # ---------------------------------------------------------------------
 function newdataset(gp::DrySession, accum::Vector{String}; name="")
     (name == "")  &&  (name = string("\$data", length(gp.datas)+1))
-    #name = "\$$name"
     d = DataSet(name, accum)
     push!(gp.datas, d)
     write(gp, d) # Send now to gnuplot process
