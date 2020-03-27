@@ -100,6 +100,7 @@ end
 
 
 # ---------------------------------------------------------------------
+tostring(::Missing) = "?"
 tostring(v) = string(v)
 tostring(c::ColorTypes.RGB) = string(Int(c.r*255)) * " " * string(Int(c.g*255)) * " " * string(Int(c.b*255))
 tostring(v::AbstractString) = "\"" * string(v) * "\""
@@ -763,7 +764,7 @@ version() = v"1.0-dev"
 
 Return the *gnuplot* application version.
 
-Raise an error if version is < 4.7 (required to use data blocks).
+Raise an error if version is < 5.0 (required to use data blocks).
 """
 function gpversion()
     options.dry  &&  (return v"0.0.0")
@@ -785,8 +786,8 @@ function gpversion()
         end
     end
 
-    if ver < v"4.7"
-        error("gnuplot ver. >= 4.7 is required, but " * string(ver) * " was found.")
+    if ver < v"5.0"
+        error("gnuplot ver. >= 5.0 is required, but " * string(ver) * " was found.")
     end
     return ver
 end
