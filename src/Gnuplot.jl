@@ -205,7 +205,7 @@ function arrays2datablock(args...)
                 # Add independent indices (useful when plotting "with image")
                 v = join(string.(getindex.(Ref(Tuple(indices)), 1:ndims(args[1]))), " ")
             else
-                # Do not add independent indices since there is no way to identify the distinguish a "z" array from additional arrays
+                # Do not add independent indices since there is no way to distinguish a "z" array from additional arrays
                 v = ""
             end
             for iarg in 1:length(args)
@@ -463,17 +463,17 @@ newBlockName(gp::DrySession) = string("\$data", length(gp.datas)+1)
 
 
 # ---------------------------------------------------------------------
-function newdataset(gp::DrySession, accum::Vector{String}; name=newBlockName(gp))
-    isnothing(name)  &&  (name=newBlockName(gp))
-    prepend!(accum, [name * " << EOD"])
+function newdataset(gp::DrySession, name::String, accum::Vector{String})
+    source = name # source is the same as name
+    prepend!(accum, [source * " << EOD"])
     append!( accum, ["EOD"])
     preview = (length(accum) < 6  ?  accum  :  [accum[1:5]..., "...", accum[end]])
-    d = DataSet(name, join("GNUPLOT ($(gp.sid)) " .* preview, "\n"), join(accum, "\n"))
+    d = DataSet(source, join("GNUPLOT ($(gp.sid)) " .* preview, "\n"), join(accum, "\n"))
     gp.datas[name] = d
     write(gp, d) # Send now to gnuplot process
-    return name
+    return source
 end
-newdataset(gp::DrySession, args...; name=newBlockName(gp)) = newdataset(gp, arrays2datablock(args...), name=name)
+newdataset(gp::DrySession, name::String, args...) = newdataset(gp, name, arrays2datablock(args...))
 
 
 # ---------------------------------------------------------------------
@@ -492,8 +492,8 @@ end
 
 
 # ---------------------------------------------------------------------
-function newplot(gp::DrySession, name, opt="")
-    push!(gp.plots[gp.curmid].elems, "$name $opt")
+function newplot(gp::DrySession, plotspec)
+    push!(gp.plots[gp.curmid].elems, plotspec)
 end
 
 
@@ -539,6 +539,7 @@ function exec(gp::GPSession, command::String)
     return join(answer, "\n")
 end
 
+
 # ---------------------------------------------------------------------
 execall(gp::DrySession; term::AbstractString="", output::AbstractString="") = nothing
 function execall(gp::GPSession; term::AbstractString="", output::AbstractString="")
@@ -569,6 +570,8 @@ function execall(gp::GPSession; term::AbstractString="", output::AbstractString=
     return nothing
 end
 
+
+# ---------------------------------------------------------------------
 function savescript(gp::DrySession, filename; term::AbstractString="", output::AbstractString="")
     stream = open(filename, "w")
 
@@ -621,7 +624,7 @@ function driver(args...; flag3d=false)
         return nothing
     end
 
-    # First pass: check for ":-" and session names
+    # First pass: check for `:-` and session names
     gp = nothing
     doDump  = true
     doReset = true
@@ -635,7 +638,7 @@ function driver(args...; flag3d=false)
                 elseif iarg == length(args)
                     doDump  = false
                 else
-                    @warn ":- at position $iarg in argument list has no meaning."
+                    @warn "Symbol `:-` at position $iarg in argument list has no meaning."
                 end
             else
                 @assert isnothing(gp) "Only one session at a time can be addressed"
@@ -660,9 +663,9 @@ function driver(args...; flag3d=false)
                 end
             end
             if AllArraysAreNotEmpty
-                name = newdataset(gp, dataset...; name=setname)
+                source = newdataset(gp, (isnothing(setname)  ?  newBlockName(gp)  :  setname), dataset...)
                 if !isnothing(plotspec)
-                    newplot(gp, name, plotspec)
+                    newplot(gp, source * " " * plotspec)
                     gp.plots[gp.curmid].flag3d = flag3d
                 end
             end
