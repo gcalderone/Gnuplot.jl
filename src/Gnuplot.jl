@@ -12,8 +12,9 @@ export @gp, @gsp, save, linetypes, palette, contourlines, hist, terminal, termin
 # ╰───────────────────────────────────────────────────────────────────╯
 # ---------------------------------------------------------------------
 mutable struct DataSet
-    name::String
-    lines::Vector{String}
+    source::String
+    preview::String
+    data::String
 end
 
 
@@ -28,10 +29,10 @@ end
 
 # ---------------------------------------------------------------------
 @quasiabstract mutable struct DrySession
-    sid::Symbol                # session ID
-    datas::Vector{DataSet}     # data sets
-    plots::Vector{SinglePlot}  # commands and plot commands (one entry for each plot of the multiplot)
-    curmid::Int                # current multiplot ID
+    sid::Symbol                  # session ID
+    datas::Dict{String, DataSet} # data sets
+    plots::Vector{SinglePlot}    # commands and plot commands (one entry for each plot of the multiplot)
+    curmid::Int                  # current multiplot ID
 end
 
 
@@ -264,7 +265,7 @@ end
 # ---------------------------------------------------------------------
 function DrySession(sid::Symbol)
     (sid in keys(sessions))  &&  error("Gnuplot session $sid is already active")
-    out = DrySession(sid, Vector{DataSet}(), [SinglePlot()], 1)
+    out = DrySession(sid, Dict{String, DataSet}(), [SinglePlot()], 1)
     sessions[sid] = out
     return out
 end
@@ -388,30 +389,12 @@ end
 write(gp::DrySession, d::DataSet) = nothing
 function write(gp::GPSession, d::DataSet)
     if options.verbose
-        v = ""
-        printstyled(color=:light_black, "GNUPLOT ($(gp.sid)) $(d.name) << EOD\n")
-        n = min(options.datalines, length(d.lines))
-        for i in 1:n
-            printstyled(color=:light_black, "GNUPLOT ($(gp.sid)) $(d.lines[i])\n")
-        end
-        if n < length(d.lines)
-            printstyled(color=:light_black, "GNUPLOT ($(gp.sid)) ...\n")
-        end
-        printstyled(color=:light_black, "GNUPLOT ($(gp.sid)) EOD\n")
+        printstyled(color=:light_black, d.preview * "\n")
     end
-    write(gp.pin, "$(d.name) << EOD\n")
-    buf = join(d.lines, "\n") * "\n"
-    #if length(buf) > 1e4
-    #    s = "Writing data to gnuplot (length=$(length(buf)) bytes) ..."
-    #    printstyled(color=:light_black, s)
-    #end
-    write(gp.pin, buf)
-    write(gp.pin, "EOD\n")
+    out =  write(gp.pin, d.data)
+    out += write(gp.pin, "\n")
     flush(gp.pin)
-    #if length(buf) > 1e4
-    #    write(stdout, "\r" * *(fill(" ", length(s))...) * "\r")
-    #end
-    return nothing
+    return out
 end
 
 
@@ -445,7 +428,7 @@ end
 # ╰───────────────────────────────────────────────────────────────────╯
 # ---------------------------------------------------------------------
 function reset(gp::DrySession)
-    gp.datas = Vector{DataSet}()
+    gp.datas = Dict{String, DataSet}()
     gp.plots = [SinglePlot()]
     gp.curmid = 1
     exec(gp, "reset session")
@@ -464,14 +447,21 @@ end
 
 
 # ---------------------------------------------------------------------
-function newdataset(gp::DrySession, accum::Vector{String}; name="")
-    (name == "")  &&  (name = string("\$data", length(gp.datas)+1))
-    d = DataSet(name, accum)
-    push!(gp.datas, d)
+newBlockName(gp::DrySession) = string("\$data", length(gp.datas)+1)
+
+
+# ---------------------------------------------------------------------
+function newdataset(gp::DrySession, accum::Vector{String}; name=newBlockName(gp))
+    isnothing(name)  &&  (name=newBlockName(gp))
+    prepend!(accum, [name * " << EOD"])
+    append!( accum, ["EOD"])
+    preview = (length(accum) < 6  ?  accum  :  [accum[1:5]..., "...", accum[end]])
+    d = DataSet(name, join("GNUPLOT ($(gp.sid)) " .* preview, "\n"), join(accum, "\n"))
+    gp.datas[name] = d
     write(gp, d) # Send now to gnuplot process
     return name
 end
-newdataset(gp::DrySession, args...; name="") = newdataset(gp, arrays2datablock(args...), name=name)
+newdataset(gp::DrySession, args...; name=newBlockName(gp)) = newdataset(gp, arrays2datablock(args...), name=name)
 
 
 # ---------------------------------------------------------------------
@@ -576,13 +566,8 @@ function savescript(gp::DrySession, filename; term::AbstractString="", output::A
     end
     (output != "")  &&  println(stream, "set output '$output'")
 
-    for i in 1:length(gp.datas)
-        d = gp.datas[i]
-        println(stream, d.name * " << EOD")
-        for j in 1:length(d.lines)
-            println(stream, d.lines[j])
-        end
-        println(stream, "EOD")
+    for (name, d) in gp.datas
+        println(stream, d.data)
     end
 
     for i in 1:length(gp.plots)
@@ -650,7 +635,7 @@ function driver(args...; flag3d=false)
     doReset  &&  reset(gp)
 
     dataset = Vector{Any}()
-    setname = ""
+    setname = nothing
     plotspec = nothing
 
     function dataset_completed()
@@ -671,7 +656,7 @@ function driver(args...; flag3d=false)
             end
         end
         dataset = Vector{Any}()
-        setname = ""
+        setname = nothing
         plotspec = nothing
     end
 
