@@ -30,6 +30,7 @@ In order to call these functions you should add the `Gnuplot.` prefix to the fun
 Gnuplot.Histogram1D
 Gnuplot.Histogram2D
 Gnuplot.IsoContourLines
+Gnuplot.Options
 Gnuplot.Path2d
 Gnuplot.exec
 Gnuplot.gpversion

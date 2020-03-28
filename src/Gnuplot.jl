@@ -47,14 +47,26 @@ end
 
 
 # ---------------------------------------------------------------------
+"""
+    Options
+
+Structure containing the package global options, accessible through `Gnuplot.options`.
+
+# Fields
+- `dry::Bool`: whether to use *dry* sessions, i.e. without an underlying Gnuplot process (default: `false`)
+- `cmd::String`: command to start the Gnuplot process (default: `"gnuplot"`)
+- `default::Symbol`: default session name (default: `:default`)
+- `init::Vector{String}`: commands to initialize the gnuplot session (e.g., to set default terminal)
+- `verbose::Bool`: verbosity flag (default: `false`)
+"""
 Base.@kwdef mutable struct Options
-    dry::Bool = false                         # Use "dry" sessions (i.e. without an underlying Gnuplot process)
-    cmd::String = "gnuplot"                   # Customizable command to start the Gnuplot process
-    default::Symbol = :default                # Default session name
-    init::Vector{String} = Vector{String}()   # Commands to initialize the gnuplot session (e.g., to set default terminal)
-    verbose::Bool = false                     # verbosity flag (true/false)
-    datalines::Int = 4;                       # How many lines of a dataset are printed in log
+    dry::Bool = false
+    cmd::String = "gnuplot"
+    default::Symbol = :default
+    init::Vector{String} = Vector{String}()
+    verbose::Bool = false
 end
+
 
 # ╭───────────────────────────────────────────────────────────────────╮
 # │                         GLOBAL VARIABLES                          │
