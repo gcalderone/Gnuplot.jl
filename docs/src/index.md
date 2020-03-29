@@ -11,8 +11,6 @@ The **Gnuplot.jl** package allows easy and fast use of [gnuplot](http://gnuplot.
 
 - transparent interface between Julia and gnuplot to exploit all functionalities of the latter, both present and future ones;
 
-- fast data transmission through system pipes (no temporary files involved);
-
 - availability of all the palettes from [ColorSchemes](https://github.com/JuliaGraphics/ColorSchemes.jl);
 
 - support for multiple plots in one window, multiple plotting windows, as well as ASCII and Sixel plots (to plot directly in a terminal);
