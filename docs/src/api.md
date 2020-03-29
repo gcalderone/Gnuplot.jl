@@ -11,10 +11,14 @@ The list of **Gnuplot.jl** exported symbols is as follows:
 @gp
 @gsp
 contourlines
+dataset_names
 hist
 linetypes
 palette
+palette_names
 save
+session_names
+stats
 terminals
 terminal
 test_terminal
