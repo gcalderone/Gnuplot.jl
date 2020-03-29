@@ -186,8 +186,8 @@ function arrays2datablock(args...)
             indices = Tuple(CIndex)
             (i > 1)  &&  (indices[end-1] == 1)  &&  (push!(accum, ""))  # blank line
             if length(args) == 1
-                # Add independent indices (useful when plotting "with image")
-                v = join(string.(getindex.(Ref(Tuple(indices)), 1:ndims(args[1]))), " ")
+                # Add independent indices (starting from zero, useful when plotting "with image")
+                v = join(string.(getindex.(Ref(Tuple(indices)), 1:ndims(args[1])) .- 1), " ")
             else
                 # Do not add independent indices since there is no way to distinguish a "z" array from additional arrays
                 v = ""
