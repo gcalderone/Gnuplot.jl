@@ -429,9 +429,9 @@ function write_binary(M::Matrix{T}) where T <: Number
 
     MS = Float32.(zeros(length(x)+1, length(y)+1))
     MS[1,1] = length(x)
-    MS[1,2:end] = reverse(y)
+    MS[1,2:end] = y
     MS[2:end,1] = x
-    MS[2:end,2:end] = M'
+    MS[2:end,2:end] = M
 
     (path, io) = mktemp()
     write(io, MS)
@@ -666,22 +666,12 @@ function savescript(gp::DrySession, filename; term::AbstractString="", output::A
         return (path_from, path_to)
     end
     function redirect_elements(elems, path_from, path_to)
-        function subst(str, from, to)
-            local out  # avoid changing "out" in outer scope
-            r = findfirst(from, str)
-            isnothing(r)  &&  (return str)
-            out = ""
-            (minimum(r) > 1)  &&  (out *= string(str[1:minimum(r)-1]))
-            out *= to
-            (maximum(r) < length(str))  &&  (out *= string(str[maximum(r)+1:end]))
-            return out
-        end
         (length(path_from) == 0)  &&  (return elems)
 
         out = deepcopy(elems)
         for i in 1:length(out)
             for j in 1:length(path_from)
-                tmp = subst(out[i], path_from[j], path_to[j])
+                tmp = replace(out[i], path_from[j] => path_to[j])
                 out[i] = tmp
             end
         end
@@ -735,17 +725,27 @@ function driver(args...; flag3d=false)
         return false
     end
 
-    function isPlotCmd(s::String)
-        (length(s) >= 2)  &&  (s[1:2] ==  "p "    )  &&  (return (true, false, strip(s[2:end])))
-        (length(s) >= 3)  &&  (s[1:3] ==  "pl "   )  &&  (return (true, false, strip(s[3:end])))
-        (length(s) >= 4)  &&  (s[1:4] ==  "plo "  )  &&  (return (true, false, strip(s[4:end])))
-        (length(s) >= 5)  &&  (s[1:5] ==  "plot " )  &&  (return (true, false, strip(s[5:end])))
-        (length(s) >= 2)  &&  (s[1:2] ==  "s "    )  &&  (return (true, true , strip(s[2:end])))
-        (length(s) >= 3)  &&  (s[1:3] ==  "sp "   )  &&  (return (true, true , strip(s[3:end])))
-        (length(s) >= 4)  &&  (s[1:4] ==  "spl "  )  &&  (return (true, true , strip(s[4:end])))
-        (length(s) >= 5)  &&  (s[1:5] ==  "splo " )  &&  (return (true, true , strip(s[5:end])))
-        (length(s) >= 6)  &&  (s[1:6] ==  "splot ")  &&  (return (true, true , strip(s[6:end])))
-        return (false, false, "")
+    function parseCmd(gp, s::String)
+        (isplot, is3d, cmd) = (false, false, "")
+
+        (length(s) >= 2)  &&  (s[1:2] ==  "p "    )  &&  ((isplot, is3d, cmd) = (true, false, strip(s[2:end])))
+        (length(s) >= 3)  &&  (s[1:3] ==  "pl "   )  &&  ((isplot, is3d, cmd) = (true, false, strip(s[3:end])))
+        (length(s) >= 4)  &&  (s[1:4] ==  "plo "  )  &&  ((isplot, is3d, cmd) = (true, false, strip(s[4:end])))
+        (length(s) >= 5)  &&  (s[1:5] ==  "plot " )  &&  ((isplot, is3d, cmd) = (true, false, strip(s[5:end])))
+        (length(s) >= 2)  &&  (s[1:2] ==  "s "    )  &&  ((isplot, is3d, cmd) = (true, true , strip(s[2:end])))
+        (length(s) >= 3)  &&  (s[1:3] ==  "sp "   )  &&  ((isplot, is3d, cmd) = (true, true , strip(s[3:end])))
+        (length(s) >= 4)  &&  (s[1:4] ==  "spl "  )  &&  ((isplot, is3d, cmd) = (true, true , strip(s[4:end])))
+        (length(s) >= 5)  &&  (s[1:5] ==  "splo " )  &&  ((isplot, is3d, cmd) = (true, true , strip(s[5:end])))
+        (length(s) >= 6)  &&  (s[1:6] ==  "splot ")  &&  ((isplot, is3d, cmd) = (true, true , strip(s[6:end])))
+
+        if cmd != ""
+            for (name, d) in gp.datas
+                if d.file != ""
+                    cmd = replace(cmd, name => d.gpsource)
+                end
+            end
+        end
+        return (isplot, is3d, cmd)
     end
 
     if length(args) == 0
@@ -818,7 +818,7 @@ function driver(args...; flag3d=false)
                 plotspec = arg
                 dataset_completed()
             else
-                (isPlot, is3d, cmd) = isPlotCmd(arg)
+                (isPlot, is3d, cmd) = parseCmd(gp, arg)
                 if isPlot             #   ==> a (s)plot command
                     gp.plots[gp.curmid].flag3d = is3d
                     add_plot(gp, cmd)
