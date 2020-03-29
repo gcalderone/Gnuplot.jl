@@ -445,7 +445,7 @@ newBlockName(gp::DrySession) = string("\$data", length(gp.datas)+1)
 
 
 # ---------------------------------------------------------------------
-function add_inlineblock(gp::DrySession, gpsource::String, accum::Vector{String})
+function add_dataset(gp::DrySession, gpsource::String, accum::Vector{String})
     prepend!(accum, [gpsource * " << EOD"])
     append!( accum, ["EOD"])
     preview = "GNUPLOT ($(gp.sid)) " .* (length(accum) < 6  ?  accum  :  [accum[1:5]..., "...", accum[end]])
@@ -454,7 +454,7 @@ function add_inlineblock(gp::DrySession, gpsource::String, accum::Vector{String}
     write(gp, d) # send now to gnuplot process
     return gpsource
 end
-add_dataset(gp::DrySession, name::String, args...) = add_inlineblock(gp, name, arrays2datablock(args...))
+add_dataset(gp::DrySession, name::String, args...) = add_dataset(gp, name, arrays2datablock(args...))
 
 
 # ---------------------------------------------------------------------
@@ -936,7 +936,7 @@ function splash(outputfile="")
     @gp :- :splash "set label 1 at graph 1,1 right offset character -1,-1 font 'Verdana,20' tc rgb '#4d64ae' ' Ver: " * string(version()) * "' "
     @gp :- :splash "set arrow 1 from graph 0.05, 0.15 to graph 0.95, 0.15 size 0.2,20,60  noborder  lw 9 lc rgb '#4d64ae'"
     @gp :- :splash "set arrow 2 from graph 0.15, 0.05 to graph 0.15, 0.95 size 0.2,20,60  noborder  lw 9 lc rgb '#4d64ae'"
-    @gp :- :splash ["0.35 0.65 @ 13253682'", "0.85 0.65 g 3774278", "1.3 0.65 p 9591203"] "w labels notit font 'Mono,160' tc rgb var"
+    @gp :- :splash ["0.35 0.65 @ 13253682", "0.85 0.65 g 3774278", "1.3 0.65 p 9591203"] "w labels notit font 'Mono,160' tc rgb var"
     (outputfile == "")  ||  save(:splash, term="pngcairo transparent noenhanced size 600,300", output=outputfile)
     nothing
 end
