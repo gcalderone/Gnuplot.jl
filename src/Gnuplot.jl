@@ -5,7 +5,7 @@ using StatsBase, ColorSchemes, ColorTypes, StructC14N, ReusePatterns
 import Base.reset
 import Base.write
 
-export @gp, @gsp, save, linetypes, palette, contourlines, hist, terminal, terminals, test_terminal
+export dataset_names, session_names, stats, @gp, @gsp, save, palette_names, linetypes, palette, contourlines, hist, terminal, terminals, test_terminal
 
 # ╭───────────────────────────────────────────────────────────────────╮
 # │                           TYPE DEFINITIONS                        │
@@ -59,7 +59,7 @@ Structure containing the package global options, accessible through `Gnuplot.opt
 - `default::Symbol`: default session name (default: `:default`)
 - `init::Vector{String}`: commands to initialize the gnuplot session (e.g., to set default terminal)
 - `verbose::Bool`: verbosity flag (default: `false`)
-- `use_binaryfiles::Bool`: whether to use binary files for data (default: `false`, **EXPERIMENTAL**)
+- `preferred_format::Symbol`: preferred format for data exchange among `bin` (fast, but uses temporary files) and `text` (slow, but no temporary file is involved) and `auto` (default, automatically choose the best strategy).
 """
 Base.@kwdef mutable struct Options
     dry::Bool = false
@@ -67,7 +67,7 @@ Base.@kwdef mutable struct Options
     default::Symbol = :default
     init::Vector{String} = Vector{String}()
     verbose::Bool = false
-    use_binaryfiles::Bool = false
+    preferred_format::Symbol = :auto
 end
 
 
@@ -458,13 +458,53 @@ end
 
 
 # ---------------------------------------------------------------------
-function write_binary(M::Matrix{RGB{T}}) where T
+function write_binary(M::Matrix{ColorTypes.RGB{T}}) where T
     (path, io) = mktemp()
     for j in 1:size(M)[2]
         for i in 1:size(M)[1]
             write(io, Float32(256 * M[i,j].r))
             write(io, Float32(256 * M[i,j].g))
             write(io, Float32(256 * M[i,j].b))
+        end
+    end
+    close(io)
+    return (path, " '$path' binary array=(" * join(string.(size(M)), ", ") * ")")
+end
+
+
+# ---------------------------------------------------------------------
+function write_binary(M::Matrix{ColorTypes.RGBA{T}}) where T
+    (path, io) = mktemp()
+    for j in 1:size(M)[2]
+        for i in 1:size(M)[1]
+            write(io, Float32(256 * M[i,j].r))
+            write(io, Float32(256 * M[i,j].g))
+            write(io, Float32(256 * M[i,j].b))
+        end
+    end
+    close(io)
+    return (path, " '$path' binary array=(" * join(string.(size(M)), ", ") * ")")
+end
+
+
+# ---------------------------------------------------------------------
+function write_binary(M::Matrix{ColorTypes.Gray{T}}) where T
+    (path, io) = mktemp()
+    for j in 1:size(M)[2]
+        for i in 1:size(M)[1]
+            write(io, Float32(256 * M[i,j].val))
+        end
+    end
+    close(io)
+    return (path, " '$path' binary array=(" * join(string.(size(M)), ", ") * ")")
+end
+
+# ---------------------------------------------------------------------
+function write_binary(M::Matrix{ColorTypes.GrayA{T}}) where T
+    (path, io) = mktemp()
+    for j in 1:size(M)[2]
+        for i in 1:size(M)[1]
+            write(io, Float32(256 * M[i,j].val))
         end
     end
     close(io)
@@ -542,8 +582,26 @@ function add_dataset(gp::DrySession, gpsource::String, accum::Vector{String})
 end
 
 function add_dataset(gp::DrySession, name::String, args...)
-    if options.use_binaryfiles
-        try  # try writing a binary file
+    @assert options.preferred_format in [:auto, :bin, :text] "Unexpected value for `options.preferred_format`: $(options.preferred_format)"
+
+    binary = false
+    if options.preferred_format == :bin
+        binary = true
+    elseif options.preferred_format == :auto
+        if !binary  &&  (length(args) == 1)  &&  isa(args[1], AbstractMatrix)
+            binary = true
+        end
+        if !binary
+            total = 0
+            for arg in args
+                total += length(arg)
+            end
+            (total > 1e4)  &&  (binary = true)
+        end
+    end
+
+    if binary
+        try
             (file, gpsource) = write_binary(args...)
             d = DataSet(file, gpsource, [""], "")
             gp.datas[name] = d
@@ -606,6 +664,16 @@ function quit(gp::GPSession)
     exitCode = gp.proc.exitcode
     invoke(quit, Tuple{DrySession}, gp)
     return exitCode
+end
+
+
+# --------------------------------------------------------------------
+function stats(gp::DrySession, name::String)
+    @info sid=gp.sid name=name source=gp.datas[name].gpsource
+    println(exec(gp, "stats " * gp.datas[name].gpsource))
+end
+stats(gp::DrySession) = for (name, d) in gp.datas
+    stats(gp, name)
 end
 
 
@@ -753,7 +821,10 @@ function driver(args...; flag3d=false)
         t = valtype(d)
         if  (t <: String)  ||
             (t <: Number)  ||
-            (t <: ColorTypes.RGB)
+            (t <: ColorTypes.RGB)  ||
+            (t <: ColorTypes.RGBA) ||
+            (t <: ColorTypes.Gray) ||
+            (t <: ColorTypes.GrayA)
             return true
         end
         return false
@@ -952,7 +1023,7 @@ end
 
 Execute the *gnuplot* command `command` on the underlying *gnuplot* process of the `sid` session, and return the results as a `Vector{String}`.  If a *gnuplot* error arises it is propagated as an `ErrorException`.
 
-The `sid` argument is (optional): if not given, `:default` is used.
+The the `sid` argument is not provided, the default session is considered.
 
 ## Examples:
 ```julia-repl
@@ -1113,7 +1184,52 @@ function splash(outputfile="")
 end
 
 
+# --------------------------------------------------------------------
+"""
+    dataset_names(sid::Symbol)
+    dataset_names()
+
+Return a vector with all dataset names for the `sid` session.  If `sid` is not provided the default session is considered.
+"""
+dataset_names(sid::Symbol) = string.(keys(getsession(sid).datas))
+dataset_names() = dataset_names(options.default)
+
+# --------------------------------------------------------------------
+"""
+    session_names()
+
+Return a vector with all currently active sessions.
+"""
+session_names() = Symbol.(keys(sessions))
+
+# --------------------------------------------------------------------
+"""
+    stats(sid::Symbol,name::String)
+    stats(name::String)
+    stats(sid::Symbol)
+    stats()
+
+Print a statistical summary for the `name` dataset, belonging to `sid` session.  If `name` is not provdied a summary is printed for each dataset in the session.  If `sid` is not provided the default session is considered.
+
+This function is actually a wrapper for the gnuplot command `stats`.
+"""
+stats(sid::Symbol, name::String) = stats(getsession(sid), name)
+stats(name::String) = stats(options.default, name)
+stats(sid::Symbol) = stats(getsession(sid))
+stats() = for (sid, d) in sessions
+    stats(sid)
+end
+
+
 # ---------------------------------------------------------------------
+"""
+    palette_names()
+
+Return a vector with all available color schemes for the [`palette`](@ref) and [`linetypes`](@ref) function.
+"""
+palette_names() = Symbol.(keys(ColorSchemes.colorschemes))
+
+
 """
     linetypes(cmap::ColorScheme)
     linetypes(s::Symbol)
@@ -1132,7 +1248,6 @@ function linetypes(cmap::ColorScheme)
 end
 
 
-# --------------------------------------------------------------------
 """
     palette(cmap::ColorScheme)
     palette(s::Symbol)
@@ -1163,9 +1278,10 @@ terminals() = split(strip(exec("print GPVAL_TERMINALS")), " ")
 
 # --------------------------------------------------------------------
 """
-    terminal(sid::Symbol = :default)
+    terminal(sid::Symbol)
+    terminal()
 
-Return a `String` with the current *gnuplot* terminal (and its options) of the process associated to session `sid`.
+Return a `String` with the current *gnuplot* terminal (and its options) of the process associated to session `sid`, or to the default session (if `sid` is not provided).
 """
 terminal(sid::Symbol=options.default) = exec(getsession(sid), "print GPVAL_TERM") * " " * exec(getsession(sid), "print GPVAL_TERMOPTIONS")
 
