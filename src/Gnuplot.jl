@@ -14,7 +14,7 @@ export @gp, @gsp, save, linetypes, palette, contourlines, hist, terminal, termin
 mutable struct DataSet
     file::String
     gpsource::String
-    preview::String
+    preview::Vector{String}
     data::String
 end
 
@@ -66,6 +66,7 @@ Base.@kwdef mutable struct Options
     default::Symbol = :default
     init::Vector{String} = Vector{String}()
     verbose::Bool = false
+    use_binaryfiles::Bool = false
 end
 
 
@@ -383,7 +384,7 @@ end
 write(gp::DrySession, d::DataSet) = nothing
 function write(gp::GPSession, d::DataSet)
     if options.verbose
-        printstyled(color=:light_black, d.preview * "\n")
+        printstyled(color=:light_black, join("GNUPLOT ($(gp.sid)) ".* d.preview, "\n") * "\n")
     end
     out =  write(gp.pin, d.data)
     out += write(gp.pin, "\n")
@@ -418,6 +419,27 @@ end
 
 
 # ╭───────────────────────────────────────────────────────────────────╮
+# │              FUNCTIONS TO WRITE DATA INT BINARY FILES             │
+# ╰───────────────────────────────────────────────────────────────────╯
+# ---------------------------------------------------------------------
+function write_binary(M::Matrix{T}) where T <: Number
+    x = collect(1:size(M)[1])
+    y = collect(1:size(M)[2])
+
+    MS = Float32.(zeros(length(x)+1, length(y)+1))
+    MS[1,1] = length(x)
+    MS[1,2:end] = reverse(y)
+    MS[2:end,1] = x
+    MS[2:end,2:end] = M'
+
+    (path, io) = mktemp()
+    write(io, MS)
+    close(io)
+    return (path, " '$path' binary matrix")
+end
+
+
+# ╭───────────────────────────────────────────────────────────────────╮
 # │              PRIVATE FUNCTIONS TO MANIPULATE SESSIONS             │
 # ╰───────────────────────────────────────────────────────────────────╯
 # ---------------------------------------------------------------------
@@ -448,13 +470,30 @@ newBlockName(gp::DrySession) = string("\$data", length(gp.datas)+1)
 function add_dataset(gp::DrySession, gpsource::String, accum::Vector{String})
     prepend!(accum, [gpsource * " << EOD"])
     append!( accum, ["EOD"])
-    preview = "GNUPLOT ($(gp.sid)) " .* (length(accum) < 6  ?  accum  :  [accum[1:5]..., "...", accum[end]])
-    d = DataSet("", gpsource, join(preview, "\n"), join(accum, "\n"))
+    preview = (length(accum) < 6  ?  accum  :  [accum[1:5]..., "...", accum[end]])
+    d = DataSet("", gpsource, preview, join(accum, "\n"))
     gp.datas[gpsource] = d  # name is the same as gpsource
     write(gp, d) # send now to gnuplot process
     return gpsource
 end
-add_dataset(gp::DrySession, name::String, args...) = add_dataset(gp, name, arrays2datablock(args...))
+
+function add_dataset(gp::DrySession, name::String, args...)
+    if options.use_binaryfiles
+        try  # try writing a binary file
+            (file, gpsource) = write_binary(args...)
+            d = DataSet(file, gpsource, [""], "")
+            gp.datas[name] = d
+            return gpsource
+        catch err
+            if isa(err, MethodError)
+                @warn "No method to handle binary data, resort to inline datablock..."
+            else
+                rethrow()
+            end
+        end
+    end
+    return add_dataset(gp, name, arrays2datablock(args...))
+end
 
 
 # ---------------------------------------------------------------------
@@ -930,12 +969,12 @@ function splash(outputfile="")
     else
         exec(gp, "set term unknown")
     end
-    @gp :- :splash "set margin 0"  "set border 0" "unset tics"
-    @gp :- :splash xr=[-0.3,1.7] yr=[-0.3,1.1]
-    @gp :- :splash "set origin 0,0" "set size 1,1"
-    @gp :- :splash "set label 1 at graph 1,1 right offset character -1,-1 font 'Verdana,20' tc rgb '#4d64ae' ' Ver: " * string(version()) * "' "
-    @gp :- :splash "set arrow 1 from graph 0.05, 0.15 to graph 0.95, 0.15 size 0.2,20,60  noborder  lw 9 lc rgb '#4d64ae'"
-    @gp :- :splash "set arrow 2 from graph 0.15, 0.05 to graph 0.15, 0.95 size 0.2,20,60  noborder  lw 9 lc rgb '#4d64ae'"
+    @gp :- :splash "set margin 0"  "set border 0" "unset tics" :-
+    @gp :- :splash xr=[-0.3,1.7] yr=[-0.3,1.1] :-
+    @gp :- :splash "set origin 0,0" "set size 1,1" :-
+    @gp :- :splash "set label 1 at graph 1,1 right offset character -1,-1 font 'Verdana,20' tc rgb '#4d64ae' ' Ver: " * string(version()) * "' " :-
+    @gp :- :splash "set arrow 1 from graph 0.05, 0.15 to graph 0.95, 0.15 size 0.2,20,60  noborder  lw 9 lc rgb '#4d64ae'" :-
+    @gp :- :splash "set arrow 2 from graph 0.15, 0.05 to graph 0.15, 0.95 size 0.2,20,60  noborder  lw 9 lc rgb '#4d64ae'" :-
     @gp :- :splash ["0.35 0.65 @ 13253682", "0.85 0.65 g 3774278", "1.3 0.65 p 9591203"] "w labels notit font 'Mono,160' tc rgb var"
     (outputfile == "")  ||  save(:splash, term="pngcairo transparent noenhanced size 600,300", output=outputfile)
     nothing
