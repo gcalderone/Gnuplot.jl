@@ -12,7 +12,8 @@ export @gp, @gsp, save, linetypes, palette, contourlines, hist, terminal, termin
 # ╰───────────────────────────────────────────────────────────────────╯
 # ---------------------------------------------------------------------
 mutable struct DataSet
-    source::String
+    file::String
+    gpsource::String
     preview::String
     data::String
 end
@@ -365,7 +366,7 @@ end
 
 Send a string to gnuplot's STDIN.
 
-The commands sent through `write` are not stored in the current session (use `newcmd` to save commands in the current session).
+The commands sent through `write` are not stored in the current session (use `add_cmd` to save commands in the current session).
 """
 write(gp::DrySession, str::AbstractString) = nothing
 function write(gp::GPSession, str::AbstractString)
@@ -444,36 +445,35 @@ newBlockName(gp::DrySession) = string("\$data", length(gp.datas)+1)
 
 
 # ---------------------------------------------------------------------
-function newdataset(gp::DrySession, name::String, accum::Vector{String})
-    source = name # source is the same as name
-    prepend!(accum, [source * " << EOD"])
+function add_inlineblock(gp::DrySession, gpsource::String, accum::Vector{String})
+    prepend!(accum, [gpsource * " << EOD"])
     append!( accum, ["EOD"])
-    preview = (length(accum) < 6  ?  accum  :  [accum[1:5]..., "...", accum[end]])
-    d = DataSet(source, join("GNUPLOT ($(gp.sid)) " .* preview, "\n"), join(accum, "\n"))
-    gp.datas[name] = d
-    write(gp, d) # Send now to gnuplot process
-    return source
+    preview = "GNUPLOT ($(gp.sid)) " .* (length(accum) < 6  ?  accum  :  [accum[1:5]..., "...", accum[end]])
+    d = DataSet("", gpsource, join(preview, "\n"), join(accum, "\n"))
+    gp.datas[gpsource] = d  # name is the same as gpsource
+    write(gp, d) # send now to gnuplot process
+    return gpsource
 end
-newdataset(gp::DrySession, name::String, args...) = newdataset(gp, name, arrays2datablock(args...))
+add_dataset(gp::DrySession, name::String, args...) = add_inlineblock(gp, name, arrays2datablock(args...))
 
 
 # ---------------------------------------------------------------------
-function newcmd(gp::DrySession, v::String)
+function add_cmd(gp::DrySession, v::String)
     (v != "")  &&  (push!(gp.plots[gp.curmid].cmds, v))
     (length(gp.plots) == 1)  &&  (exec(gp, v))  # execute now to check against errors
     return nothing
 end
 
-function newcmd(gp::DrySession; args...)
+function add_cmd(gp::DrySession; args...)
     for v in parseKeywords(;args...)
-        newcmd(gp, v)
+        add_cmd(gp, v)
     end
     return nothing
 end
 
 
 # ---------------------------------------------------------------------
-function newplot(gp::DrySession, plotspec)
+function add_plot(gp::DrySession, plotspec)
     push!(gp.plots[gp.curmid].elems, plotspec)
 end
 
@@ -652,9 +652,9 @@ function driver(args...; flag3d=false)
                 @assert maximum(length.(dataset)) == 0 "One (or more) input arrays are empty"
             else
                 isnothing(setname)  &&  (setname = newBlockName(gp))
-                source = newdataset(gp, setname, dataset...)
+                source = add_dataset(gp, setname, dataset...)
                 if !isnothing(plotspec)
-                    newplot(gp, source * " " * plotspec)
+                    add_plot(gp, source * " " * plotspec)
                     gp.plots[gp.curmid].flag3d = flag3d
                 end
             end
@@ -684,13 +684,13 @@ function driver(args...; flag3d=false)
                 (isPlot, is3d, cmd) = isPlotCmd(arg)
                 if isPlot             #   ==> a (s)plot command
                     gp.plots[gp.curmid].flag3d = is3d
-                    newplot(gp, cmd)
+                    add_plot(gp, cmd)
                 else                  #   ==> a command
-                    newcmd(gp, arg)
+                    add_cmd(gp, arg)
                 end
             end
         elseif isa(arg, Tuple)  &&  length(arg) == 2  &&  isa(arg[1], Symbol)
-            newcmd(gp; [arg]...)      # ==> a keyword/value pair
+            add_cmd(gp; [arg]...)      # ==> a keyword/value pair
         elseif isa(arg, Pair)         # ==> a named dataset
             @assert typeof(arg[1]) == String
             @assert arg[1][1] == '$'
@@ -701,13 +701,13 @@ function driver(args...; flag3d=false)
             end
             dataset_completed()
         elseif isa(arg, Histogram1D)
-            newcmd(gp, "set grid")
+            add_cmd(gp, "set grid")
             push!(dataset, arg.bins)
             push!(dataset, arg.counts)
             plotspec = "w histep notit lw 2 lc rgb 'black'"
             dataset_completed()
         elseif isa(arg, Histogram2D)
-            newcmd(gp, "set autoscale fix")
+            add_cmd(gp, "set autoscale fix")
             push!(dataset, arg.bins1)
             push!(dataset, arg.bins2)
             push!(dataset, arg.counts)
