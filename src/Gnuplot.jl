@@ -633,6 +633,60 @@ end
 
 # ---------------------------------------------------------------------
 function savescript(gp::DrySession, filename; term::AbstractString="", output::AbstractString="")
+    function copy_binary_files(gp, filename)
+        function data_dirname(path)
+            dir = dirname(path)
+            (dir == "")  &&  (dir = ".")
+            base = basename(path)
+            s = split(base, ".")
+            if length(s) > 1
+                base = join(s[1:end-1], ".")
+            end
+            base *= "_data/"
+            out = dir * "/" * base
+            return out
+        end
+
+        path_from = Vector{String}()
+        path_to   = Vector{String}()
+        datapath  = data_dirname(filename)
+        for (name, d) in gp.datas
+            if d.file != ""
+                if (length(path_from) == 0)
+                    isdir(datapath)  &&  rm(datapath, recursive=true)
+                    mkdir(datapath)
+                end
+                to = datapath * basename(d.file)
+                cp(d.file, to, force=true)
+                push!(path_from, d.file)
+                push!(path_to,   to)
+            end
+        end
+        return (path_from, path_to)
+    end
+    function redirect_elements(elems, path_from, path_to)
+        function subst(str, from, to)
+            local out  # avoid changing "out" in outer scope
+            r = findfirst(from, str)
+            isnothing(r)  &&  (return str)
+            out = ""
+            (minimum(r) > 1)  &&  (out *= string(str[1:minimum(r)-1]))
+            out *= to
+            (maximum(r) < length(str))  &&  (out *= string(str[maximum(r)+1:end]))
+            return out
+        end
+        (length(path_from) == 0)  &&  (return elems)
+
+        out = deepcopy(elems)
+        for i in 1:length(out)
+            for j in 1:length(path_from)
+                tmp = subst(out[i], path_from[j], path_to[j])
+                out[i] = tmp
+            end
+        end
+        return out
+    end
+
     stream = open(filename, "w")
 
     println(stream, "reset session")
@@ -641,8 +695,11 @@ function savescript(gp::DrySession, filename; term::AbstractString="", output::A
     end
     (output != "")  &&  println(stream, "set output '$output'")
 
+    paths = copy_binary_files(gp, filename)
     for (name, d) in gp.datas
-        println(stream, d.data)
+        if d.file == ""
+            println(stream, d.data)
+        end
     end
 
     for i in 1:length(gp.plots)
@@ -652,7 +709,7 @@ function savescript(gp::DrySession, filename; term::AbstractString="", output::A
         end
         if length(d.elems) > 0
             s = (d.flag3d  ?  "splot "  :  "plot ") * " \\\n  " *
-                join(d.elems, ", \\\n  ")
+                join(redirect_elements(d.elems, paths...), ", \\\n  ")
             println(stream, s)
         end
     end
