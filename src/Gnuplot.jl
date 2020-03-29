@@ -59,6 +59,7 @@ Structure containing the package global options, accessible through `Gnuplot.opt
 - `default::Symbol`: default session name (default: `:default`)
 - `init::Vector{String}`: commands to initialize the gnuplot session (e.g., to set default terminal)
 - `verbose::Bool`: verbosity flag (default: `false`)
+- `use_binaryfiles::Bool`: whether to use binary files for data (default: `false`, **EXPERIMENTAL**)
 """
 Base.@kwdef mutable struct Options
     dry::Bool = false
