@@ -438,6 +438,34 @@ function write_binary(M::Matrix{T}) where T <: Number
     return (path, " '$path' binary matrix")
 end
 
+function write_binary(cols::Vararg{AbstractVector, N}) where N
+    gpsource = "binary record=$(length(cols[1])) format='"
+    types = Vector{DataType}()
+    (length(cols) == 1)  &&  (gpsource *= "%int")
+    for i in 1:length(cols)
+        @assert length(cols[1]) == length(cols[i])
+        if     isa(cols[i][1], Int32);   push!(types, Int32);   gpsource *= "%int"
+        elseif isa(cols[i][1], Int);     push!(types, Int32);   gpsource *= "%int"
+        elseif isa(cols[i][1], Float32); push!(types, Float32); gpsource *= "%float"
+        elseif isa(cols[i][1], Float64); push!(types, Float32); gpsource *= "%float"
+        elseif isa(cols[i][1], Char);    push!(types, Char);    gpsource *= "%char"
+        else
+            error("Unsupported data on column $i: $(typeof(cols[i][1]))")
+        end
+    end
+    gpsource *= "'"
+
+    (path, io) = mktemp()
+    gpsource = " '$path' $gpsource"
+    for row in 1:length(cols[1])
+        (length(cols) == 1)  &&  (write(io, convert(Int32, row)))
+        for col in 1:length(cols)
+            write(io, convert(types[col], cols[col][row]))
+        end
+    end
+    close(io)
+    return (path, gpsource)
+end
 
 # ╭───────────────────────────────────────────────────────────────────╮
 # │              PRIVATE FUNCTIONS TO MANIPULATE SESSIONS             │
