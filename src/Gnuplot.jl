@@ -113,10 +113,10 @@ end
 
 
 # ---------------------------------------------------------------------
-tostring(::Missing) = "?"
-tostring(v) = string(v)
-tostring(c::ColorTypes.RGB) = string(Int(c.r*255)) * " " * string(Int(c.g*255)) * " " * string(Int(c.b*255))
 tostring(v::AbstractString) = "\"" * string(v) * "\""
+tostring(v::Number) = string(v)
+tostring(::Missing) = "?"
+tostring(c::ColorTypes.RGB) = string(Int(c.r*255)) * " " * string(Int(c.g*255)) * " " * string(Int(c.b*255))
 
 """
     Gnuplot.arrays2datablock(arrays...)
@@ -129,25 +129,6 @@ If you experience errors when sending data to *gnuplot* try to filter the arrays
 """
 function arrays2datablock(args...)
     @assert length(args) > 0
-
-    # Check types of args
-    for iarg in 1:length(args)
-        d = args[iarg]
-
-        ok = false
-        if typeof(d) <: Number
-            ok = true
-        elseif typeof(d) <: AbstractArray
-            (typeof(d[1]) <: String)  &&  (ok = true)
-            (typeof(d[1]) <: Number)  &&  (ok = true)
-            (typeof(d[1]) <: ColorTypes.RGB)  &&  (ok = true)
-        elseif typeof(d) <: Histogram1D
-            ok = true
-        elseif typeof(d) <: Histogram2D
-            ok = true
-        end
-        @assert ok "Invalid argument type at position $iarg"
-    end
 
     # Collect lengths and number of dims
     lengths = Vector{Int}()
@@ -605,6 +586,18 @@ end
 
 # ---------------------------------------------------------------------
 function driver(args...; flag3d=false)
+    function validate_datatype(d)
+        # Return true if the array element type can be handled by the `tostring` function
+        isa(d, AbstractArray)  ||  return false
+        t = valtype(d)
+        if  (t <: String)  ||
+            (t <: Number)  ||
+            (t <: ColorTypes.RGB)
+            return true
+        end
+        return false
+    end
+
     function isPlotCmd(s::String)
         (length(s) >= 2)  &&  (s[1:2] ==  "p "    )  &&  (return (true, false, strip(s[2:end])))
         (length(s) >= 3)  &&  (s[1:3] ==  "pl "   )  &&  (return (true, false, strip(s[3:end])))
@@ -655,15 +648,11 @@ function driver(args...; flag3d=false)
 
     function dataset_completed()
         if length(dataset) > 0
-            AllArraysAreNotEmpty = true
-            for i in 1:length(dataset)
-                if (typeof(dataset[i]) <: AbstractArray)  &&  (length(dataset[i]) == 0)
-                    AllArraysAreNotEmpty = false
-                    break
-                end
-            end
-            if AllArraysAreNotEmpty
-                source = newdataset(gp, (isnothing(setname)  ?  newBlockName(gp)  :  setname), dataset...)
+            if          minimum(length.(dataset)) == 0
+                @assert maximum(length.(dataset)) == 0 "One (or more) input arrays are empty"
+            else
+                isnothing(setname)  &&  (setname = newBlockName(gp))
+                source = newdataset(gp, setname, dataset...)
                 if !isnothing(plotspec)
                     newplot(gp, source * " " * plotspec)
                     gp.plots[gp.curmid].flag3d = flag3d
@@ -680,42 +669,34 @@ function driver(args...; flag3d=false)
         arg = args[iarg]
         isa(arg, Symbol)  &&  continue  # already handled
 
-        if isa(arg, Int)
-            # Change current multiplot index
-            @assert arg > 0
-            #@info "Multiplot ID" iarg typeof(arg) arg
+        if isa(arg, Int)              # ==> change current multiplot index
+            @assert arg > 0 "Multiplot index must be a positive integer"
             plotspec = "" # use an empty plotspec for pending dataset
             dataset_completed()
             setmulti(gp, arg)
             gp.plots[gp.curmid].flag3d = flag3d
-        elseif isa(arg, String)
-            # Either a plotspec or a command
+        elseif isa(arg, String)       # ==> either a plotspec or a command
             arg = string(strip(arg))
-            if length(dataset) > 0
-                #@info "Plot spec." iarg typeof(arg) arg
+            if length(dataset) > 0    #   ==> a plotspec
                 plotspec = arg
                 dataset_completed()
             else
                 (isPlot, is3d, cmd) = isPlotCmd(arg)
-                if isPlot
-                    #@info "Plot command" iarg typeof(arg) arg
+                if isPlot             #   ==> a (s)plot command
                     gp.plots[gp.curmid].flag3d = is3d
                     newplot(gp, cmd)
-                else
-                    #@info "Command (string)" iarg typeof(arg) arg
+                else                  #   ==> a command
                     newcmd(gp, arg)
                 end
             end
         elseif isa(arg, Tuple)  &&  length(arg) == 2  &&  isa(arg[1], Symbol)
-            #@info "Command (tuple)" iarg typeof(arg) arg
-            newcmd(gp; [arg]...)
-        elseif isa(arg, Pair)
-            # A named dataset
-            #@info "Named dataset" iarg typeof(arg) arg
+            newcmd(gp; [arg]...)      # ==> a keyword/value pair
+        elseif isa(arg, Pair)         # ==> a named dataset
             @assert typeof(arg[1]) == String
             @assert arg[1][1] == '$'
             setname = arg[1]
             for d in arg[2]
+                @assert validate_datatype(d) "Invalid argument type at position $iarg"
                 push!(dataset, d)
             end
             dataset_completed()
@@ -732,10 +713,11 @@ function driver(args...; flag3d=false)
             push!(dataset, arg.counts)
             plotspec = "w image notit"
             dataset_completed()
-        else
-             # A dataset
-            #@info "Dataset element" iarg typeof(arg) arg
+        elseif isa(arg, AbstractArray)# ==> a dataset
+            @assert validate_datatype(arg) "Invalid argument type at position $iarg"
             push!(dataset, arg)
+        else
+            error("Unexpected argument at position $iarg")
         end
     end
 
