@@ -444,6 +444,7 @@ end
 # ╰───────────────────────────────────────────────────────────────────╯
 # ---------------------------------------------------------------------
 function reset(gp::DrySession)
+    delete_binaries(gp)
     gp.datas = Dict{String, DataSet}()
     gp.plots = [SinglePlot()]
     gp.curmid = 1
@@ -486,7 +487,7 @@ function add_dataset(gp::DrySession, name::String, args...)
             return gpsource
         catch err
             if isa(err, MethodError)
-                @warn "No method to handle binary data, resort to inline datablock..."
+                @warn "No method to write data as a binary file, resort to inline datablock..."
             else
                 rethrow()
             end
@@ -518,7 +519,18 @@ end
 
 
 # ---------------------------------------------------------------------
+function delete_binaries(gp::DrySession)
+    for (name, d) in gp.datas
+        if d.file != ""  # delete binary files
+            rm(d.file, force=true)
+        end
+    end
+end
+
+
+# ---------------------------------------------------------------------
 function quit(gp::DrySession)
+    delete_binaries(gp)
     delete!(sessions, gp.sid)
     return 0
 end
