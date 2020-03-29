@@ -420,8 +420,12 @@ end
 
 
 # ╭───────────────────────────────────────────────────────────────────╮
-# │              FUNCTIONS TO WRITE DATA INT BINARY FILES             │
+# │             FUNCTIONS TO WRITE DATA INTO BINARY FILES             │
 # ╰───────────────────────────────────────────────────────────────────╯
+
+#=
+The following has been dismissed since `binary matrix` do not
+allows to use keywords such as `rotate`.
 # ---------------------------------------------------------------------
 function write_binary(M::Matrix{T}) where T <: Number
     x = collect(1:size(M)[1])
@@ -438,7 +442,37 @@ function write_binary(M::Matrix{T}) where T <: Number
     close(io)
     return (path, " '$path' binary matrix")
 end
+=#
 
+# ---------------------------------------------------------------------
+function write_binary(M::Matrix{T}) where T <: Number
+    (path, io) = mktemp()
+    for j in 1:size(M)[2]
+        for i in 1:size(M)[1]
+            write(io, Float32(M[i,j]))
+        end
+    end
+    close(io)
+    return (path, " '$path' binary array=(" * join(string.(size(M)), ", ") * ")")
+end
+
+
+# ---------------------------------------------------------------------
+function write_binary(M::Matrix{RGB{T}}) where T
+    (path, io) = mktemp()
+    for j in 1:size(M)[2]
+        for i in 1:size(M)[1]
+            write(io, Float32(256 * M[i,j].r))
+            write(io, Float32(256 * M[i,j].g))
+            write(io, Float32(256 * M[i,j].b))
+        end
+    end
+    close(io)
+    return (path, " '$path' binary array=(" * join(string.(size(M)), ", ") * ")")
+end
+
+
+# ---------------------------------------------------------------------
 function write_binary(cols::Vararg{AbstractVector, N}) where N
     gpsource = "binary record=$(length(cols[1])) format='"
     types = Vector{DataType}()
