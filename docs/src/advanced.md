@@ -37,33 +37,72 @@ saveas("ex010") # hide
 
 Both curves use the same input data, but the red curve has the second column (`\$2`, corresponding to the *y* value) is multiplied by a factor -1.5.
 
+A named dataset comes in hand also when using gnuplot to fit experimental data to a model, e.g.:
+```@example abc
+# Generate data and some noise to simulate measurements
+x = range(-2pi, stop=2pi, length=20);
+y = 1.5 * sin.(0.3 .+ 0.7x);
+err = 0.1 * maximum(abs.(y)) .* fill(1, size(x));
+y += err .* randn(length(x));
+name = "\$MyDataSet1"
+
+@gp    "f(x) = a * sin(b + c*x)"     :- # define an analytical model
+@gp :- "a=1" "b=1" "c=1"             :- # set parameter initial values
+@gp :- name=>(x, y, err)             :- # define a named dataset
+@gp :- "fit f(x) $name via a, b, c;"    # fit the data
+```
+
+The parameter best fit values can be retrieved as follows:
+```@example abc
+@info("Best fit values:",
+a=Gnuplot.exec("print a"),
+b=Gnuplot.exec("print b"),
+c=Gnuplot.exec("print c"))
+```
+
+A named dataset is available until the session is reset, i.e. as long as `:-` is used as first argument to `@gp`.
+
 
 ## Multiplot
 
+**Gnuplot.jl** can draw multiple plots in the same figure by exploiting the `multiplot` command.  Each plot is identified by a positive integer number, which can be used as argument to `@gp` to redirect commands to the appropriate plot.
+
+Continuing previous example we can plot both data and best fit model (in plot `1`) and residuals (in plot `2`):
+```@example abc
+@gp :- "set multiplot layout 2,1"
+@gp :- 1 "p $name w errorbars t 'Data'" 
+@gp :-   "p $name u 1:(f(\$1)) w l t 'Best fit model'"
+@gp :- 2 "p $name u 1:((f(\$1)-\$2) / \$3):(1) w errorbars t 'Resid. [{/Symbol s}]'"
+@gp :-   [extrema(x)...] [0,0] "w l notit dt 2 lc rgb 'black'" # reference line
+saveas("ex011") # hide
+```
+![](assets/ex011.png)
+
+Note that the order of the plots is not relevant, i.e. we would get the same results with:
+```@julia
+@gp :- "set multiplot layout 2,1"
+@gp :- 2 "p $name u 1:((f(\$1)-\$2) / \$3):(1) w errorbars t 'Resid. [{/Symbol s}]'"
+@gp :-   [extrema(x)...] [0,0] "w l notit dt 2 lc rgb 'black'" # reference line
+@gp :- 1 "p $name w errorbars t 'Data'" 
+@gp :-   "p $name u 1:(f(\$1)) w l t 'Best fit model'"
+```
+
 ### Mixing 2D and 3D plots
-```julia
+A multiplot can also mix 2D and 3D plots:
+
+```@example abc
+x = y = -10:0.33:10
 
 @gp "set multiplot layout 1,2"
-@gp :- 1 "plot sin(x) w l"
+@gp :- 1 x sin.(x) ./ x "w l notit"
 
-
-x = y = -10:0.33:10
-fz(x,y) = sin.(sqrt.(x.^2 + y.^2))./sqrt.(x.^2+y.^2)
-fxy = [fz(x,y) for x in x, y in y]
-
+sinc2d(x,y) = sin.(sqrt.(x.^2 + y.^2))./sqrt.(x.^2+y.^2)
+fxy = [sinc2d(x,y) for x in x, y in y]
 @gsp :- 2 x y fxy "w pm3d notit"
-
+saveas("ex012") # hide
 ```
+![](assets/ex012.png)
 
-```julia
-img = testimage("earth_apollo17");
-@gp "set multiplot layout 2,2 tit 'rotate keyword (positive direction is counter-clockwise)'" :-
-@gp :- "set size square" "set autoscale fix" "unset tics" "\$img"=>(img,) :-
-@gp :- 1 tit="Original"         "plot \$img               with rgbimage notit" :-
-@gp :- 2 tit="rotate=-90 deg"   "plot \$img rotate=-90deg with rgbimage notit" :-
-@gp :- 3 tit="rotate=0.5pi"     "plot \$img rotate=0.5pi  with rgbimage notit" :-
-@gp :- 4 tit="rotate=180 deg"   "plot \$img rotate=180deg with rgbimage notit"
-```
 
 ## Multiple sessions
 ## Histograms (1D)
