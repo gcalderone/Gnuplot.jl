@@ -139,22 +139,33 @@ can be replaced with a shorter version:
 **Gnuplot.jl** can also display images, i.e. 2D arrays:
 ```@example abc
 img = randn(Float64, 30, 50)
-img[10,:] .= -4
+img[10,:] .= -5
 @gp img "w image notit"
 saveas("basic7a") # hide
 ```
 ![](assets/basic7a.png)
 
-Note that the first index corresponds to the `X` coordinate when the image is displayed.
+Note that the first index in the `img` matrix corresponds to the `x` coordinate when the image is displayed.
 
-The following example shows how to fix orientation of an image by means of the `using` clause (the `TestImages` package is required to run this example):
+If the orientation is not the correct one you may adjust it with the gnuplot `rotate=` keyword (the following example requires the `TestImages` package to be installed):
 ```@example abc
 using TestImages
-img = testimage("lena");
-@gp "set size square" "set autoscale fix" img "u 2:(-\$1):3:4:5 with rgbimage notit"
+img = testimage("lighthouse");
+@gp "set size square" "set autoscale fix" img "rotate=-90deg with rgbimage notit"
 save(term="jpeg size 480,360", output="assets/basic7b.jpg") # hide
 ```
 ![](assets/basic7b.jpg)
+
+
+To display a gray image use `with image` in place of `with rgbimage`, e.g.:
+```@example abc
+img = testimage("walkbridge");
+@gp palette(:thermal) "set size square" "set autoscale fix" img "rotate=-0.5pi with image notit"
+save(term="jpeg size 480,360", output="assets/basic7c.jpg") # hide
+```
+![](assets/basic7c.jpg)
+Note that we used a custom palette (`:thermal`) and the rotation angle has been expressed in radians.
+
 
 
 ## [3D plots](@id plots3d)
