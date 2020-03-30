@@ -62,7 +62,10 @@ Structure containing the package global options, accessible through `Gnuplot.opt
 - `default::Symbol`: default session name (default: `:default`)
 - `init::Vector{String}`: commands to initialize the gnuplot session (e.g., to set default terminal)
 - `verbose::Bool`: verbosity flag (default: `false`)
-- `preferred_format::Symbol`: preferred format for data exchange among `bin` (fast, but uses temporary files) and `text` (slow, but no temporary file is involved) and `auto` (default, automatically choose the best strategy).
+- `preferred_format::Symbol`: preferred format to send data to gnuplot.  Value must be one of:
+   - `bin`: fastest solution for large datasets, but uses temporary files;
+   - `text`: may be slow for large datasets, but no temporary file is involved;
+   - `auto` (default) automatically choose the best strategy.
 """
 Base.@kwdef mutable struct Options
     dry::Bool = false
@@ -102,10 +105,10 @@ function parseKeywords(; kwargs...)
 
     kw = canonicalize(template; kwargs...)
     out = Vector{String}()
-    ismissing(kw.xrange ) || (push!(out, "set xrange  [" * join(kw.xrange , ":") * "]"))
-    ismissing(kw.yrange ) || (push!(out, "set yrange  [" * join(kw.yrange , ":") * "]"))
-    ismissing(kw.zrange ) || (push!(out, "set zrange  [" * join(kw.zrange , ":") * "]"))
-    ismissing(kw.cbrange) || (push!(out, "set cbrange [" * join(kw.cbrange, ":") * "]"))
+    ismissing(kw.xrange ) || (push!(out, replace("set xrange  [" * join(kw.xrange , ":") * "]", "NaN"=>"*")))
+    ismissing(kw.yrange ) || (push!(out, replace("set yrange  [" * join(kw.yrange , ":") * "]", "NaN"=>"*")))
+    ismissing(kw.zrange ) || (push!(out, replace("set zrange  [" * join(kw.zrange , ":") * "]", "NaN"=>"*")))
+    ismissing(kw.cbrange) || (push!(out, replace("set cbrange [" * join(kw.cbrange, ":") * "]", "NaN"=>"*")))
     ismissing(kw.key    ) || (push!(out, "set key " * kw.key  * ""))
     ismissing(kw.title  ) || (push!(out, "set title  \"" * kw.title  * "\""))
     ismissing(kw.xlabel ) || (push!(out, "set xlabel \"" * kw.xlabel * "\""))
