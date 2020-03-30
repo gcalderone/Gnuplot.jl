@@ -79,7 +79,7 @@ saveas("ex011") # hide
 ![](assets/ex011.png)
 
 Note that the order of the plots is not relevant, i.e. we would get the same results with:
-```@julia
+```julia
 @gp :- "set multiplot layout 2,1"
 @gp :- 2 "p $name u 1:((f(\$1)-\$2) / \$3):(1) w errorbars t 'Resid. [{/Symbol s}]'"
 @gp :-   [extrema(x)...] [0,0] "w l notit dt 2 lc rgb 'black'" # reference line
@@ -92,10 +92,12 @@ A multiplot can also mix 2D and 3D plots:
 
 ```@example abc
 x = y = -10:0.33:10
-
 @gp "set multiplot layout 1,2"
+
+# 2D
 @gp :- 1 x sin.(x) ./ x "w l notit"
 
+# 3D
 sinc2d(x,y) = sin.(sqrt.(x.^2 + y.^2))./sqrt.(x.^2+y.^2)
 fxy = [sinc2d(x,y) for x in x, y in y]
 @gsp :- 2 x y fxy "w pm3d notit"
