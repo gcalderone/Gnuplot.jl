@@ -5,7 +5,10 @@ using StatsBase, ColorSchemes, ColorTypes, StructC14N, ReusePatterns
 import Base.reset
 import Base.write
 
-export dataset_names, session_names, stats, @gp, @gsp, save, palette_names, linetypes, palette, contourlines, hist, terminal, terminals, test_terminal
+export session_names, dataset_names, palette_names, linetypes, palette,
+    terminal, terminals, test_terminal,
+    stats, @gp, @gsp, save,
+    contourlines, hist
 
 # ╭───────────────────────────────────────────────────────────────────╮
 # │                           TYPE DEFINITIONS                        │
