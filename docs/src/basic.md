@@ -1,20 +1,20 @@
 # Basic usage
 
-The main purpose of the **Gnuplot.jl** package is to send data and commands to the underlying `gnuplot` process, in order to generate plots.  Unlike other packages, however, the actual commands to plot, or the plot attributes, are not specified through function calls.  This is what makes **Gnuplot.jl** *easy to learn and use*: there are no functions or keywords names to memorize[^1].
+The main purpose of the **Gnuplot.jl** package is to send data and commands to the underlying gnuplot process, in order to generate plots.  Unlike other packages, however, the actual commands to plot, or the plot attributes, are not specified through function calls.  This is what makes **Gnuplot.jl** *easy to learn and use*: there are no functions or keywords names to memorize[^1].
 
 The most important symbols exported by the package are the [`@gp`](@ref) (for 2D plots) and [`@gsp`](@ref) (for 3D plots) macros, both accepting any number of arguments, and whose meaning is interpreted as follows:
 
-- one, or a group of consecutive, array(s) build up a dataset.  The different arrays are accessible as columns 1, 2, etc. from the `gnuplot` process.  The number of required input arrays depends on the chosen plot style (see `gnuplot` documentation);
+- one, or a group of consecutive, array(s) build up a dataset.  The different arrays are accessible as columns 1, 2, etc. from the gnuplot process.  The number of required input arrays depends on the chosen plot style (see gnuplot documentation);
 
-- a string occurring before a dataset is interpreted as a `gnuplot` command (e.g. `set grid`);
+- a string occurring before a dataset is interpreted as a gnuplot command (e.g. `set grid`);
 
 - a string occurring immediately after a dataset is interpreted as a *plot element* for the dataset, by which you can specify `using` clause, `with` clause, line styles, etc.;
 
 - the special symbol `:-`, whose meaning is to avoid starting a new plot (if given as first argument), or to avoid immediately running all commands to create the final plot (if given as last argument).  Its purpose is to allow splitting one long statement into multiple (shorter) ones.
 
-The above lists all the required concepts to follow the examples presented below.  The [`@gp`](@ref) and [`@gsp`](@ref) macros also accepts further arguments, but their use will be discussed in [Advanced techniques](@ref).
+The above list shows all the fundamental concepts to follow the examples presented below.  The [`@gp`](@ref) and [`@gsp`](@ref) macros also accepts further arguments, but their use will be discussed in [Advanced techniques](@ref).
 
-[^1]: a previous knowledge of [`gnuplot`](http://gnuplot.sourceforge.net/documentation.html) usage is, nevertheless, required.
+[^1]: a previous knowledge of [gnuplot](http://gnuplot.sourceforge.net/documentation.html) usage is, nevertheless, required.
 
 ## [2D plots](@id plots2d)
 
@@ -38,7 +38,7 @@ Gnuplot.exec("set term unknown")
 
 
 
-### Simple examples involving just `gnuplot` commands:
+### Simple examples involving just gnuplot commands:
 
 ---
 #### Plot a sinusoid:
@@ -57,7 +57,7 @@ saveas("basic2") # hide
 ![](assets/basic2.png)
 
 !!! note
-    Note that all `gnuplot` commands can be abbreviated as long as the resulting string is not ambiguous.  In the example above we used `pl` in place of `plot`.
+    Note that all gnuplot commands can be abbreviated as long as the resulting string is not ambiguous.  In the example above we used `pl` in place of `plot`.
 
 ---
 #### Split a `@gp` call in three statements:
@@ -70,7 +70,7 @@ saveas("basic3") # hide
 ![](assets/basic3.png)
 
 
-### Send data from Julia to `gnuplot`:
+### Send data from Julia to gnuplot:
 
 #### Plot a parabola
 ```@example abc
@@ -94,7 +94,7 @@ saveas("basic5") # hide
 ```@example abc
 x = 1:0.1:10
 @gp    "set grid" "set key left" "set logscale y"
-@gp :- "set title 'Plot title'" "set label 'X label'" "set xrange [0:12]"
+@gp :- "set title 'Plot title'" "set label 'X label'" "set xrange [0:*]"
 @gp :- x x.^0.5 "w l tit 'Pow 0.5' dt 2 lw 2 lc rgb 'red'"
 @gp :- x x      "w l tit 'Pow 1'   dt 1 lw 3 lc rgb 'blue'"
 @gp :- x x.^2   "w l tit 'Pow 2'   dt 3 lw 2 lc rgb 'purple'"
@@ -107,7 +107,7 @@ saveas("basic6") # hide
 
 ---
 ## Keywords for common commands
-In order to avoid typing long, and very frequently used `gnuplot` commands, **Gnuplot.jl** provides a few keywords which can be used in both `@gp` and `@sgp` calls:
+In order to avoid typing long, and very frequently used gnuplot commands, **Gnuplot.jl** provides a few keywords which can be used in both `@gp` and `@sgp` calls:
  - `xrange=[low, high]` => `"set xrange [low:high]`;
  - `yrange=[low, high]` => `"set yrange [low:high]`;
  - `zrange=[low, high]` => `"set zrange [low:high]`;
@@ -126,13 +126,15 @@ All such keywords can be abbreviated to unambiguous names.
 By using the above keywords the first lines of the previous example:
 ```julia
 @gp    "set grid" "set key left" "set logscale y"
-@gp :- "set title 'Plot title'" "set label 'X label'" "set xrange [0:12]"
+@gp :- "set title 'Plot title'" "set label 'X label'" "set xrange [0:*]"
 ```
 can be replaced with a shorter version:
 ```julia
 @gp    "set grid" k="left" ylog=true
-@gp :- tit="Plot title" xlab="X label" xr=[0,12]
+@gp :- tit="Plot title" xlab="X label" xr=[0,NaN]
 ```
+where `NaN` in the `xrange` keyword means using axis autoscaling.
+
 
 ## Plot images
 
@@ -160,11 +162,12 @@ save(term="jpeg size 480,360", output="assets/basic7b.jpg") # hide
 To display a gray image use `with image` in place of `with rgbimage`, e.g.:
 ```@example abc
 img = testimage("walkbridge");
-@gp palette(:thermal) "set size square" "set autoscale fix" img "rotate=-0.5pi with image notit"
+@gp palette(:lapaz) "set size square" "set autoscale fix" img "rotate=-0.5pi with image notit"
 save(term="jpeg size 480,360", output="assets/basic7c.jpg") # hide
 ```
 ![](assets/basic7c.jpg)
-Note that we used a custom palette (`:thermal`) and the rotation angle has been expressed in radians.
+
+Note that we used a custom palette (`:lapaz`, see [Palettes and line types](@ref)) and the rotation angle has been expressed in radians (`-0.5pi`).
 
 
 
@@ -174,26 +177,26 @@ Note that we used a custom palette (`:thermal`) and the rotation angle has been 
 E.g., to plot a spiral increasing in size along the `X` direction:
 ```@example abc
 x = 0:0.1:10pi
-@gsp x  sin.(x) .* x  cos.(x) .* x  x./20  "w p pt 7 ps var lc pal"
+@gsp cbr=[-1,1].*30  x  sin.(x) .* x  cos.(x) .* x  x./20  "w p pt 7 ps var lc pal"
 saveas("basic8") # hide
 ```
 ![](assets/basic8.png)
 
-The keywords discussed above can also be used in 3D plots.
+Note that the fourth array in the dataset, `x./20`, is used as by gnuplot as point size (`ps var`).  Also note that all the keywords discussed above can also be used in 3D plots.
 
 ## Palettes and line types
 The **Gnuplot.jl** package comes with all the [ColorSchemes](https://juliagraphics.github.io/ColorSchemes.jl/stable/basics/#Pre-defined-schemes-1) palettes readily available.
 
-A `gnuplot`-compliant palette can be retrieved with `palette()`, and used as any other command.  The previous example may use an alternative palette with:
+A gnuplot-compliant palette can be retrieved with `palette()`, and used as any other command.  The previous example may use an alternative palette with:
 ```@example abc
 x = 0:0.1:10pi
-@gsp palette(:viridis) x  sin.(x) .* x  cos.(x) .* x  x./20  "w p pt 7 ps var lc pal"
+@gsp palette(:viridis) cbr=[-1,1].*30  x  sin.(x) .* x  cos.(x) .* x  x./20  "w p pt 7 ps var lc pal"
 saveas("basic8a") # hide
 ```
 ![](assets/basic8a.png)
 
 
-The [ColorSchemes](https://juliagraphics.github.io/ColorSchemes.jl/stable/basics/#Pre-defined-schemes-1) palettes can also be used to generate line types (actually just color attributes), by means of the `linetypes()` function, e.g.
+The [ColorSchemes](https://juliagraphics.github.io/ColorSchemes.jl/stable/basics/#Pre-defined-schemes-1) palettes can also be used to generate line types (actually just line colors), by means of the `linetypes()` function, e.g.
 ```@example abc
 @gp linetypes(:deepsea)
 x = 1:0.1:4pi
@@ -209,7 +212,7 @@ saveas("basic9") # hide
 
 ## Exporting plots to files
 
-The `save()` function allows to export all plots (as well as multiplots, see [Multiplot](@ref)) to a file using one of the many available `gnuplot` terminals.  To check which terminals are available in your platform type `set term` in your `gnuplot` terminal.
+The `save()` function allows to export all plots (as well as multiplots, see [Multiplot](@ref)) to a file using one of the many available gnuplot terminals.  To check which terminals are available in your platform type `set term` in your gnuplot terminal.
 
 All plots in this page have been saved with:
 ```julia
@@ -221,18 +224,18 @@ save(term="jpeg size 480,360", output="assets/output.png")
 ```
 
 ## Gnuplot scripts
-Besides exporting plots in a file **Gnuplot.jl** can also save a *script*, i.e. a file containing the minimum set of data and commands required to generate a plot within `gnuplot`.
+Besides exporting plots in a file **Gnuplot.jl** can also save a *script*, i.e. a file containing the minimum set of data and commands required to generate a plot within gnuplot.
 
 To generate a script for one of the example above use:
 ```julia
 save("script.gp")
 ```
-after the plot has been displayed.  The script can then be used within a `gnuplot` session as follows:
+after the plot has been displayed.  The script can then be used within a gnuplot session as follows:
 ```
 gunplot> load 'script.gp'
 ```
 to generate a plot identical to the original one, without using the Julia language.
 
-The purpose of `gnuplot` scripts is to allow sharing all data, alongside a plot, in order to foster collaboration among scientists and replicability of results.  Moreover, a script can be used at any time to change the details of a plot, without the need to re-run the Julia code used to generate it the first time.
+The purpose of gnuplot scripts is to allow sharing all data, alongside a plot, in order to foster collaboration among scientists and replicability of results.  Moreover, a script can be used at any time to change the details of a plot, without the need to re-run the Julia code used to generate it the first time.
 
-Finally, the scripts are the only possible output when [Dry sessions](@ref) are used (i.e. when `gnuplot` is not available in the user platform.
+Finally, the scripts are the only possible output when [Dry sessions](@ref) are used (i.e. when gnuplot is not available in the user platform.
