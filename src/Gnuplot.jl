@@ -1084,7 +1084,9 @@ The `@gp` macro, and its companion `@gsp` for 3D plots, allows to send data and 
 
 - any other symbol is interpreted as a session ID;
 
-- an `Int` (> 0) is interpreted as the plot destination in a multi-plot session (this specification applies to subsequent arguments, not previous ones);
+- an `Int` (>= 1) is interpreted as the plot destination in a multi-plot session (this specification applies to subsequent arguments, not previous ones);
+
+- an input in the form `"\\\$name"=>(array1, array2, etc...)` is interpreted as a named dataset.  Note that the dataset name must always start with a "`\$`";
 
 - an input in the form `keyword=value` is interpreted as a keyword/value pair.  The accepted keywords and their corresponding *gnuplot* commands are as follows:
   - `xrange=[low, high]` => `"set xrange [low:high]`;
@@ -1099,9 +1101,7 @@ The `@gp` macro, and its companion `@gsp` for 3D plots, allows to send data and 
   - `xlog=true`   => `set logscale x`;
   - `ylog=true`   => `set logscale y`;
   - `zlog=true`   => `set logscale z`.
-All Keyword names can be abbreviated as long as the resulting name is unambiguous.  E.g. you can use `xr=[1,10]` in place of `xrange=[1,10]`;
-
-- an input in the form `"name"=>(array1, array2, etc...)` is interpreted as a named dataset.
+All Keyword names can be abbreviated as long as the resulting name is unambiguous.  E.g. you can use `xr=[1,10]` in place of `xrange=[1,10]`.
 """
 macro gp(args...)
     out = Expr(:call)

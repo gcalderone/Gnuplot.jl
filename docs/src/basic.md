@@ -29,7 +29,7 @@ before running the examples.
 ```@setup abc
 using Gnuplot
 Gnuplot.quitall()
-mkdir("assets")
+mkpath("assets")
 Gnuplot.splash("assets/logo.png")
 saveas(file) = save(term="pngcairo size 480,360", output="assets/$(file).png")
 empty!(Gnuplot.options.init)
@@ -44,17 +44,17 @@ Gnuplot.exec("set term unknown")
 #### Plot a sinusoid:
 ```@example abc
 @gp "plot sin(x)"
-saveas("basic1") # hide
+saveas("ex001") # hide
 ```
-![](assets/basic1.png)
+![](assets/ex001.png)
 
 ---
 #### Plot two curves:
 ```@example abc
 @gp "set key left" "plot sin(x)" "pl cos(x)"
-saveas("basic2") # hide
+saveas("ex002") # hide
 ```
-![](assets/basic2.png)
+![](assets/ex002.png)
 
 !!! note
     Note that all gnuplot commands can be abbreviated as long as the resulting string is not ambiguous.  In the example above we used `pl` in place of `plot`.
@@ -65,9 +65,9 @@ saveas("basic2") # hide
 @gp    "set grid"  :-
 @gp :- "p sin(x)"  :-
 @gp :- "plo cos(x)"
-saveas("basic3") # hide
+saveas("ex003") # hide
 ```
-![](assets/basic3.png)
+![](assets/ex003.png)
 
 
 ### Send data from Julia to gnuplot:
@@ -75,9 +75,9 @@ saveas("basic3") # hide
 #### Plot a parabola
 ```@example abc
 @gp (1:20).^2
-saveas("basic4") # hide
+saveas("ex004") # hide
 ```
-![](assets/basic4.png)
+![](assets/ex004.png)
 
 
 ---
@@ -85,9 +85,9 @@ saveas("basic4") # hide
 ```@example abc
 x = 1:20
 @gp "set key left"   x ./ 20   x.^2   "with lines tit 'Parabola'"
-saveas("basic5") # hide
+saveas("ex005") # hide
 ```
-![](assets/basic5.png)
+![](assets/ex005.png)
 
 ---
 #### Multiple datasets, logarithmic axis, labels and colors, etc.
@@ -98,9 +98,9 @@ x = 1:0.1:10
 @gp :- x x.^0.5 "w l tit 'Pow 0.5' dt 2 lw 2 lc rgb 'red'"
 @gp :- x x      "w l tit 'Pow 1'   dt 1 lw 3 lc rgb 'blue'"
 @gp :- x x.^2   "w l tit 'Pow 2'   dt 3 lw 2 lc rgb 'purple'"
-saveas("basic6") # hide
+saveas("ex006") # hide
 ```
-![](assets/basic6.png)
+![](assets/ex006.png)
 
 !!! note
     The above example lacks the trailing `:-` symbol.  This means the plot will be updated at each command, adding one curve at a time.
@@ -143,9 +143,9 @@ where `NaN` in the `xrange` keyword means using axis autoscaling.
 img = randn(Float64, 30, 50)
 img[10,:] .= -5
 @gp img "w image notit"
-saveas("basic7a") # hide
+saveas("ex007a") # hide
 ```
-![](assets/basic7a.png)
+![](assets/ex007a.png)
 
 Note that the first index in the `img` matrix corresponds to the `x` coordinate when the image is displayed.
 
@@ -154,18 +154,18 @@ If the orientation is not the correct one you may adjust it with the gnuplot `ro
 using TestImages
 img = testimage("lighthouse");
 @gp "set size square" "set autoscale fix" img "rotate=-90deg with rgbimage notit"
-save(term="jpeg size 480,360", output="assets/basic7b.jpg") # hide
+save(term="jpeg size 480,360", output="assets/ex007b.jpg") # hide
 ```
-![](assets/basic7b.jpg)
+![](assets/ex007b.jpg)
 
 
 To display a gray image use `with image` in place of `with rgbimage`, e.g.:
 ```@example abc
 img = testimage("walkbridge");
 @gp palette(:lapaz) "set size square" "set autoscale fix" img "rotate=-0.5pi with image notit"
-save(term="jpeg size 480,360", output="assets/basic7c.jpg") # hide
+save(term="jpeg size 480,360", output="assets/ex007c.jpg") # hide
 ```
-![](assets/basic7c.jpg)
+![](assets/ex007c.jpg)
 
 Note that we used a custom palette (`:lapaz`, see [Palettes and line types](@ref)) and the rotation angle has been expressed in radians (`-0.5pi`).
 
@@ -178,9 +178,9 @@ E.g., to plot a spiral increasing in size along the `X` direction:
 ```@example abc
 x = 0:0.1:10pi
 @gsp cbr=[-1,1].*30  x  sin.(x) .* x  cos.(x) .* x  x./20  "w p pt 7 ps var lc pal"
-saveas("basic8") # hide
+saveas("ex008") # hide
 ```
-![](assets/basic8.png)
+![](assets/ex008.png)
 
 Note that the fourth array in the dataset, `x./20`, is used as by gnuplot as point size (`ps var`).  Also note that all the keywords discussed above can also be used in 3D plots.
 
@@ -191,9 +191,9 @@ A gnuplot-compliant palette can be retrieved with `palette()`, and used as any o
 ```@example abc
 x = 0:0.1:10pi
 @gsp palette(:viridis) cbr=[-1,1].*30  x  sin.(x) .* x  cos.(x) .* x  x./20  "w p pt 7 ps var lc pal"
-saveas("basic8a") # hide
+saveas("ex008a") # hide
 ```
-![](assets/basic8a.png)
+![](assets/ex008a.png)
 
 
 The [ColorSchemes](https://juliagraphics.github.io/ColorSchemes.jl/stable/basics/#Pre-defined-schemes-1) palettes can also be used to generate line types (actually just line colors), by means of the `linetypes()` function, e.g.
@@ -203,9 +203,9 @@ x = 1:0.1:4pi
 for i in 1:5
     @gp :- x i.* sin.(x) "w l notit lw 5"
 end
-saveas("basic9") # hide
+saveas("ex009") # hide
 ```
-![](assets/basic9.png)
+![](assets/ex009.png)
 
 
 
