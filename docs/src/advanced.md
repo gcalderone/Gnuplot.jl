@@ -128,6 +128,7 @@ The output value is the exit status of the underlying gnuplot process.
 You may also quit all active sessions at once with [`Gnuplot.quitall()`](@ref):
 ```@repl abc
 Gnuplot.quitall()
+Gnuplot.exec("set term unknown") # hide
 ```
 
 ## Histograms
@@ -193,5 +194,27 @@ saveas("ex014d") # hide
 
 
 ## Animations
+
+The [Multiplot](@ref) capabilities can also be used to stack plots one above the other in order to create an animation, as in the following example:
+```@example abc
+x = y = -10:0.33:10
+fz(x,y) = sin.(sqrt.(x.^2 + y.^2))./sqrt.(x.^2+y.^2)
+fxy = [fz(x,y) for x in x, y in y]
+@gsp "set xyplane at 0" "unset colorbox" cb=[-1,1] zr=[-1,1] 
+frame = 0
+for direction in [-1,1]
+    for factor in -1:0.1:1
+        global frame += 1
+        @gsp :- frame x y direction * factor .* fxy "w pm3d notit" :-
+    end
+end
+@gsp
+```
+The animation can also be saved in a gif file with:
+```@example abc
+save(term="gif animate size 480,360 delay 5", output="assets/animation.gif")
+```
+![](assets/animation.gif)
+
 ## Dry sessions
 ## Options
