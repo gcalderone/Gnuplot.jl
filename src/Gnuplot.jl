@@ -1343,8 +1343,8 @@ end
 A 1D histogram data.
 
 # Fields
-- `bins::Vector{Float64}`: middle points of the bins;
-- `counts::Vector{Float64}`: couts in the bins;
+- `bins::Vector{Float64}`: bin center values;
+- `counts::Vector{Float64}`: counts in the bins;
 - `binsize::Float64`: size of each bin;
 """
 mutable struct Histogram1D
@@ -1359,9 +1359,9 @@ end
 A 2D histogram data.
 
 # Fields
-- `bins1::Vector{Float64}`: middle points of the bins along first dimension;
-- `bins2::Vector{Float64}`: middle points of the bins along second dimension;
-- `counts::Vector{Float64}`: couts in the bins;
+- `bins1::Vector{Float64}`: bin center values along first dimension;
+- `bins2::Vector{Float64}`: bin center values along second dimension;
+- `counts::Vector{Float64}`: counts in the bins;
 - `binsize1::Float64`: size of each bin along first dimension;
 - `binsize2::Float64`: size of each bin along second dimension;
 """

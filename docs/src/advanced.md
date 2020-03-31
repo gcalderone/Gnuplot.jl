@@ -7,7 +7,7 @@ Here we will show a few advanced techniques for data visualization using **Gnupl
 using Gnuplot
 Gnuplot.quitall()
 mkpath("assets")
-saveas(file) = save(term="pngcairo size 480,360", output="assets/$(file).png")
+saveas(file) = save(term="pngcairo size 480,360 fontscale 0.8", output="assets/$(file).png")
 empty!(Gnuplot.options.init)
 Gnuplot.exec("set term unknown")
 ```
@@ -104,7 +104,7 @@ saveas("ex012") # hide
 
 ## Multiple sessions
 
-**Gnuplot.jl** can handle multiple sessions, i.e. multiple gnuplot processes running simultaneously.  Each session is identified by a symbol.
+**Gnuplot.jl** can handle multiple sessions, i.e. multiple gnuplot processes running simultaneously.  Each session is identified by an ID (`sid::Symbol`, in the documentation).
 
 In order to redirect commands to a specific session simply insert a symbol into your `@gp` or `@gsp` call, e.g.:
 ```@example abc
@@ -112,7 +112,7 @@ In order to redirect commands to a specific session simply insert a symbol into 
 @gp :GP2 "plot sin(x)"    # opens secondo window
 @gp :- :GP1 "plot cos(x)" # add a plot on first window
 ```
-If the session ID is not specified the `:default` session is considered.
+The session ID can appear in every position in the argument list, but only one ID can be present in each call.  If the session ID is not specified the `:default` session is considered.
 
 The names of all current sessions can be retrieved with [`session_names()`](@ref):
 ```@repl abc
@@ -130,8 +130,47 @@ You may also quit all active sessions at once with [`Gnuplot.quitall()`](@ref):
 Gnuplot.quitall()
 ```
 
-## Histograms (1D)
-## Histograms (2D)
+## Histograms
+**Gnuplot.jl** provides facilities to compute and display histograms, through the [`hist()`](@ref) function.  E.g., to quickly preview an histogram:
+```@example abc
+x = randn(1000);
+@gp hist(x)
+saveas("ex013a") # hide
+```
+![](assets/ex013a.png)
+
+A finer control on the output is achieved by setting the range to consider (`range=` keyword) and either the bin size (`bs=`) or the total number of bins (`nbins=`) in the histogram.  See [`hist()`](@ref) documentation for further information.
+
+Moreover, the [`hist()`](@ref) return a [`Gnuplot.Histogram1D`](@ref) structure, whose content can be exploited to customize histogram appearence, e.g.:
+```@example abc
+x = randn(1000);
+h = hist(x, range=3 .* [-1,1], bs=0.5)
+@gp h.bins h.counts "w histep t 'Data' lc rgb 'red'"
+saveas("ex013b") # hide
+```
+![](assets/ex013b.png)
+
+
+**Gnuplot.jl** also allows to compute 2D histograms by passing two vectors (with the same lengths) to [`hist()`](@ref).  A quick preview is simply obtained by:
+```@example abc
+x = randn(5000)
+y = randn(5000)
+@gp "set size ratio -1" hist(x, y)
+saveas("ex014a") # hide
+```
+![](assets/ex014a.png)
+
+Again, a finer control can be achieved by specifying ranges, bin size or number of bins (along both dimensions) and by explicitly using the content of the returned [`Gnuplot.Histogram2D`](@ref) structure:
+```@example abc
+h = hist(x, y, bs1=0.25, nbins2=10, range1=[-3,3], range2=[-3,3])
+@gp "set size ratio -1" h.bins1 h.bins2 h.counts "w image notit"
+saveas("ex014b") # hide
+```
+![](assets/ex014b.png)
+
+
+
+
 ## Contour lines
 ## Animations
 ## Dry sessions

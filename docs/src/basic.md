@@ -31,7 +31,7 @@ using Gnuplot
 Gnuplot.quitall()
 mkpath("assets")
 Gnuplot.splash("assets/logo.png")
-saveas(file) = save(term="pngcairo size 480,360", output="assets/$(file).png")
+saveas(file) = save(term="pngcairo size 480,360 fontscale 0.8", output="assets/$(file).png")
 empty!(Gnuplot.options.init)
 Gnuplot.exec("set term unknown")
 ```
@@ -221,15 +221,12 @@ The [`save()`](@ref) function allows to export all plots (as well as multiplots,
 
 All plots in this page have been saved with:
 ```julia
-save(term="pngcairo size 480,360", output="assets/output.png")
-```
-except the *Lena* image, saved with the `jpeg` terminal:
-```julia
-save(term="jpeg size 480,360", output="assets/output.png")
+save(term="pngcairo size 480,360 fontscale 0.8", output="assets/output.png")
 ```
 
+
 ## Gnuplot scripts
-Besides exporting plots in a file **Gnuplot.jl** can also save a *script*, i.e. a file containing the minimum set of data and commands required to generate a plot within gnuplot.
+Besides exporting plots in a file **Gnuplot.jl** can also save a *script*, i.e. a file containing the minimum set of data and commands required to re-create a figures using just gnuplot (Julia will be no longer needed).
 
 To generate a script for one of the example above use:
 ```julia
@@ -239,7 +236,9 @@ after the plot has been displayed.  The script can then be used within a gnuplot
 ```
 gunplot> load 'script.gp'
 ```
-to generate a plot identical to the original one, without using the Julia language.
+to generate a plot identical to the original one.
+
+Note that when images or large datasets are involved, `save()` may store the data in binary files under a directory whose name is `<script name>_data`. In order to work properly both the script and the created directory must be available in the same directory.
 
 The purpose of gnuplot scripts is to allow sharing all data, alongside a plot, in order to foster collaboration among scientists and replicability of results.  Moreover, a script can be used at any time to change the details of a plot, without the need to re-run the Julia code used to generate it the first time.
 
