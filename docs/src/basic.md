@@ -154,18 +154,18 @@ If the orientation is not the correct one you may adjust it with the gnuplot `ro
 using TestImages
 img = testimage("lighthouse");
 @gp "set size square" "set autoscale fix" img "rotate=-90deg with rgbimage notit"
-save(term="jpeg size 480,360", output="assets/ex007b.jpg") # hide
+saveas("ex007b") # hide
 ```
-![](assets/ex007b.jpg)
+![](assets/ex007b.png)
 
 
 To display a gray image use `with image` in place of `with rgbimage`, e.g.:
 ```@example abc
 img = testimage("walkbridge");
 @gp palette(:lapaz) "set size square" "set autoscale fix" img "rotate=-0.5pi with image notit"
-save(term="jpeg size 480,360", output="assets/ex007c.jpg") # hide
+saveas("ex007c") # hide
 ```
-![](assets/ex007c.jpg)
+![](assets/ex007c.png)
 
 Note that we used a custom palette (`:lapaz`, see [Palettes and line types](@ref)) and the rotation angle has been expressed in radians (`-0.5pi`).
 
@@ -184,19 +184,21 @@ saveas("ex008") # hide
 
 Note that the fourth array in the dataset, `x./20`, is used as by gnuplot as point size (`ps var`).  Also note that all the keywords discussed above can also be used in 3D plots.
 
+
 ## Palettes and line types
 The **Gnuplot.jl** package comes with all the [ColorSchemes](https://juliagraphics.github.io/ColorSchemes.jl/stable/basics/#Pre-defined-schemes-1) palettes readily available.
 
-A gnuplot-compliant palette can be retrieved with `palette()`, and used as any other command.  The previous example may use an alternative palette with:
+A gnuplot-compliant palette can be retrieved with [`palette()`](@ref), and used as any other command.  The previous example may use an alternative palette with:
 ```@example abc
 x = 0:0.1:10pi
-@gsp palette(:viridis) cbr=[-1,1].*30  x  sin.(x) .* x  cos.(x) .* x  x./20  "w p pt 7 ps var lc pal"
+@gsp palette(:viridis) cbr=[-1,1].*30 :-
+@gsp :-  x  sin.(x) .* x  cos.(x) .* x  x./20  "w p pt 7 ps var lc pal"
 saveas("ex008a") # hide
 ```
 ![](assets/ex008a.png)
 
 
-The [ColorSchemes](https://juliagraphics.github.io/ColorSchemes.jl/stable/basics/#Pre-defined-schemes-1) palettes can also be used to generate line types (actually just line colors), by means of the `linetypes()` function, e.g.
+The [ColorSchemes](https://juliagraphics.github.io/ColorSchemes.jl/stable/basics/#Pre-defined-schemes-1) palettes can also be used to generate line types (actually just line colors), by means of the [`linetypes()`](@ref) function, e.g.
 ```@example abc
 @gp linetypes(:deepsea)
 x = 1:0.1:4pi
@@ -207,12 +209,15 @@ saveas("ex009") # hide
 ```
 ![](assets/ex009.png)
 
-
+The list of all available palette can be retrieved with [`palette_names()`](@ref):
+```@repl abc
+palette_names()
+```
 
 
 ## Exporting plots to files
 
-The `save()` function allows to export all plots (as well as multiplots, see [Multiplot](@ref)) to a file using one of the many available gnuplot terminals.  To check which terminals are available in your platform type `set term` in your gnuplot terminal.
+The [`save()`](@ref) function allows to export all plots (as well as multiplots, see [Multiplot](@ref)) to a file using one of the many available gnuplot terminals.  To check which terminals are available in your platform type `set term` in your gnuplot terminal.
 
 All plots in this page have been saved with:
 ```julia
