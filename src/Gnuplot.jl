@@ -1,6 +1,6 @@
 module Gnuplot
 
-using StatsBase, ColorSchemes, ColorTypes, StructC14N, ReusePatterns
+using StatsBase, ColorSchemes, ColorTypes, StructC14N, DataStructures
 
 import Base.reset
 import Base.write
@@ -32,16 +32,22 @@ end
 
 
 # ---------------------------------------------------------------------
-@quasiabstract mutable struct DrySession
-    sid::Symbol                  # session ID
-    datas::Dict{String, DataSet} # data sets
-    plots::Vector{SinglePlot}    # commands and plot commands (one entry for each plot of the multiplot)
-    curmid::Int                  # current multiplot ID
+abstract type Session end
+
+mutable struct DrySession <: Session
+    sid::Symbol                         # session ID
+    datas::OrderedDict{String, DataSet} # data sets
+    plots::Vector{SinglePlot}           # commands and plot commands (one entry for each plot of the multiplot)
+    curmid::Int                         # current multiplot ID
 end
 
 
 # ---------------------------------------------------------------------
-@quasiabstract mutable struct GPSession <: DrySession
+mutable struct GPSession <: Session
+    sid::Symbol                         # session ID
+    datas::OrderedDict{String, DataSet} # data sets
+    plots::Vector{SinglePlot}           # commands and plot commands (one entry for each plot of the multiplot)
+    curmid::Int                         # current multiplot ID
     pin::Base.Pipe;
     pout::Base.Pipe;
     perr::Base.Pipe;
@@ -80,7 +86,7 @@ end
 # ╭───────────────────────────────────────────────────────────────────╮
 # │                         GLOBAL VARIABLES                          │
 # ╰───────────────────────────────────────────────────────────────────╯
-const sessions = Dict{Symbol, DrySession}()
+const sessions = OrderedDict{Symbol, Session}()
 const options = Options()
 
 
@@ -267,7 +273,7 @@ end
 # ---------------------------------------------------------------------
 function DrySession(sid::Symbol)
     (sid in keys(sessions))  &&  error("Gnuplot session $sid is already active")
-    out = DrySession(sid, Dict{String, DataSet}(), [SinglePlot()], 1)
+    out = DrySession(sid, OrderedDict{String, DataSet}(), [SinglePlot()], 1)
     sessions[sid] = out
     return out
 end
@@ -330,7 +336,7 @@ function GPSession(sid::Symbol)
     @async readTask(sid, pout, chan)
     @async readTask(sid, perr, chan)
 
-    out = GPSession(getfield.(Ref(session), fieldnames(concretetype(DrySession)))...,
+    out = GPSession(getfield.(Ref(session), fieldnames(DrySession))...,
                     pin, pout, perr, proc, chan)
     sessions[sid] = out
 
@@ -552,9 +558,9 @@ end
 # │              PRIVATE FUNCTIONS TO MANIPULATE SESSIONS             │
 # ╰───────────────────────────────────────────────────────────────────╯
 # ---------------------------------------------------------------------
-function reset(gp::DrySession)
+function reset(gp::Session)
     delete_binaries(gp)
-    gp.datas = Dict{String, DataSet}()
+    gp.datas = OrderedDict{String, DataSet}()
     gp.plots = [SinglePlot()]
     gp.curmid = 1
     exec(gp, "reset session")
@@ -563,7 +569,7 @@ end
 
 
 # ---------------------------------------------------------------------
-function setmulti(gp::DrySession, mid::Int)
+function setmulti(gp::Session, mid::Int)
     @assert mid >= 1 "Multiplot ID must be a >= 1"
     while length(gp.plots) < mid
         push!(gp.plots, SinglePlot())
@@ -573,11 +579,11 @@ end
 
 
 # ---------------------------------------------------------------------
-newBlockName(gp::DrySession) = string("\$data", length(gp.datas)+1)
+newBlockName(gp::Session) = string("\$data", length(gp.datas)+1)
 
 
 # ---------------------------------------------------------------------
-function add_dataset(gp::DrySession, gpsource::String, accum::Vector{String})
+function add_dataset(gp::Session, gpsource::String, accum::Vector{String})
     prepend!(accum, [gpsource * " << EOD"])
     append!( accum, ["EOD"])
     preview = (length(accum) < 6  ?  accum  :  [accum[1:5]..., "...", accum[end]])
@@ -587,7 +593,7 @@ function add_dataset(gp::DrySession, gpsource::String, accum::Vector{String})
     return gpsource
 end
 
-function add_dataset(gp::DrySession, name::String, args...)
+function add_dataset(gp::Session, name::String, args...)
     @assert options.preferred_format in [:auto, :bin, :text] "Unexpected value for `options.preferred_format`: $(options.preferred_format)"
 
     binary = false
@@ -625,13 +631,13 @@ end
 
 
 # ---------------------------------------------------------------------
-function add_cmd(gp::DrySession, v::String)
+function add_cmd(gp::Session, v::String)
     (v != "")  &&  (push!(gp.plots[gp.curmid].cmds, v))
     (length(gp.plots) == 1)  &&  (exec(gp, v))  # execute now to check against errors
     return nothing
 end
 
-function add_cmd(gp::DrySession; args...)
+function add_cmd(gp::Session; args...)
     for v in parseKeywords(;args...)
         add_cmd(gp, v)
     end
@@ -640,13 +646,13 @@ end
 
 
 # ---------------------------------------------------------------------
-function add_plot(gp::DrySession, plotspec)
+function add_plot(gp::Session, plotspec)
     push!(gp.plots[gp.curmid].elems, plotspec)
 end
 
 
 # ---------------------------------------------------------------------
-function delete_binaries(gp::DrySession)
+function delete_binaries(gp::Session)
     for (name, d) in gp.datas
         if d.file != ""  # delete binary files
             rm(d.file, force=true)
@@ -668,17 +674,18 @@ function quit(gp::GPSession)
     close(gp.perr)
     wait( gp.proc)
     exitCode = gp.proc.exitcode
-    invoke(quit, Tuple{DrySession}, gp)
+    delete_binaries(gp)
+    delete!(sessions, gp.sid)
     return exitCode
 end
 
 
 # --------------------------------------------------------------------
-function stats(gp::DrySession, name::String)
+function stats(gp::Session, name::String)
     @info sid=gp.sid name=name source=gp.datas[name].gpsource
     println(exec(gp, "stats " * gp.datas[name].gpsource))
 end
-stats(gp::DrySession) = for (name, d) in gp.datas
+stats(gp::Session) = for (name, d) in gp.datas
     stats(gp, name)
 end
 
@@ -741,7 +748,7 @@ end
 
 
 # ---------------------------------------------------------------------
-function savescript(gp::DrySession, filename; term::AbstractString="", output::AbstractString="")
+function savescript(gp::Session, filename; term::AbstractString="", output::AbstractString="")
     function copy_binary_files(gp, filename)
         function data_dirname(path)
             dir = dirname(path)
@@ -1237,36 +1244,45 @@ palette_names() = Symbol.(keys(ColorSchemes.colorschemes))
 
 
 """
-    linetypes(cmap::ColorScheme)
-    linetypes(s::Symbol)
+    linetypes(cmap::ColorScheme; rev=false)
+    linetypes(s::Symbol; rev=false)
 
 Convert a `ColorScheme` object into a string containing the *gnuplot* commands to set up *linetype* colors.
 
-If the argument is a `Symbol` it is interpreted as the name of one of the predefined schemes in [ColorSchemes](https://juliagraphics.github.io/ColorSchemes.jl/stable/basics/#Pre-defined-schemes-1).
+If the argument is a `Symbol` it is interpreted as the name of one of the predefined schemes in [ColorSchemes](https://juliagraphics.github.io/ColorSchemes.jl/stable/basics/#Pre-defined-schemes-1). If `rev=true` the line colors are reversed.
 """
-linetypes(s::Symbol) = linetypes(colorschemes[s])
-function linetypes(cmap::ColorScheme)
+linetypes(s::Symbol; rev=false) = linetypes(colorschemes[s], rev=rev)
+function linetypes(cmap::ColorScheme; rev=false)
     out = Vector{String}()
     for i in 1:length(cmap.colors)
-        push!(out, "set linetype $i lc rgb '#" * Base.hex(cmap.colors[i]))
+        if rev
+            color = cmap.colors[end - i + 1]
+        else
+            color = cmap.colors[i]
+        end
+        push!(out, "set linetype $i lc rgb '#" * Base.hex(color))
     end
     return join(out, "\n") * "\nset linetype cycle " * string(length(cmap.colors)) * "\n"
 end
 
 
 """
-    palette(cmap::ColorScheme)
-    palette(s::Symbol)
+    palette(cmap::ColorScheme; rev=false)
+    palette(s::Symbol; rev=false)
 
 Convert a `ColorScheme` object into a string containing the *gnuplot* commands to set up the corresponding palette.
 
-If the argument is a `Symbol` it is interpreted as the name of one of the predefined schemes in [ColorSchemes](https://juliagraphics.github.io/ColorSchemes.jl/stable/basics/#Pre-defined-schemes-1).
+If the argument is a `Symbol` it is interpreted as the name of one of the predefined schemes in [ColorSchemes](https://juliagraphics.github.io/ColorSchemes.jl/stable/basics/#Pre-defined-schemes-1). If `rev=true` the palette is reversed.
 """
-palette(s::Symbol) = palette(colorschemes[s])
-function palette(cmap::ColorScheme)
+palette(s::Symbol; rev=false) = palette(colorschemes[s], rev=rev)
+function palette(cmap::ColorScheme; rev=false)
     levels = Vector{String}()
     for x in LinRange(0, 1, length(cmap.colors))
-        color = get(cmap, x)
+        if rev
+            color = get(cmap, 1-x)
+        else
+            color = get(cmap, x)
+        end
         push!(levels, "$x '#" * Base.hex(color) * "'")
     end
     return "set palette defined (" * join(levels, ", ") * ")\nset palette maxcol $(length(cmap.colors))\n"
