@@ -138,9 +138,9 @@ tostring(c::ColorTypes.RGB) = string(Int(c.r*255)) * " " * string(Int(c.g*255)) 
 
 Convert one (or more) arrays into an `Vector{String}`, ready to be ingested as an *inline datablock*.
 
-Data are sent from Julia to *gnuplot* in the form of an array of strings, also called *inline datablock* in the *gnuplot* manual.  This function performs such transformation.
+Data are sent from Julia to gnuplot in the form of an array of strings, also called *inline datablock* in the gnuplot manual.  This function performs such transformation.
 
-If you experience errors when sending data to *gnuplot* try to filter the arrays through this function.
+If you experience errors when sending data to gnuplot try to filter the arrays through this function.
 """
 function arrays2datablock(args...)
     @assert length(args) > 0
@@ -1013,7 +1013,7 @@ version() = v"1.0-dev"
 """
     Gnuplot.gpversion()
 
-Return the *gnuplot* application version.
+Return the gnuplot application version.
 
 Raise an error if version is < 5.0 (required to use data blocks).
 """
@@ -1049,7 +1049,7 @@ end
     Gnuplot.exec(sid::Symbol, command::String)
     Gnuplot.exec(command::String)
 
-Execute the *gnuplot* command `command` on the underlying *gnuplot* process of the `sid` session, and return the results as a `Vector{String}`.  If a *gnuplot* error arises it is propagated as an `ErrorException`.
+Execute the gnuplot command `command` on the underlying gnuplot process of the `sid` session, and return the results as a `Vector{String}`.  If a gnuplot error arises it is propagated as an `ErrorException`.
 
 The the `sid` argument is not provided, the default session is considered.
 
@@ -1077,7 +1077,7 @@ end
 """
     Gnuplot.quitall()
 
-Quit all the sessions and the associated *gnuplot* processes.
+Quit all the sessions and the associated gnuplot processes.
 """
 function quitall()
     for sid in keys(sessions)
@@ -1094,13 +1094,13 @@ end
 """
     @gp args...
 
-The `@gp` macro, and its companion `@gsp` for 3D plots, allows to send data and commands to the *gnuplot* using an extremely concise syntax.  The macros accepts any number of arguments, with the following meaning:
+The `@gp` macro, and its companion `@gsp` for 3D plots, allows to send data and commands to the gnuplot using an extremely concise syntax.  The macros accepts any number of arguments, with the following meaning:
 
 - one, or a group of consecutive, array(s) build up a dataset.  The different arrays are accessible as columns 1, 2, etc. from the `gnuplot` process.  The number of required input arrays depends on the chosen plot style (see `gnuplot` documentation);
 
 - a string occurring before a dataset is interpreted as a `gnuplot` command (e.g. `set grid`);
 
-- a string occurring immediately after a dataset is interpreted as a *plot element* for the dataset, by which you can specify `using` clause, `with` clause, line styles, etc..  All keywords may be abbreviated following *gnuplot* conventions.  Moreover, "plot" and "splot" can be abbreviated to "p" and "s" respectively;
+- a string occurring immediately after a dataset is interpreted as a *plot element* for the dataset, by which you can specify `using` clause, `with` clause, line styles, etc..  All keywords may be abbreviated following gnuplot conventions.  Moreover, "plot" and "splot" can be abbreviated to "p" and "s" respectively;
 
 - the special symbol `:-`, whose meaning is to avoid starting a new plot (if given as first argument), or to avoid immediately running all commands to create the final plot (if given as last argument).  Its purpose is to allow splitting one long statement into multiple (shorter) ones;
 
@@ -1110,7 +1110,7 @@ The `@gp` macro, and its companion `@gsp` for 3D plots, allows to send data and 
 
 - an input in the form `"\\\$name"=>(array1, array2, etc...)` is interpreted as a named dataset.  Note that the dataset name must always start with a "`\$`";
 
-- an input in the form `keyword=value` is interpreted as a keyword/value pair.  The accepted keywords and their corresponding *gnuplot* commands are as follows:
+- an input in the form `keyword=value` is interpreted as a keyword/value pair.  The accepted keywords and their corresponding gnuplot commands are as follows:
   - `xrange=[low, high]` => `"set xrange [low:high]`;
   - `yrange=[low, high]` => `"set yrange [low:high]`;
   - `zrange=[low, high]` => `"set zrange [low:high]`;
@@ -1162,9 +1162,9 @@ end
     save(; term="", output="")
     save(script_filename::String ;term="", output="")
 
-Export a (multi-)plot into the external file name provided in the `output=` keyword.  The *gnuplot* terminal to use is provided through the `term=` keyword.
+Export a (multi-)plot into the external file name provided in the `output=` keyword.  The gnuplot terminal to use is provided through the `term=` keyword.
 
-If the `script_filename` argument is provided a *gnuplot script* will be written in place of the output image.  The latter can then be used in a pure *gnuplot* session (Julia is no longer needed) to generate exactly the same original plot.
+If the `script_filename` argument is provided a *gnuplot script* will be written in place of the output image.  The latter can then be used in a pure gnuplot session (Julia is no longer needed) to generate exactly the same original plot.
 
 If the `sid` argument is provided the operation applies to the corresponding session.
 """
@@ -1262,7 +1262,7 @@ palette_names() = Symbol.(keys(ColorSchemes.colorschemes))
     linetypes(cmap::ColorScheme; rev=false)
     linetypes(s::Symbol; rev=false)
 
-Convert a `ColorScheme` object into a string containing the *gnuplot* commands to set up *linetype* colors.
+Convert a `ColorScheme` object into a string containing the gnuplot commands to set up *linetype* colors.
 
 If the argument is a `Symbol` it is interpreted as the name of one of the predefined schemes in [ColorSchemes](https://juliagraphics.github.io/ColorSchemes.jl/stable/basics/#Pre-defined-schemes-1). If `rev=true` the line colors are reversed.
 """
@@ -1285,7 +1285,7 @@ end
     palette(cmap::ColorScheme; rev=false)
     palette(s::Symbol; rev=false)
 
-Convert a `ColorScheme` object into a string containing the *gnuplot* commands to set up the corresponding palette.
+Convert a `ColorScheme` object into a string containing the gnuplot commands to set up the corresponding palette.
 
 If the argument is a `Symbol` it is interpreted as the name of one of the predefined schemes in [ColorSchemes](https://juliagraphics.github.io/ColorSchemes.jl/stable/basics/#Pre-defined-schemes-1). If `rev=true` the palette is reversed.
 """
@@ -1308,7 +1308,7 @@ end
 """
     terminals()
 
-Return a `Vector{String}` with the names of all the available *gnuplot* terminals.
+Return a `Vector{String}` with the names of all the available gnuplot terminals.
 """
 terminals() = split(strip(exec("print GPVAL_TERMINALS")), " ")
 
@@ -1318,7 +1318,7 @@ terminals() = split(strip(exec("print GPVAL_TERMINALS")), " ")
     terminal(sid::Symbol)
     terminal()
 
-Return a `String` with the current *gnuplot* terminal (and its options) of the process associated to session `sid`, or to the default session (if `sid` is not provided).
+Return a `String` with the current gnuplot terminal (and its options) of the process associated to session `sid`, or to the default session (if `sid` is not provided).
 """
 terminal(sid::Symbol=options.default) = exec(getsession(sid), "print GPVAL_TERM") * " " * exec(getsession(sid), "print GPVAL_TERMOPTIONS")
 
@@ -1327,7 +1327,7 @@ terminal(sid::Symbol=options.default) = exec(getsession(sid), "print GPVAL_TERM"
 """
     test_terminal(term=nothing; linetypes=nothing, palette=nothing)
 
-Run the `test` and `test palette` commands on a *gnuplot* terminal.
+Run the `test` and `test palette` commands on a gnuplot terminal.
 
 If no `term` is given it will use the default terminal. If `linetypes` and `palette` are given they are used as input to the [`linetypes`](@ref) and [`palette`](@ref) function repsetcively to load the associated color scheme.
 
@@ -1559,7 +1559,7 @@ Coordinates of all contour lines of a given level.
 
 # Fields
  - `paths::Vector{Path2d}`: vector of [`Path2d`](@ref) objects, one for each continuous path;
- - `data::Vector{String}`: vector with string representation of all paths (ready to be sent to *gnuplot*);
+ - `data::Vector{String}`: vector with string representation of all paths (ready to be sent to gnuplot);
  - `z::Float64`: level of the contour lines.
 """
 mutable struct IsoContourLines
@@ -1570,7 +1570,7 @@ mutable struct IsoContourLines
         @assert length(z) == 1
         data = Vector{String}()
         for i in 1:length(paths)
-            append!(data, arrays2datablock(paths[i].x, paths[i].y, z .* fill(1., length(paths[i].x)))
+            append!(data, arrays2datablock(paths[i].x, paths[i].y, z .* fill(1., length(paths[i].x))))
             push!(data, "")
         end
         return new(paths, data, z)
@@ -1586,7 +1586,7 @@ Compute paths of contour lines for 2D data, and return a vector of [`IsoContourL
 # Arguments:
 - `x`, `y`: Coordinates;
 - `h`: the levels on which iso contour lines are to be calculated
-- `cntrparam`: settings to compute contour line paths (see *gnuplot* documentation for `cntrparam`).
+- `cntrparam`: settings to compute contour line paths (see gnuplot documentation for `cntrparam`).
 
 # Example
 ```julia

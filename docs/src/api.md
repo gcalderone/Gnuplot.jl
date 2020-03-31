@@ -10,6 +10,7 @@ The list of **Gnuplot.jl** exported symbols is as follows:
 ```@docs
 @gp
 @gsp
+boxxyerror
 contourlines
 dataset_names
 hist

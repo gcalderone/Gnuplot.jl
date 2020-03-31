@@ -162,16 +162,36 @@ saveas("ex014a") # hide
 
 Again, a finer control can be achieved by specifying ranges, bin size or number of bins (along both dimensions) and by explicitly using the content of the returned [`Gnuplot.Histogram2D`](@ref) structure:
 ```@example abc
-h = hist(x, y, bs1=0.25, nbins2=10, range1=[-3,3], range2=[-3,3])
+h = hist(x, y, bs1=0.5, nbins2=10, range1=[-3,3], range2=[-3,3])
 @gp "set size ratio -1" h.bins1 h.bins2 h.counts "w image notit"
 saveas("ex014b") # hide
 ```
 ![](assets/ex014b.png)
 
 
+Alternatively, 2D histograms may be displayed using the `boxxyerror` plot style which allows more flexibility in, e.g., handling transparencies and drawing the histogram grid.  In this case the data can be prepared using the [`boxxyerror()`](@ref) function, as follows:
+```@example abc
+box = boxxyerror(h.bins1, h.bins2, cartesian=true)
+@gp "set size ratio -1" "set style fill solid 0.5 border lc rgb 'gray'" :-
+@gp :- box... h.counts "w boxxyerror notit lc pal"
+saveas("ex014c") # hide
+```
+![](assets/ex014c.png)
 
 
 ## Contour lines
+Although gnuplot already handles contours by itself (with the `set contour` command), **Gnuplot.jl** provides a way to calculate contour lines paths before displaying them, using the [`contourlines()`](@ref) function.  We may use it for, e.g., plot contour lines with customized widths and palette, according to their z level.  Continuing previous example:
+```@example abc
+clines = contourlines(h.bins1, h.bins2, h.counts, cntrparam="levels discrete 50, 100, 200");
+for i in 1:length(clines)
+    @gp :- clines[i].data "w l t '$(clines[i].z)' lw $(1.5 * i) lc pal" :-
+end
+@gp :- key="outside top center box horizontal"
+saveas("ex014d") # hide
+```
+![](assets/ex014d.png)
+
+
 ## Animations
 ## Dry sessions
 ## Options
