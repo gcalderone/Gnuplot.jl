@@ -226,19 +226,63 @@ save(term="pngcairo size 480,360 fontscale 0.8", output="assets/output.png")
 
 
 ## Gnuplot scripts
-Besides exporting plots in a file **Gnuplot.jl** can also save a *script*, i.e. a file containing the minimum set of data and commands required to re-create a figures using just gnuplot (Julia will be no longer needed).
+Besides exporting plots in a file **Gnuplot.jl** can also save a *script*, i.e. a file containing the minimum set of data and commands required to re-create a figure using just gnuplot.
 
 To generate a script for one of the example above use:
 ```julia
 save("script.gp")
 ```
-after the plot has been displayed.  The script can then be used within a gnuplot session as follows:
+after the plot has been displayed.  Note that when images or large datasets are involved, `save()` may store the data in binary files under a directory named `<script name>_data`. In order to work properly both the script and the associated directory must be available in the same directory.
+
+
+E.g., the following code:
+```julia
+x = 1:10
+@gp x x.^2 "w l"
+save("script1.gp")
 ```
-gunplot> load 'script.gp'
+will produce the following file, named `script1.gp`:
+```
+reset session
+$data1 << EOD
+ 1 1
+ 2 4
+ 3 9
+ 4 16
+ 5 25
+ 6 36
+ 7 49
+ 8 64
+ 9 81
+ 10 100
+EOD
+plot  \
+  $data1 w l
+set output
+```
+
+While the following:
+```julia
+img = testimage("lighthouse");
+@gp "set size square" "set autoscale fix" img "rotate=-90deg with rgbimage notit"
+save("script2.gp")
+```
+will produce:
+```
+reset session
+set size square
+set autoscale fix
+plot  \
+   './script2_data/jl_vH8X4k' binary array=(512, 768) rotate=-90deg with rgbimage notit
+set output
+```
+
+The above scripts can be loaded into a pure gnuplot session (Julia is no longer needed) as follows:
+```
+gunplot> load 'script1.gp'
 ```
 to generate a plot identical to the original one.
 
-Note that when images or large datasets are involved, `save()` may store the data in binary files under a directory whose name is `<script name>_data`. In order to work properly both the script and the created directory must be available in the same directory.
 
 The purpose of gnuplot scripts is to allow sharing all data, alongside a plot, in order to foster collaboration among scientists and replicability of results.  Moreover, a script can be used at any time to change the details of a plot, without the need to re-run the Julia code used to generate it the first time.
 
