@@ -8,7 +8,7 @@ import Base.write
 export session_names, dataset_names, palette_names, linetypes, palette,
     terminal, terminals, test_terminal,
     stats, @gp, @gsp, save,
-    contourlines, hist
+    boxxyerror, contourlines, hist
 
 # ╭───────────────────────────────────────────────────────────────────╮
 # │                           TYPE DEFINITIONS                        │
@@ -370,6 +370,21 @@ function getsession(sid::Symbol=options.default)
 end
 
 
+function gp_write_table(args...; kw...)
+    tmpfile = Base.Filesystem.tempname()
+    sid = Symbol("j", Base.Libc.getpid())
+    gp = getsession(sid)
+    reset(gp)
+    exec(sid, "set term unknown")
+    driver(sid, "set table '$tmpfile'", args...; kw...)
+    exec(sid, "unset table")
+    quit(sid)
+    out = readlines(tmpfile)
+    rm(tmpfile)
+    return out
+end
+
+
 # ╭───────────────────────────────────────────────────────────────────╮
 # │                       write() and writeread()                     │
 # ╰───────────────────────────────────────────────────────────────────╯
@@ -620,7 +635,7 @@ function add_dataset(gp::Session, name::String, args...)
             return gpsource
         catch err
             if isa(err, MethodError)
-                @warn "No method to write data as a binary file, resort to inline datablock..."
+                # @warn "No method to write data as a binary file, resort to inline datablock..."
             else
                 rethrow()
             end
@@ -1487,6 +1502,9 @@ end
 
 
 # --------------------------------------------------------------------
+"""
+    boxxyerror(x, y; xmin=NaN, ymin=NaN, xmax=NaN, ymax=NaN, cartesian=false)
+"""
 function boxxyerror(x, y; xmin=NaN, ymin=NaN, xmax=NaN, ymax=NaN, cartesian=false)
     function box(v; vmin=NaN, vmax=NaN)
         vlow  = Vector{Float64}(undef, length(v))
@@ -1583,25 +1601,14 @@ end
 ```
 """
 function contourlines(args...; cntrparam="level auto 10")
-    tmpfile = Base.Filesystem.tempname()
-    sid = Symbol("j", Base.Libc.getpid())
-    if !haskey(Gnuplot.sessions, sid)
-        gp = getsession(sid)
-    end
-
-    Gnuplot.exec(sid, "set term unknown")
-    @gsp    sid "set contour base" "unset surface" :-
-    @gsp :- sid "set cntrparam $cntrparam" :-
-    @gsp :- sid "set table '$tmpfile'" :-
-    @gsp :- sid args...
-    Gnuplot.exec(sid, "unset table")
-    Gnuplot.exec(sid, "reset")
+    lines = gp_write_table("set contour base", "unset surface",
+                           "set cntrparam $cntrparam", args..., flag3d=true)
 
     level = NaN
     path = Path2d()
     paths = Vector{Path2d}()
     levels = Vector{Float64}()
-    for l in readlines(tmpfile)
+    for l in lines
         l = strip(l)
         if (l == "")  ||
             !isnothing(findfirst("# Contour ", l))
@@ -1627,7 +1634,6 @@ function contourlines(args...; cntrparam="level auto 10")
         push!(paths, path)
         push!(levels, level)
     end
-    rm(tmpfile)
     @assert length(paths) > 0
     i = sortperm(levels)
     paths  = paths[ i]
