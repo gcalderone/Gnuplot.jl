@@ -63,5 +63,5 @@ In this documentation:
 
 ## Table of Contents
 ```@contents
-Pages = ["index.md", "install.md", "basic.md", "advanced.md", "examples.md", "api.md"]
+Pages = ["index.md", "install.md", "basic.md", "advanced.md", "tips.md", "examples.md", "api.md"]
 ```

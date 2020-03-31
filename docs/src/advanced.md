@@ -1,4 +1,4 @@
-# Advanced techniques
+# Advanced usage
 
 Here we will show a few advanced techniques for data visualization using **Gnuplot.jl**.
 
@@ -26,12 +26,12 @@ and can be used as an argument to both `@gp` and `gsp`, e.g.:
 x = range(-2pi, stop=2pi, length=100);
 y = sin.(x)
 name = "\$MyDataSet1"
-@gp name=>(x, y) "plot $name w l lc rgb 'black'" "pl $name u 1:(-1.5*\$2) w l lc rgb 'red'"
+@gp name=>(x, y) "plot $name w l lc rgb 'black'" "pl $name u 1:(1.5*\$2) w l lc rgb 'red'"
 saveas("ex010") # hide
 ```
 ![](assets/ex010.png)
 
-Both curves use the same input data, but the red curve has the second column (`\$2`, corresponding to the *y* value) is multiplied by a factor -1.5.
+Both curves use the same input data, but the red curve has the second column (`\$2`, corresponding to the *y* value) multiplied by a factor 1.5.
 
 A named dataset comes in hand also when using gnuplot to fit experimental data to a model, e.g.:
 ```@example abc
