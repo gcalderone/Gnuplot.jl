@@ -32,7 +32,7 @@ The following examples are supposed to be rather self-explaining.  See [document
 ```julia
 x = 1.:20
 @gp x x.^2 "with lines title 'Parabola'"
-save(term="pngcairo size 640,480", output="examples/ex1.png")
+save(term="pngcairo size 480,360", output="examples/ex1.png")
 save("parabola.gp")  # => save a script file with both data and command to re-create the plot.  
 ```
 ![ex1.png](examples/ex1.png)
