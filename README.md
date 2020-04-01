@@ -70,7 +70,7 @@ save(term="pngcairo size 660,350 fontscale 0.8", output="examples/ex3.png")
 ![ex3.png](examples/ex3.png)
 
 
-## Examples
+## Further examples
 The main gallery of examples is maintained in a separate repository:
 https://lazarusa.github.io/gnuplot-examples/
 
