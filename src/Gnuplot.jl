@@ -1206,7 +1206,7 @@ function splash(outputfile="")
         elseif "aqua" in terms
             gpexec(gp, "set term aqua noenhanced size 600,300")
         else
-            @warn "None of the `wxt`, `qt` and `aqua` terminals are available.  Output may look strange.."
+            @warn "None of the `wxt`, `qt` and `aqua` terminals are available.  Output may look strange..."
         end
     else
         gpexec(gp, "set term unknown")
