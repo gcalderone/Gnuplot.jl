@@ -302,13 +302,16 @@ function GPSession(sid::Symbol)
             end
             if line == "GNUPLOT_CAPTURE_BEGIN"
                 saveOutput = true
+            elseif line == "GNUPLOT_CAPTURE_END"
+                put!(channel, line)
+                saveOutput = false
             else
-                if ((line != "")  &&  (line != "GNUPLOT_CAPTURE_END")  &&  (options.verbose))  ||
-                    !isnothing(match(r"clipboard", line))
-                    printstyled(color=:cyan, "GNUPLOT ($sid) -> $line\n")
+                if line != ""
+                    if options.verbose  ||  !saveOutput
+                        printstyled(color=:cyan, "GNUPLOT ($sid) -> $line\n")
+                    end
                 end
                 (saveOutput)  &&  (put!(channel, line))
-                (line == "GNUPLOT_CAPTURE_END")  &&  (saveOutput = false)
             end
         end
         delete!(sessions, sid)
