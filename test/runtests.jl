@@ -166,9 +166,9 @@ if Gnuplot.options.dry
     b = 0.3
     c = 0.7
 else
-    a = Meta.parse(Gnuplot.exec("print a"))
-    b = Meta.parse(Gnuplot.exec("print b"))
-    c = Meta.parse(Gnuplot.exec("print c"))
+    a = Meta.parse(gpexec("print a"))
+    b = Meta.parse(gpexec("print b"))
+    c = Meta.parse(gpexec("print c"))
 end
 
 @gp    :dry "f(x) = a * sin(b + c*x); a = 1; b = 1; c = 1;"  :-
@@ -183,7 +183,7 @@ name = "\$MyDataSet1"
 @gp :- :dry
 save("test.gp")        # write on file test.gp
 Gnuplot.quitall()
-Gnuplot.exec("load 'test.gp'") # load file test.gp
+gpexec("load 'test.gp'") # load file test.gp
 
 #-----------------------------------------------------------------
 @gp("""

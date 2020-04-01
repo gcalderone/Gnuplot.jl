@@ -7,7 +7,7 @@ import Base.write
 
 export session_names, dataset_names, palette_names, linetypes, palette,
     terminal, terminals, test_terminal,
-    stats, @gp, @gsp, save,
+    stats, @gp, @gsp, save, gpexec,
     boxxyerror, contourlines, hist
 
 # ╭───────────────────────────────────────────────────────────────────╮
@@ -134,7 +134,7 @@ tostring(::Missing) = "?"
 tostring(c::ColorTypes.RGB) = string(Int(c.r*255)) * " " * string(Int(c.g*255)) * " " * string(Int(c.b*255))
 
 """
-    Gnuplot.arrays2datablock(arrays...)
+    arrays2datablock(arrays...)
 
 Convert one (or more) arrays into an `Vector{String}`, ready to be ingested as an *inline datablock*.
 
@@ -352,7 +352,7 @@ function GPSession(sid::Symbol)
     sessions[sid] = out
 
     for l in options.init
-        writeread(out, l)
+        gpexec(out, l)
     end
 
     # Set window title (if not already set)
@@ -386,9 +386,9 @@ function gp_write_table(args...; kw...)
     sid = Symbol("j", Base.Libc.getpid())
     gp = getsession(sid)
     reset(gp)
-    exec(sid, "set term unknown")
+    gpexec(sid, "set term unknown")
     driver(sid, "set table '$tmpfile'", args...; kw...)
-    exec(sid, "unset table")
+    gpexec(sid, "unset table")
     quit(sid)
     out = readlines(tmpfile)
     rm(tmpfile)
@@ -589,7 +589,7 @@ function reset(gp::Session)
     gp.datas = OrderedDict{String, DataSet}()
     gp.plots = [SinglePlot()]
     gp.curmid = 1
-    exec(gp, "reset session")
+    gpexec(gp, "reset session")
     return nothing
 end
 
@@ -659,7 +659,7 @@ end
 # ---------------------------------------------------------------------
 function add_cmd(gp::Session, v::String)
     (v != "")  &&  (push!(gp.plots[gp.curmid].cmds, v))
-    (length(gp.plots) == 1)  &&  (exec(gp, v))  # execute now to check against errors
+    (length(gp.plots) == 1)  &&  (gpexec(gp, v))  # execute now to check against errors
     return nothing
 end
 
@@ -709,7 +709,7 @@ end
 # --------------------------------------------------------------------
 function stats(gp::Session, name::String)
     @info sid=gp.sid name=name source=gp.datas[name].gpsource
-    println(exec(gp, "stats " * gp.datas[name].gpsource))
+    println(gpexec(gp, "stats " * gp.datas[name].gpsource))
 end
 stats(gp::Session) = for (name, d) in gp.datas
     stats(gp, name)
@@ -717,12 +717,12 @@ end
 
 
 # ╭───────────────────────────────────────────────────────────────────╮
-# │               exec(), execall(), dump() and driver()              │
+# │             gpexec(), execall(), dump() and driver()              │
 # ╰───────────────────────────────────────────────────────────────────╯
 
 # ---------------------------------------------------------------------
-exec(gp::DrySession, command::String) = ""
-function exec(gp::GPSession, command::String)
+gpexec(gp::DrySession, command::String) = ""
+function gpexec(gp::GPSession, command::String)
     answer = Vector{String}()
     push!(answer, writeread(gp, command)...)
 
@@ -745,29 +745,29 @@ end
 # ---------------------------------------------------------------------
 execall(gp::DrySession; term::AbstractString="", output::AbstractString="") = nothing
 function execall(gp::GPSession; term::AbstractString="", output::AbstractString="")
-    exec(gp, "reset")
+    gpexec(gp, "reset")
     if term != ""
         former_term = writeread(gp, "print GPVAL_TERM")[1]
         former_opts = writeread(gp, "print GPVAL_TERMOPTIONS")[1]
-        exec(gp, "set term $term")
+        gpexec(gp, "set term $term")
     end
-    (output != "")  &&  exec(gp, "set output '$output'")
+    (output != "")  &&  gpexec(gp, "set output '$output'")
 
     for i in 1:length(gp.plots)
         d = gp.plots[i]
         for j in 1:length(d.cmds)
-            exec(gp, d.cmds[j])
+            gpexec(gp, d.cmds[j])
         end
         if length(d.elems) > 0
             s = (d.flag3d  ?  "splot "  :  "plot ") * " \\\n  " *
                 join(d.elems, ", \\\n  ")
-            exec(gp, s)
+            gpexec(gp, s)
         end
     end
-    (length(gp.plots) > 1)  &&  exec(gp, "unset multiplot")
-    (output != "")  &&  exec(gp, "set output")
+    (length(gp.plots) > 1)  &&  gpexec(gp, "unset multiplot")
+    (output != "")  &&  gpexec(gp, "set output")
     if term != ""
-        exec(gp, "set term $former_term $former_opts")
+        gpexec(gp, "set term $former_term $former_opts")
     end
     return nothing
 end
@@ -1057,8 +1057,8 @@ end
 
 # --------------------------------------------------------------------
 """
-    Gnuplot.exec(sid::Symbol, command::String)
-    Gnuplot.exec(command::String)
+    gpexec(sid::Symbol, command::String)
+    gpexec(command::String)
 
 Execute the gnuplot command `command` on the underlying gnuplot process of the `sid` session, and return the results as a `Vector{String}`.  If a gnuplot error arises it is propagated as an `ErrorException`.
 
@@ -1066,12 +1066,12 @@ The the `sid` argument is not provided, the default session is considered.
 
 ## Examples:
 ```julia-repl
-Gnuplot.exec("print GPVAL_TERM")
-Gnuplot.exec("plot sin(x)")
+gpexec("print GPVAL_TERM")
+gpexec("plot sin(x)")
 ```
 """
-exec(sid::Symbol, s::String) = exec(getsession(sid), s)
-exec(s::String) = exec(getsession(), s)
+gpexec(sid::Symbol, s::String) = gpexec(getsession(sid), s)
+gpexec(s::String) = gpexec(getsession(), s)
 
 
 # ---------------------------------------------------------------------
@@ -1200,16 +1200,16 @@ function splash(outputfile="")
         # terminals).
         terms = terminals()
         if "wxt" in terms
-            exec(gp, "set term wxt  noenhanced size 600,300")
+            gpexec(gp, "set term wxt  noenhanced size 600,300")
         elseif "qt" in terms
-            exec(gp, "set term qt   noenhanced size 600,300")
+            gpexec(gp, "set term qt   noenhanced size 600,300")
         elseif "aqua" in terms
-            exec(gp, "set term aqua noenhanced size 600,300")
+            gpexec(gp, "set term aqua noenhanced size 600,300")
         else
             @warn "None of the `wxt`, `qt` and `aqua` terminals are available.  Output may look strange.."
         end
     else
-        exec(gp, "set term unknown")
+        gpexec(gp, "set term unknown")
     end
     @gp :- :splash "set margin 0"  "set border 0" "unset tics" :-
     @gp :- :splash xr=[-0.3,1.7] yr=[-0.3,1.1] :-
@@ -1321,7 +1321,7 @@ end
 
 Return a `Vector{String}` with the names of all the available gnuplot terminals.
 """
-terminals() = string.(split(strip(exec("print GPVAL_TERMINALS")), " "))
+terminals() = string.(split(strip(gpexec("print GPVAL_TERMINALS")), " "))
 
 
 # --------------------------------------------------------------------
@@ -1331,7 +1331,7 @@ terminals() = string.(split(strip(exec("print GPVAL_TERMINALS")), " "))
 
 Return a `String` with the current gnuplot terminal (and its options) of the process associated to session `sid`, or to the default session (if `sid` is not provided).
 """
-terminal(sid::Symbol=options.default) = exec(getsession(sid), "print GPVAL_TERM") * " " * exec(getsession(sid), "print GPVAL_TERMOPTIONS")
+terminal(sid::Symbol=options.default) = gpexec(getsession(sid), "print GPVAL_TERM") * " " * gpexec(getsession(sid), "print GPVAL_TERMOPTIONS")
 
 
 # --------------------------------------------------------------------
@@ -1352,13 +1352,13 @@ function test_terminal(term=nothing; linetypes=nothing, palette=nothing)
     quit(:test_term)
     quit(:test_palette)
     if !isnothing(term)
-        exec(:test_term    , "set term $term")
-        exec(:test_palette , "set term $term")
+        gpexec(:test_term    , "set term $term")
+        gpexec(:test_palette , "set term $term")
     end
-    s = (isnothing(linetypes)  ?  ""  :  Gnuplot.linetypes(linetypes))
-    exec(:test_term    , "$s; test")
-    s = (isnothing(palette)  ?  ""  :  Gnuplot.palette(palette))
-    exec(:test_palette , "$s; test palette")
+    s = (isnothing(linetypes)  ?  ""  :  linetypes(linetypes))
+    gpexec(:test_term    , "$s; test")
+    s = (isnothing(palette)  ?  ""  :  palette(palette))
+    gpexec(:test_palette , "$s; test palette")
 end
 
 
