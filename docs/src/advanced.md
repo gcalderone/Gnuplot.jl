@@ -234,26 +234,34 @@ If a gnuplot process can not be started the package will print a warning, and au
 Thepackage options are stored in a global structure available in Julia as `Gnuplot.option` (the type of the structure is [`Gnuplot.Options`](@ref)).  The most important settings are as follows:
 
 - `dry::Bool`: if true all new sessions will be started [Dry sessions](@ref).  Default is `false`, but if the package is not able to start a gnuplot it will automatically switch to `false`;
-- `init::Vector{String}`: commands to initialize the gnuplot session (e.g., to set default terminal)
-- `verbose::Bool`: verbosity flag (default: `false`)
-```@example abc
+
+- `init::Vector{String}`: This vector can be used to `push!` initialization commands to be executed when a new session is started.  Default is an empty vector.  It can be used to, e.g., set a terminal for all sessions which is different from the gnuplot default one:
+```@repl abc
+push!(Gnuplot.options.init, "set term sixelgd");
+```
+Note that this is a global option, i.e. it will affect **all** new sessions;
+
+- `verbose::Bool`: a flag to set verbosity of the package.  In particular if it is `true` all communication with the underlying process will be printed on stdout. E.g.:
+```@repl abc
 Gnuplot.exec("set term wxt")  #hide
-Gnuplot.options.verbose = true
-x = 1.:10
+Gnuplot.options.verbose = true;
+x = 1.:10;
 @gp x x.^2 "w l t 'Parabola'"
 save(term="pngcairo size 480,360 fontscale 0.8", output="output.png")
 ```
+Each line reports the package name (`GNUPLOT`), the session name (`default`), the command or string being sent to gnuplot process, and the returned response (line starting with `->`).  Default value is `false`;
 
 ```@setup abc
 Gnuplot.options.verbose = false
 Gnuplot.exec("set term unknown")
 ```
 
-There also are 
-- `cmd::String`: command to start the Gnuplot process (default: `"gnuplot"`)
-- `default::Symbol`: default session name (default: `:default`)
+- `cmd::String`: command to start the gnuplot process, default value is `"gnuplot"`.  If you need to specify a custom path to the gnuplot executable you may change this value;
+
+- `default::Symbol`: default session name, i.e. the session that will be used when no session name is provided;
+
 - `preferred_format::Symbol`: preferred format to send data to gnuplot.  Value must be one of:
-   - `bin`: fastest solution for large datasets, but uses temporary files;
+   - `bin`: provides best performances for large datasets, but uses temporary files;
    - `text`: may be slow for large datasets, but no temporary file is involved;
    - `auto` (default) automatically choose the best strategy.
 
