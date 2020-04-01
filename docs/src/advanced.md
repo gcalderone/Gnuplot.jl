@@ -197,7 +197,7 @@ saveas("ex014d") # hide
 
 The [Multiplot](@ref) capabilities can also be used to stack plots one above the other in order to create an animation, as in the following example:
 ```@example abc
-x = y = -10:0.33:10
+x = y = -10:3.33:10
 fz(x,y) = sin.(sqrt.(x.^2 + y.^2))./sqrt.(x.^2+y.^2)
 fxy = [fz(x,y) for x in x, y in y]
 @gsp "set xyplane at 0" "unset colorbox" cb=[-1,1] zr=[-1,1] 
@@ -216,5 +216,44 @@ save(term="gif animate size 480,360 delay 5", output="assets/animation.gif")
 ```
 ![](assets/animation.gif)
 
+
 ## Dry sessions
+A "*dry session*" is a session with no underlying gnuplot process.  To enable dry sessions type:
+```@repl abc
+Gnuplot.options.dry = true;
+Gnuplot.options.dry = false  #hide
+```
+before starting a session (see also [Options](@ref)).  Note that the `dry` option is a global one, i.e. it affects all sessions started after setting the option.
+
+Clearly, no plot can be generated in dry sessions. Still, they are useful to run **Gnuplot.jl** code without raising errors (no attempt will be made to communicate with the underlying process).  Moreover, [Gnuplot scripts](@ref) can also be generated in a dry session, without the additional overhead of sending data to the gnuplot process.
+
+If a gnuplot process can not be started the package will print a warning, and automatically enable dry sessions.
+
+
 ## Options
+Thepackage options are stored in a global structure available in Julia as `Gnuplot.option` (the type of the structure is [`Gnuplot.Options`](@ref)).  The most important settings are as follows:
+
+- `dry::Bool`: if true all new sessions will be started [Dry sessions](@ref).  Default is `false`, but if the package is not able to start a gnuplot it will automatically switch to `false`;
+- `init::Vector{String}`: commands to initialize the gnuplot session (e.g., to set default terminal)
+- `verbose::Bool`: verbosity flag (default: `false`)
+```@example abc
+Gnuplot.exec("set term wxt")  #hide
+Gnuplot.options.verbose = true
+x = 1.:10
+@gp x x.^2 "w l t 'Parabola'"
+save(term="pngcairo size 480,360 fontscale 0.8", output="output.png")
+```
+
+```@setup abc
+Gnuplot.options.verbose = false
+Gnuplot.exec("set term unknown")
+```
+
+There also are 
+- `cmd::String`: command to start the Gnuplot process (default: `"gnuplot"`)
+- `default::Symbol`: default session name (default: `:default`)
+- `preferred_format::Symbol`: preferred format to send data to gnuplot.  Value must be one of:
+   - `bin`: fastest solution for large datasets, but uses temporary files;
+   - `text`: may be slow for large datasets, but no temporary file is involved;
+   - `auto` (default) automatically choose the best strategy.
+
