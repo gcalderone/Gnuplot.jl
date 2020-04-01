@@ -32,7 +32,7 @@ The following examples are supposed to be rather self-explaining.  See [document
 ```julia
 x = 1.:20
 @gp x x.^2 "with lines title 'Parabola'"
-save(term="pngcairo size 640,480", output="ex1.png")
+save(term="pngcairo size 640,480", output="examples/ex1.png")
 save("parabola.gp")  # => save a script file with both data and command to re-create the plot.  
 ```
 
@@ -48,7 +48,7 @@ approx = fill(0., length(x));
 @gp :- x sin.(x) approx .+=  x.^5/120   "w filledcurve t 'n=2' lt 3"
 @gp :- x sin.(x) approx .+= -x.^7/5040  "w filledcurve t 'n=3' lt 4"
 @gp :- x sin.(x)                        "w l t 'sin(x)' lw 2 lc rgb 'black'"
-save(term="pngcairo size 640,480", output="ex2.png")
+save(term="pngcairo size 640,480", output="examples/ex2.png")
 ```
 
 ### Multiplot: a 2D histogram contour plot and a 3D surface plot
@@ -63,7 +63,7 @@ for i in 1:length(clines)
     @gp :- clines[i].data "w l t '$(clines[i].z)' lw $i lc rgb 'gray'" :-
 end
 @gsp :- 2 h.bins1 h.bins2 h.counts "w pm3d notit"
-save(term="pngcairo size 660,350 fontscale 0.8", output="ex3.png")
+save(term="pngcairo size 660,350 fontscale 0.8", output="examples/ex3.png")
 ```
 
 ## Examples
