@@ -217,12 +217,16 @@ palette_names()
 
 ## Exporting plots to files
 
-The [`save()`](@ref) function allows to export all plots (as well as multiplots, see [Multiplot](@ref)) to a file using one of the many available gnuplot terminals.  To check which terminals are available in your platform type `set term` in your gnuplot terminal.
+**Gnuplot.jl** to export all plots (as well as multiplots, see [Multiplot](@ref)) to an external file using one of the many available gnuplot terminals.  To check which terminals are available in your platform type:
+```@repl abc
+terminals()
+```
 
-All plots in this page have been saved with:
+Once you choose the proper terminal (i.e. format of the exported file), use the [`save()`](@ref) function to export.  As an example, all the plots in this page have been saved with:
 ```julia
 save(term="pngcairo size 480,360 fontscale 0.8", output="assets/output.png")
 ```
+Note that you can pass both the terminal name and its options via the `term=` keyword.
 
 
 ## Gnuplot scripts
