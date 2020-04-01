@@ -13,6 +13,7 @@ The list of **Gnuplot.jl** exported symbols is as follows:
 boxxyerror
 contourlines
 dataset_names
+gpexec
 hist
 linetypes
 palette
@@ -37,7 +38,6 @@ Gnuplot.Histogram2D
 Gnuplot.IsoContourLines
 Gnuplot.Options
 Gnuplot.Path2d
-Gnuplot.exec
 Gnuplot.gpversion
 Gnuplot.quit
 Gnuplot.quitall

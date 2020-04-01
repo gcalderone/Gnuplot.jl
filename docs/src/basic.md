@@ -33,7 +33,7 @@ mkpath("assets")
 Gnuplot.splash("assets/logo.png")
 saveas(file) = save(term="pngcairo size 480,360 fontscale 0.8", output="assets/$(file).png")
 empty!(Gnuplot.options.init)
-Gnuplot.exec("set term unknown")
+gpexec("set term unknown")
 ```
 
 
@@ -221,6 +221,7 @@ palette_names()
 ```@repl abc
 terminals()
 ```
+(see also [`terminal()`](@ref) to check your current terminal).
 
 Once you choose the proper terminal (i.e. format of the exported file), use the [`save()`](@ref) function to export.  As an example, all the plots in this page have been saved with:
 ```julia
