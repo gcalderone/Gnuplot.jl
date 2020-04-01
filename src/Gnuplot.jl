@@ -718,7 +718,7 @@ end
 # ╰───────────────────────────────────────────────────────────────────╯
 
 # ---------------------------------------------------------------------
-exec(gp::DrySession, command::String) = nothing
+exec(gp::DrySession, command::String) = ""
 function exec(gp::GPSession, command::String)
     answer = Vector{String}()
     push!(answer, writeread(gp, command)...)
@@ -1318,7 +1318,7 @@ end
 
 Return a `Vector{String}` with the names of all the available gnuplot terminals.
 """
-terminals() = split(strip(exec("print GPVAL_TERMINALS")), " ")
+terminals() = string.(split(strip(exec("print GPVAL_TERMINALS")), " "))
 
 
 # --------------------------------------------------------------------
