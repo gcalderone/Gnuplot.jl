@@ -1,5 +1,9 @@
 using Test, Gnuplot
-@info "Gnuplot version: " * string(Gnuplot.gpversion())
+try
+    @info "Gnuplot version: " * string(Gnuplot.gpversion())
+catch
+    Gnuplot.options.dry = true
+end
 push!(Gnuplot.options.init, "set term unknown")
 
 x = [1, 2, 3]
@@ -124,9 +128,9 @@ Gnuplot.quitall()
 @gp "plot sin(x)" 2 xr=(-2pi,2pi) "pause 2" "plot cos(4*x)"
 
 x = range(-2pi, stop=2pi, length=100);
-y = 1.5 * sin.(0.3 .+ 0.7x) ;
-noise = randn(length(x))./2;
-e = 0.5 * fill(1, size(x));
+y = 1.5 * sin.(0.3 .+ 0.7x);
+err = 0.1 * maximum(abs.(y)) .* fill(1, size(x));
+noise = err .* randn(length(x));
 
 h = hist(noise, nbins=10)
 @gp h.bins h.counts "w histeps"
@@ -145,10 +149,10 @@ name = "\$MyDataSet1"
 @gp("set key horizontal", "set grid",
     xrange=(-7,7), ylabel="Y label",
     x, y, "w l t 'Real model' dt 2 lw 2 lc rgb 'red'",
-    x, y+noise, e, "w errorbars t 'Data'")
+    x, y+noise, err, "w errorbars t 'Data'")
 
 @gp "f(x) = a * sin(b + c*x); a = 1; b = 1; c = 1;"   :-
-@gp :- name=>(x, y+noise, e)                          :-
+@gp :- name=>(x, y+noise, err)                        :-
 @gp :- "fit f(x) $name u 1:2:3 via a, b, c;"          :-
 @gp :- "set multiplot layout 2,1"                     :-
 @gp :- "plot $name w points" ylab="Data and model"    :-
@@ -157,16 +161,21 @@ name = "\$MyDataSet1"
 @gp :- "plot $name u 1:((f(\$1)-\$2) / \$3):(1) w errorbars notit"
 
 # Retrieve values for a, b and c
-a = Meta.parse(Gnuplot.exec("print a"))
-b = Meta.parse(Gnuplot.exec("print b"))
-c = Meta.parse(Gnuplot.exec("print c"))
-
+if Gnuplot.options.dry
+    a = 1.5
+    b = 0.3
+    c = 0.7
+else
+    a = Meta.parse(Gnuplot.exec("print a"))
+    b = Meta.parse(Gnuplot.exec("print b"))
+    c = Meta.parse(Gnuplot.exec("print c"))
+end
 
 @gp    :dry "f(x) = a * sin(b + c*x); a = 1; b = 1; c = 1;"  :-
 @gp :- :dry "a = $a; b = $b; c = $c"                         :-
 @gp :- :dry "set multiplot layout 2,1" ylab="Data and model" :-
 name = "\$MyDataSet1"
-@gp :- :dry name=>(x, y+noise, e,)                           :-
+@gp :- :dry name=>(x, y+noise, err)                          :-
 @gp :- :dry "plot $name w points"                            :-
 @gp :- :dry "plot $name u 1:(f(\$1)) w lines"                :-
 @gp :- :dry 2 xlab="X label" ylab="Residuals"                :-
