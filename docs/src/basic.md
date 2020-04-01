@@ -227,7 +227,7 @@ Once you choose the proper terminal (i.e. format of the exported file), use the 
 ```julia
 save(term="pngcairo size 480,360 fontscale 0.8", output="assets/output.png")
 ```
-Note that you can pass both the terminal name and its options via the `term=` keyword.
+Note that you can pass both the terminal name and its options via the `term=` keyword.  See [Gnuplot terminals](@ref) for further info on the terminals.
 
 
 ## Gnuplot scripts

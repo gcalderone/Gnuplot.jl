@@ -1,4 +1,4 @@
-# Useful terminals
+# Gnuplot terminals
 
 Gnuplot provides dozens of terminals to display plots or export them into files (see [`terminals()`](@ref) to get a list of enabled terminals on your platform).  This section discuss a few tips on how to use the most common terminals.
 

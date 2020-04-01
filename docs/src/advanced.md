@@ -154,8 +154,8 @@ saveas("ex013b") # hide
 
 **Gnuplot.jl** also allows to compute 2D histograms by passing two vectors (with the same lengths) to [`hist()`](@ref).  A quick preview is simply obtained by:
 ```@example abc
-x = randn(5000)
-y = randn(5000)
+x = randn(10_000)
+y = randn(10_000)
 @gp "set size ratio -1" hist(x, y)
 saveas("ex014a") # hide
 ```
@@ -163,7 +163,7 @@ saveas("ex014a") # hide
 
 Again, a finer control can be achieved by specifying ranges, bin size or number of bins (along both dimensions) and by explicitly using the content of the returned [`Gnuplot.Histogram2D`](@ref) structure:
 ```@example abc
-h = hist(x, y, bs1=0.5, nbins2=10, range1=[-3,3], range2=[-3,3])
+h = hist(x, y, bs1=0.25, nbins2=20, range1=[-3,3], range2=[-3,3])
 @gp "set size ratio -1" h.bins1 h.bins2 h.counts "w image notit"
 saveas("ex014b") # hide
 ```
@@ -183,9 +183,9 @@ saveas("ex014c") # hide
 ## Contour lines
 Although gnuplot already handles contours by itself (with the `set contour` command), **Gnuplot.jl** provides a way to calculate contour lines paths before displaying them, using the [`contourlines()`](@ref) function.  We may use it for, e.g., plot contour lines with customized widths and palette, according to their z level.  Continuing previous example:
 ```@example abc
-clines = contourlines(h.bins1, h.bins2, h.counts, cntrparam="levels discrete 50, 100, 200");
+clines = contourlines(h.bins1, h.bins2, h.counts, cntrparam="levels discrete 10, 30, 60, 90");
 for i in 1:length(clines)
-    @gp :- clines[i].data "w l t '$(clines[i].z)' lw $(1.5 * i) lc pal" :-
+    @gp :- clines[i].data "w l t '$(clines[i].z)' lw $i lc pal" :-
 end
 @gp :- key="outside top center box horizontal"
 saveas("ex014d") # hide
@@ -197,7 +197,7 @@ saveas("ex014d") # hide
 
 The [Multiplot](@ref) capabilities can also be used to stack plots one above the other in order to create an animation, as in the following example:
 ```@example abc
-x = y = -10:3.33:10
+x = y = -10:0.33:10
 fz(x,y) = sin.(sqrt.(x.^2 + y.^2))./sqrt.(x.^2+y.^2)
 fxy = [fz(x,y) for x in x, y in y]
 @gsp "set xyplane at 0" "unset colorbox" cb=[-1,1] zr=[-1,1] 
@@ -210,7 +210,7 @@ for direction in [-1,1]
 end
 @gsp
 ```
-The animation can also be saved in a gif file with:
+Here the `frame` variable is used as multiplot index. The animation can be saved in a GIF file with:
 ```@example abc
 save(term="gif animate size 480,360 delay 5", output="assets/animation.gif")
 ```
