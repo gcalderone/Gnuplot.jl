@@ -6,7 +6,7 @@ This page collects useful tips in using **Gnuplot.jl**.
 ## Which terminal should I use ?
 Gnuplot provides dozens of terminals to display plots or export them into files (see [`terminals()`](@ref) to get a list of enabled terminals on your platform).  This section discuss a few tips on how to use the most common terminals.
 
-To use a specific terminal for interactive use you may either add it as initialization command for all new session with (see [Options](@ref):
+To use a specific terminal for interactive use you may either add it as initialization command for all new session with (see [Options](@ref)):
 ```julia
 push!(Gnuplot.options.init, "set term wxt")
 ```
@@ -14,6 +14,7 @@ or directly send the command to a specific session (see [Direct command executio
 ```julia
 gpexec("set term wxt")
 ```
+See official [gnuplot documentation](http://gnuplot.sourceforge.net/documentation.html) for further info on terminals and their options.
 
 
 ### Interactive terminals (`wxt` and `qt`)
@@ -44,13 +45,52 @@ The `dumb` terminal uses ASCII characters to draw a plot, while `sixel` and `six
 
 The above terminals are available if gnuplot has been compiled with the `--with-bitmap-terminals` option enabled. Also, `sixelgd` requires support for Libgd to be enabled.
 
+
 ### Export to image files
 
-### `cairopng`
+Gnuplot provides dozens of terminals able to export on files.  Examples are:
+- `cairopng` to export PNG files;
+- `pdfcairo` for PDF;
+- `jpeg` for JPG;
+- `gif` for GIF (see [Animations](@ref)).
 
-### `gif`
-see [Animations](@ref).
+All the above terminals support the `size` and `fontscale` options to quickly adjust the size of the rasterized image and of the font respectively.  E.g.:
+```julia
+save(term="pngcairo size 480,360 fontscale 0.8", output="output.png")
+```
+(see also [`save()`](@ref)).
 
-### `pdf`
+Gnuplot is also able to export vector (i.e. non-raster) plots through the `svg` terminal.
 
-### `latex` and `cairolatex`
+Finally, the `cairolatex` terminal allows to produce high quality plots by splitting the output into a PDF file (containing a rasterized image of a plot) and a `.tex` file (containing all the text as ``\LaTeX`` code).  The following example shows how to write plot tics and an equation in ``\LaTeX``:
+```julia
+x = LinRange(-2pi, 2pi, 1000)
+
+
+@gp t="Polynomial approximation of sin(x)"  "set style fill transparent solid 0.6 noborder"
+@gp :- raw"""set xtics ('$-\pi$' -pi, '$-\pi/2$' -pi/2, 0, '$\pi/2$' pi/2, '$\pi$' pi)"""
+@gp :- xr=3.8.*[-1, 1] yr=[-1.5,1.5] key="box opaque left horiz" linetypes(:Blues_3) "set grid front"
+latex = raw"""\begin{minipage}[c]{\textwidth}\begin{equation*} \sin(x) = \sum_0^{+\infty} \frac{(-1)^n}{(2n + 1)!} x^{2n+1} \end{equation*} \end{minipage}"""
+@gp :- "set label at graph 0.62,0.2 front center '$latex'"
+@gp :- x sin.(x) x                                     "w filledcurve t 'n=0' lt 1"
+@gp :- x sin.(x) x .- x.^3/6                           "w filledcurve t 'n=1' lt 2"
+@gp :- x sin.(x) x .- x.^3/6 .+ x.^5/120               "w filledcurve t 'n=2' lt 3"
+@gp :- x sin.(x) x .- x.^3/6 .+ x.^5/120 .- x.^7/5040  "w filledcurve t 'n=3' lt 4"
+@gp :- x sin.(x)                                       "w l t 'sin(x)' lw 2 lc rgb 'black'"
+save(term="cairolatex pdf input color dashed size 5in,3.3in", output="test.tex")
+```
+The two output files (`test.tex` and `test.pdf`) can then be included in a ``\LaTeX`` file as follows:
+```latex
+\documentclass{article}
+\usepackage{amsmath}
+\usepackage{graphicx}
+\usepackage{color}
+
+\begin{document}
+\begin{figure}
+  \input{test.tex}
+\end{figure}
+\end{document}
+```
+And the output is:
+![](assets/cairolatex.png)

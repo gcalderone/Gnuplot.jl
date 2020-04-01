@@ -1340,24 +1340,24 @@ terminal(sid::Symbol=options.default) = gpexec(getsession(sid), "print GPVAL_TER
 
 Run the `test` and `test palette` commands on a gnuplot terminal.
 
-If no `term` is given it will use the default terminal. If `linetypes` and `palette` are given they are used as input to the [`linetypes`](@ref) and [`palette`](@ref) function repsetcively to load the associated color scheme.
+If no `term` is given it will use the default terminal. If `lt` and `pal` are given they are used as input to the [`linetypes`](@ref) and [`palette`](@ref) function repsetcively to load the associated color scheme.
 
 # Examples
 ```julia
 test_terminal()
-test_terminal("wxt", linetypes=:rust, palette=:viridis)
+test_terminal("wxt", lt=:rust, pal=:viridis)
 ```
 """
-function test_terminal(term=nothing; linetypes=nothing, palette=nothing)
+function test_terminal(term=nothing; lt=nothing, pal=nothing)
     quit(:test_term)
     quit(:test_palette)
     if !isnothing(term)
         gpexec(:test_term    , "set term $term")
         gpexec(:test_palette , "set term $term")
     end
-    s = (isnothing(linetypes)  ?  ""  :  linetypes(linetypes))
+    s = (isnothing(lt)  ?  ""  :  linetypes(lt))
     gpexec(:test_term    , "$s; test")
-    s = (isnothing(palette)  ?  ""  :  palette(palette))
+    s = (isnothing(pal)  ?  ""  :  palette(pal))
     gpexec(:test_palette , "$s; test palette")
 end
 

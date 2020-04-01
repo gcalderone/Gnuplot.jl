@@ -221,8 +221,13 @@ save(term="gif animate size 480,360 delay 5", output="assets/animation.gif")
 When gnuplot commands are passed to `@gp` or `@gsp` they are stored in a session for future use, or to be saved in [Gnuplot scripts](@ref).  If you simply wish to execute a command, without storing it in the session, use [`gpexec`](@ref).  E.g. if you wish to temporarily change the current terminal:
 ```@repl abc
 gpexec("set term wxt");
+```
+The gnuplot process replies are returned as a string, e.g.:
+```@repl abc
+gpexec("print GPVAL_TERM")
 gpexec("set term unknown")  #hide
 ```
+
 You may also provide a session ID as first argument (see [Multiple sessions](@ref), to redirect the command to a specific session.
 
 
