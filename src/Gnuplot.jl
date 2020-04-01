@@ -315,9 +315,17 @@ function GPSession(sid::Symbol)
         return nothing
     end
 
-
-    gpversion()
     session = DrySession(sid)
+    if !options.dry
+        try
+            gpversion()
+        catch
+            @warn "Cound not start a gnuplot process with command \"$(options.cmd)\".  Enabling dry sessions..."
+            options.dry = true
+            sessions[sid] = session
+            return session
+        end
+    end
 
     pin  = Base.Pipe()
     pout = Base.Pipe()
