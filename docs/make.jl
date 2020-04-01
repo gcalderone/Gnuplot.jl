@@ -2,7 +2,7 @@ using Documenter, Gnuplot
 
 makedocs(sitename="Gnuplot.jl",
          authors = "Giorgio Calderone",
-         format = Documenter.HTML(prettyurls = false),  # uncomment for local use, comment for deployment
+         #format = Documenter.HTML(prettyurls = false),  # uncomment for local use, comment for deployment
          modules=[Gnuplot],
          pages = [
              "Home" => "index.md",
