@@ -8,22 +8,20 @@ Build status  | [![Build Status](https://travis-ci.org/gcalderone/Gnuplot.jl.svg
 **Examples**       | ![Examples](https://img.shields.io/website?up_message=examples&url=https%3A%2F%2Flazarusa.github.io%2Fgnuplot-examples%2F)
 
 
-**Gnuplot.jl** provides a simple package able to send both data and commands from Julia to an underlying [gnuplot](http://gnuplot.sourceforge.net/) process.  Its main purpose it to provide a fast and powerful data visualization framework, using an extremely concise Julia syntax.
+**Gnuplot.jl** is a simple package able to send both data and commands from Julia to an underlying [gnuplot](http://gnuplot.sourceforge.net/) process.  Its main purpose it to provide a fast and powerful data visualization framework, using an extremely concise Julia syntax.
 
-The documentation can be found [here](https://gcalderone.github.io/Gnuplot.jl/dev/), while the gallery of examples is maintained [here](https://lazarusa.github.io/gnuplot-examples/).
 
 ## Installation
 
-
 Install with:
-```julia-repl
+```julia
 ]dev Gnuplot
 ```
 A working [gnuplot](http://gnuplot.sourceforge.net/) package must be installed on your platform.
 
 
 Test package:
-```julia-repl
+```julia
 using Gnuplot
 println(Gnuplot.gpversion())
 test_terminal()
