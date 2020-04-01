@@ -35,6 +35,7 @@ x = 1.:20
 save(term="pngcairo size 640,480", output="examples/ex1.png")
 save("parabola.gp")  # => save a script file with both data and command to re-create the plot.  
 ```
+![ex1.png](examples/ex1.png)
 
 ### A slightly more complex plot, with unicode on X tics
 ```julia
@@ -50,6 +51,7 @@ approx = fill(0., length(x));
 @gp :- x sin.(x)                        "w l t 'sin(x)' lw 2 lc rgb 'black'"
 save(term="pngcairo size 640,480", output="examples/ex2.png")
 ```
+![ex2.png](examples/ex2.png)
 
 ### Multiplot: a 2D histogram contour plot and a 3D surface plot
 ```julia
@@ -65,6 +67,8 @@ end
 @gsp :- 2 h.bins1 h.bins2 h.counts "w pm3d notit"
 save(term="pngcairo size 660,350 fontscale 0.8", output="examples/ex3.png")
 ```
+![ex3.png](examples/ex3.png)
+
 
 ## Examples
 The main gallery of examples is maintained in a separate repository:
