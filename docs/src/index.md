@@ -3,7 +3,7 @@
 
 The **Gnuplot.jl** package allows easy and fast use of [gnuplot](http://gnuplot.info/) as a data visualization tool in Julia.  Have a look at [Basic usage](@ref) and [Examples](@ref) for a quick overview.  The package main features are:
 
-- fast time-to-first-plot (~1 sec);
+- fast time-to-first-plot;
 
 - extremely concise yet meaningful syntax, makes it ideal for interactive data exploration;
 
