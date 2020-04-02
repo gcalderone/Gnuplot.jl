@@ -228,7 +228,7 @@ gpexec("print GPVAL_TERM")
 gpexec("set term unknown")  #hide
 ```
 
-You may also provide a session ID as first argument (see [Multiple sessions](@ref), to redirect the command to a specific session.
+You may also provide a session ID as first argument (see [Multiple sessions](@ref)) to redirect the command to a specific session.
 
 
 ## Dry sessions
