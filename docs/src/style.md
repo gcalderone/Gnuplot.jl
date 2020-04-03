@@ -32,13 +32,12 @@ in place of
 ```julia
 @gp ... "set xrange [-1:5]" ...
 ```
-This help reducing the number of strings used in the code, as well as the associated interpolating characters (`$`), and results in a more concise syntax.
-
+This help reducing the number of strings, as well as the associated interpolating characters (`$`), and results in a more concise syntax.
 
 
 ### 3 - Use abbreviations for commands and keywords:
 
-Many gnuplot commands, as well as all keywords (see [Keywords for common commands](@ref), can be abbreviated as long as the abbreviation is unambiguous.  E.g., the following code:
+Many gnuplot commands, as well as all keywords (see [Keywords for common commands](@ref)), can be abbreviated as long as the abbreviation is unambiguous.  E.g., the following code:
 ```julia
 @gp    "set grid" "set key left" "set logscale y"
 @gp :- "set title 'Plot title'" "set label 'X label'" "set xrange [0:*]"
