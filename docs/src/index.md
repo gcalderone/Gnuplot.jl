@@ -41,7 +41,7 @@ A powerful plotting framework is among the most important tool in the toolbox of
 
 Unlike other packages **Gnuplot.jl** is not a pure Julia solution as it depends on an external package to actually generate plots.  However, if gnuplot is not available on a given platform, the package could still be used in "*dry*" mode, and no error for a missing dependency will be raised (see [Dry sessions](@ref)).
 
-The **Gnuplot.jl** package development follows a minimalistic approach: it is essentially a thin layer to send data and commands to gnuplot.  This way all underlying capabilities, both present and future ones, are automatically exposed to Julia user, with no need to implement dedicated wrappers.
+The **Gnuplot.jl** package development follows a minimalistic approach: it is essentially a thin layer to send data and commands to gnuplot.  This way all underlying capabilities, both present and future ones, are automatically exposed to the Julia user, with no need to implement dedicated wrappers.
 
 The functionalities 1, 2 and 3 listed above are similar to those provided by the [Gaston](https://github.com/mbaz/Gaston.jl) package.  **Gnuplot.jl** also provides features 4 and 5, as well as the minimalistic approach.
 
@@ -52,7 +52,7 @@ Any modern plotting package is able to produce a simple scatter plot, with custo
 
 **Gnuplot.jl** aims to be ready for even the most challenging plots by relying on the widely and long lasting used gnuplot application, and by allowing each native feature (both present and future ones) to be immediately available in the Julia language.  Moreover, **Gnuplot.jl** provides a unique syntax specifically aimed to increase productivity while performing interactive data exploration.
 
-Last but not least, have a look at the **Gnuplot.jl** [Examples](#ref) page.
+Last but not least, have a look at the **Gnuplot.jl** [Examples](@ref) page.
 
 
 ## Notation

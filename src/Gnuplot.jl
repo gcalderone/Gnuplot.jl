@@ -1,6 +1,6 @@
 module Gnuplot
 
-using StatsBase, ColorSchemes, ColorTypes, StructC14N, DataStructures
+using StatsBase, ColorSchemes, ColorTypes, Colors, StructC14N, DataStructures
 
 import Base.reset
 import Base.write
@@ -1037,7 +1037,7 @@ end
 
 Return the **Gnuplot.jl** package version.
 """
-version() = v"1.0-dev"
+version() = v"1.1.0"
 
 # ---------------------------------------------------------------------
 """
@@ -1150,6 +1150,7 @@ The `@gp` macro, and its companion `@gsp` for 3D plots, allows to send data and 
   - `xlabel="..."` => `"set xlabel \"...\""`;
   - `ylabel="..."` => `"set ylabel \"...\""`;
   - `zlabel="..."` => `"set zlabel \"...\""`;
+  - `cblabel="..."` => `"set cblabel \"...\""`;
   - `xlog=true`   => `set logscale x`;
   - `ylog=true`   => `set logscale y`;
   - `zlog=true`   => `set logscale z`.
@@ -1305,7 +1306,7 @@ function linetypes(cmap::ColorScheme; rev=false)
         else
             color = cmap.colors[i]
         end
-        push!(out, "set linetype $i lc rgb '#" * Base.hex(color))
+        push!(out, "set linetype $i lc rgb '#" * Colors.hex(color))
     end
     return join(out, "\n") * "\nset linetype cycle " * string(length(cmap.colors)) * "\n"
 end
@@ -1328,7 +1329,7 @@ function palette(cmap::ColorScheme; rev=false)
         else
             color = get(cmap, x)
         end
-        push!(levels, "$x '#" * Base.hex(color) * "'")
+        push!(levels, "$x '#" * Colors.hex(color) * "'")
     end
     return "set palette defined (" * join(levels, ", ") * ")\nset palette maxcol $(length(cmap.colors))\n"
 end

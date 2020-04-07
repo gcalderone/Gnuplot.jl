@@ -63,10 +63,10 @@ A named dataset is available until the session is reset, i.e. as long as `:-` is
 
 **Gnuplot.jl** can draw multiple plots in the same figure by exploiting the `multiplot` command.  Each plot is identified by a positive integer number, which can be used as argument to `@gp` to redirect commands to the appropriate plot.
 
-Continuing previous example we can plot both data and best fit model (in plot `1`) and residuals (in plot `2`):
+Continuing with the previous example we can plot both data and best fit model (in plot `1`) and residuals (in plot `2`):
 ```@example abc
 @gp :- "set multiplot layout 2,1"
-@gp :- 1 "p $name w errorbars t 'Data'" 
+@gp :- 1 "p $name w errorbars t 'Data'"
 @gp :-   "p $name u 1:(f(\$1)) w l t 'Best fit model'"
 @gp :- 2 "p $name u 1:((f(\$1)-\$2) / \$3):(1) w errorbars t 'Resid. [{/Symbol s}]'"
 @gp :-   [extrema(x)...] [0,0] "w l notit dt 2 lc rgb 'black'" # reference line
@@ -79,7 +79,7 @@ Note that the order of the plots is not relevant, i.e. we would get the same res
 @gp :- "set multiplot layout 2,1"
 @gp :- 2 "p $name u 1:((f(\$1)-\$2) / \$3):(1) w errorbars t 'Resid. [{/Symbol s}]'"
 @gp :-   [extrema(x)...] [0,0] "w l notit dt 2 lc rgb 'black'" # reference line
-@gp :- 1 "p $name w errorbars t 'Data'" 
+@gp :- 1 "p $name w errorbars t 'Data'"
 @gp :-   "p $name u 1:(f(\$1)) w l t 'Best fit model'"
 ```
 
@@ -181,7 +181,7 @@ saveas("ex014c") # hide
 
 
 ## Contour lines
-Although gnuplot already handles contours by itself (with the `set contour` command), **Gnuplot.jl** provides a way to calculate contour lines paths before displaying them, using the [`contourlines()`](@ref) function.  We may use it for, e.g., plot contour lines with customized widths and palette, according to their z level.  Continuing previous example:
+Although gnuplot already handles contours by itself (with the `set contour` command), **Gnuplot.jl** provides a way to calculate contour lines paths before displaying them, using the [`contourlines()`](@ref) function.  We may use it for, e.g., plot contour lines with customized widths and palette, according to their z level.  Continuing with the previous example:
 ```@example abc
 clines = contourlines(h.bins1, h.bins2, h.counts, cntrparam="levels discrete 10, 30, 60, 90");
 for i in 1:length(clines)
@@ -200,7 +200,7 @@ The [Multiplot](@ref) capabilities can also be used to stack plots one above the
 x = y = -10:0.33:10
 fz(x,y) = sin.(sqrt.(x.^2 + y.^2))./sqrt.(x.^2+y.^2)
 fxy = [fz(x,y) for x in x, y in y]
-@gsp "set xyplane at 0" "unset colorbox" cb=[-1,1] zr=[-1,1] 
+@gsp "set xyplane at 0" "unset colorbox" cbr=[-1,1] zr=[-1,1]
 frame = 0
 for direction in [-1,1]
     for factor in -1:0.1:1
@@ -278,4 +278,3 @@ gpexec("set term unknown")
    - `bin`: provides best performances for large datasets, but uses temporary files;
    - `text`: may be slow for large datasets, but no temporary file is involved;
    - `auto` (default) automatically choose the best strategy.
-

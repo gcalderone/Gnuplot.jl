@@ -68,6 +68,8 @@ saveas("ex002") # hide
 saveas("ex003") # hide
 ```
 ![](assets/ex003.png)
+!!! note
+    The trailing `:-` symbol means the plot will not be updated until the last statement.
 
 
 ### Send data from Julia to gnuplot:
@@ -117,6 +119,7 @@ In order to avoid typing long, and very frequently used gnuplot commands, **Gnup
  - `xlabel="..."` => `"set xlabel \"...\""`;
  - `ylabel="..."` => `"set ylabel \"...\""`;
  - `zlabel="..."` => `"set zlabel \"...\""`;
+ - `cblabel="..."` => `"set cblabel \"...\""`;
  - `xlog=true`   => `set logscale x`;
  - `ylog=true`   => `set logscale y`;
  - `zlog=true`   => `set logscale z`;
@@ -162,7 +165,7 @@ saveas("ex007b") # hide
 To display a gray image use `with image` in place of `with rgbimage`, e.g.:
 ```@example abc
 img = testimage("walkbridge");
-@gp palette(:lapaz) "set size square" "set autoscale fix" img "rotate=-0.5pi with image notit"
+@gp palette(:viridis) "set size square" "set autoscale fix" img "rotate=-0.5pi with image notit"
 saveas("ex007c") # hide
 ```
 ![](assets/ex007c.png)
@@ -233,7 +236,7 @@ Note that you can pass both the terminal name and its options via the `term=` ke
 ## Gnuplot scripts
 Besides exporting plots in a file **Gnuplot.jl** can also save a *script*, i.e. a file containing the minimum set of data and commands required to re-create a figure using just gnuplot.
 
-To generate a script for one of the example above use:
+To generate a script for one of the examples above use:
 ```julia
 save("script.gp")
 ```

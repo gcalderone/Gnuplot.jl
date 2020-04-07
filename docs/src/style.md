@@ -9,14 +9,14 @@ The two most important symbols exported by the package (`@gp` and `@gsp`) are ma
 ```julia
 @gp x y "with lines"
 ```
-in place of 
+in place of
 ```julia
 @gp(x, y, "with lines")
 ```
 
 If you have very long lines you may split them in multiple statements using the `:-` symbol, which resembles both hyphenation in natural language and indentation for the plot-producing code:
 ```julia
-@gp    "set grid" :- 
+@gp    "set grid" :-
 @gp :- x y "with lines"
 ```
 Note that the trailing `:-` symbol is not mandatory.  If omitted, the plot will be updated at each statement (rather than at the last one).
@@ -28,7 +28,7 @@ As discussed in [Keywords for common commands](@ref) several commonly used gnupl
 ```julia
 @gp ... xrange=[-1,5] ...
 ```
-in place of 
+in place of
 ```julia
 @gp ... "set xrange [-1:5]" ...
 ```
@@ -60,7 +60,7 @@ Moreover, in many gnuplot examples and documentation it is very common to use ab
 The two following examples produce exactly the same plot:
 ```julia
 x = -10.:10
-@gp    "set grid" "set multiplot layout 2,1" 
+@gp    "set grid" "set multiplot layout 2,1"
 @gp :- 1 x x.^2 "w l t 'f(x) = x^2"  # first plot
 @gp :- 2 x x.^3 "w l t 'f(x) = x^3"  # second plot
 ```
