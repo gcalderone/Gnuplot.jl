@@ -105,6 +105,7 @@ function parseKeywords(; kwargs...)
                 xlabel=AbstractString,
                 ylabel=AbstractString,
                 zlabel=AbstractString,
+                cblabel=AbstractString,
                 xlog=Bool,
                 ylog=Bool,
                 zlog=Bool)
@@ -116,10 +117,11 @@ function parseKeywords(; kwargs...)
     ismissing(kw.zrange ) || (push!(out, replace("set zrange  [" * join(kw.zrange , ":") * "]", "NaN"=>"*")))
     ismissing(kw.cbrange) || (push!(out, replace("set cbrange [" * join(kw.cbrange, ":") * "]", "NaN"=>"*")))
     ismissing(kw.key    ) || (push!(out, "set key " * kw.key  * ""))
-    ismissing(kw.title  ) || (push!(out, "set title  \"" * kw.title  * "\""))
-    ismissing(kw.xlabel ) || (push!(out, "set xlabel \"" * kw.xlabel * "\""))
-    ismissing(kw.ylabel ) || (push!(out, "set ylabel \"" * kw.ylabel * "\""))
-    ismissing(kw.zlabel ) || (push!(out, "set zlabel \"" * kw.zlabel * "\""))
+    ismissing(kw.title  ) || (push!(out, "set title   \"" * kw.title  * "\""))
+    ismissing(kw.xlabel ) || (push!(out, "set xlabel  \"" * kw.xlabel * "\""))
+    ismissing(kw.ylabel ) || (push!(out, "set ylabel  \"" * kw.ylabel * "\""))
+    ismissing(kw.zlabel ) || (push!(out, "set zlabel  \"" * kw.zlabel * "\""))
+    ismissing(kw.zlabel ) || (push!(out, "set cblabel \"" * kw.cblabel * "\""))
     ismissing(kw.xlog   ) || (push!(out, (kw.xlog  ?  ""  :  "un") * "set logscale x"))
     ismissing(kw.ylog   ) || (push!(out, (kw.ylog  ?  ""  :  "un") * "set logscale y"))
     ismissing(kw.zlog   ) || (push!(out, (kw.zlog  ?  ""  :  "un") * "set logscale z"))
@@ -462,8 +464,8 @@ end
 # ╰───────────────────────────────────────────────────────────────────╯
 
 #=
-The following has been dismissed since `binary matrix` do not
-allows to use keywords such as `rotate`.
+The following is dismissed since `binary matrix` do not allows to use
+keywords such as `rotate`.
 # ---------------------------------------------------------------------
 function write_binary(M::Matrix{T}) where T <: Number
     x = collect(1:size(M)[1])
@@ -551,6 +553,15 @@ end
 
 
 # ---------------------------------------------------------------------
+#=
+The following is dismissed since the following doesn't work:
+x = randn(10000)
+@gp x x x "w p lc pal"
+
+It requires:
+@gp x x x "u 1:2:3 w p lc pal"
+
+
 function write_binary(cols::Vararg{AbstractVector, N}) where N
     gpsource = "binary record=$(length(cols[1])) format='"
     types = Vector{DataType}()
@@ -579,6 +590,8 @@ function write_binary(cols::Vararg{AbstractVector, N}) where N
     close(io)
     return (path, gpsource)
 end
+=#
+
 
 # ╭───────────────────────────────────────────────────────────────────╮
 # │              PRIVATE FUNCTIONS TO MANIPULATE SESSIONS             │
@@ -855,9 +868,12 @@ end
 # ---------------------------------------------------------------------
 function driver(args...; flag3d=false)
     function validate_datatype(d)
-        # Return true if the array element type can be handled by the `tostring` function
-        isa(d, AbstractArray)  ||  return false
-        t = valtype(d)
+        # Return true if the data type can be handled by the `tostring` function
+        if isa(d, AbstractArray)
+            t = valtype(d)
+        else
+            t = typeof(d)
+        end
         if  (t <: String)  ||
             (t <: Number)  ||
             (t <: ColorTypes.RGB)  ||
@@ -950,29 +966,29 @@ function driver(args...; flag3d=false)
         arg = args[iarg]
         isa(arg, Symbol)  &&  continue  # already handled
 
-        if isa(arg, Int)              # ==> change current multiplot index
+        if isa(arg, Int)                # ==> change current multiplot index
             @assert arg > 0 "Multiplot index must be a positive integer"
             plotspec = "" # use an empty plotspec for pending dataset
             dataset_completed()
             setmulti(gp, arg)
             gp.plots[gp.curmid].flag3d = flag3d
-        elseif isa(arg, String)       # ==> either a plotspec or a command
+        elseif isa(arg, String)         # ==> either a plotspec or a command
             arg = string(strip(arg))
-            if length(dataset) > 0    #   ==> a plotspec
+            if length(dataset) > 0      #   ==> a plotspec
                 plotspec = arg
                 dataset_completed()
             else
                 (isPlot, is3d, cmd) = parseCmd(gp, arg)
-                if isPlot             #   ==> a (s)plot command
+                if isPlot               #   ==> a (s)plot command
                     gp.plots[gp.curmid].flag3d = is3d
                     add_plot(gp, cmd)
-                else                  #   ==> a command
+                else                    #   ==> a command
                     add_cmd(gp, arg)
                 end
             end
         elseif isa(arg, Tuple)  &&  length(arg) == 2  &&  isa(arg[1], Symbol)
-            add_cmd(gp; [arg]...)      # ==> a keyword/value pair
-        elseif isa(arg, Pair)         # ==> a named dataset
+            add_cmd(gp; [arg]...)       # ==> a keyword/value pair
+        elseif isa(arg, Pair)           # ==> a named dataset
             @assert typeof(arg[1]) == String
             @assert arg[1][1] == '$'
             setname = arg[1]
@@ -994,7 +1010,10 @@ function driver(args...; flag3d=false)
             push!(dataset, arg.counts)
             plotspec = "w image notit"
             dataset_completed()
-        elseif isa(arg, AbstractArray)# ==> a dataset
+        elseif isa(arg, AbstractArray)  # ==> a dataset column
+            @assert validate_datatype(arg) "Invalid argument type at position $iarg"
+            push!(dataset, arg)
+        elseif isa(arg, Real)           # ==> a dataset column with only one row
             @assert validate_datatype(arg) "Invalid argument type at position $iarg"
             push!(dataset, arg)
         else
