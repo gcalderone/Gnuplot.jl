@@ -3,7 +3,7 @@
 
 [![Build Status](https://travis-ci.org/gcalderone/Gnuplot.jl.svg?branch=master)](https://travis-ci.org/gcalderone/Gnuplot.jl)
 [![License](http://img.shields.io/badge/license-MIT-brightgreen.svg?style=flat)](LICENSE.md)
-[![DocumentationStatus](https://img.shields.io/badge/docs-latest-blue.svg?style=flat)](https://gcalderone.github.io/Gnuplot.jl/dev/)
+[![DocumentationStatus](https://img.shields.io/badge/docs-latest-blue.svg?style=flat)](https://gcalderone.github.io/Gnuplot.jl/v1.1.0/)
 
 
 **Gnuplot.jl** is a simple package able to send both data and commands from Julia to an underlying [gnuplot](http://gnuplot.sourceforge.net/) process.  Its main purpose it to provide a fast and powerful data visualization framework, using an extremely concise Julia syntax.
@@ -26,7 +26,7 @@ test_terminal()
 ```
 
 ## Quick start
-The following examples are supposed to be rather self-explaining.  See [documentation](https://gcalderone.github.io/Gnuplot.jl/dev/) for further informations.
+The following examples are supposed to be rather self-explaining.  See [documentation](https://gcalderone.github.io/Gnuplot.jl/v1.1.0/) for further informations.
 
 ### A simple parabola
 ```julia

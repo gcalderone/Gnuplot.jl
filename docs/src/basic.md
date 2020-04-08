@@ -1,8 +1,26 @@
+```@setup abc
+using Gnuplot
+Gnuplot.quitall()
+mkpath("assets")
+Gnuplot.splash("assets/logo.png")
+saveas(file) = save(term="pngcairo size 480,360 fontscale 0.8", output="assets/$(file).png")
+empty!(Gnuplot.options.init)
+gpexec("set term unknown")
+```
+
 # Basic usage
 
 The main purpose of the **Gnuplot.jl** package is to send data and commands to the underlying gnuplot process, in order to generate plots.  Unlike other packages, however, the actual commands to plot, or the plot attributes, are not specified through function calls.  This is what makes **Gnuplot.jl** *easy to learn and use*: there are no functions or keywords names to memorize[^1].
 
-The most important symbols exported by the package are the [`@gp`](@ref) (for 2D plots) and [`@gsp`](@ref) (for 3D plots) macros, both accepting any number of arguments, and whose meaning is interpreted as follows:
+The most important symbols exported by the package are the [`@gp`](@ref) (for 2D plots) and [`@gsp`](@ref) (for 3D plots) macros.  The simplemost example is as follows:
+```@example abc
+@gp 1:20
+saveas("ex000") # hide
+```
+![](assets/ex000.png)
+
+
+Both macros accept any number of arguments, whose meaning is interpreted as follows:
 
 - one, or a group of consecutive, array(s) build up a dataset.  The different arrays are accessible as columns 1, 2, etc. from the gnuplot process.  The number of required input arrays depends on the chosen plot style (see gnuplot documentation);
 
@@ -26,15 +44,6 @@ using Gnuplot
 ```
 before running the examples.
 
-```@setup abc
-using Gnuplot
-Gnuplot.quitall()
-mkpath("assets")
-Gnuplot.splash("assets/logo.png")
-saveas(file) = save(term="pngcairo size 480,360 fontscale 0.8", output="assets/$(file).png")
-empty!(Gnuplot.options.init)
-gpexec("set term unknown")
-```
 
 
 
