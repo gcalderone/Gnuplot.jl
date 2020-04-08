@@ -13,7 +13,7 @@
 
 Install with:
 ```julia
-]dev Gnuplot
+]add Gnuplot
 ```
 A working [gnuplot](http://gnuplot.sourceforge.net/) package must be installed on your platform.
 
