@@ -19,12 +19,12 @@ The **Gnuplot.jl** package allows easy and fast use of [gnuplot](http://gnuplot.
 
 - enhanced support for contour plots;
 
-- export to a huge number of formats such as `pdf`, `png`, ``\LaTeX``, `svg`, etc. (actually all those supported by gnuplot);
+- export to a huge number of formats such as `pdf`, `png`, `gif`, ``\LaTeX``, `svg`, etc. (actually all those supported by gnuplot);
 
-- save sessions into gnuplot scripts enables easy plot reproducibility and modifications.
+- save sessions into gnuplot scripts, to enable easy plot customization and reproducibility.
 
 If you're unfamiliar with gnuplot have a look at:
-- [Main *gnuplot site*](http://gnuplot.info/)
+- [Main gnuplot site](http://gnuplot.info/)
 - [gnuplot FAQ](http://gnuplot.info/faq/index.html)
 
 
@@ -37,7 +37,7 @@ A powerful plotting framework is among the most important tool in the toolbox of
 1. a well-documented framework, by taking advantage of all the gnuplot documentation, tutorials and examples available on the web;
 1. a fast response, by relying on an external program (rather than on a large Julia code base);
 1. an interactive data exploration framework, by exposing a carefully designed, extremely concise and easy to remember syntax (at least for users with minimal gnuplot knowledge);
-1. a procedure to foster plot reproducibility by sharing just the data and commands in the form of gnuplot scripts, rather than the original Julia code.
+1. a procedure to decouple plot data and aesthetics from the Julia code used to generate them.
 
 Unlike other packages **Gnuplot.jl** is not a pure Julia solution as it depends on an external package to actually generate plots.  However, if gnuplot is not available on a given platform, the package could still be used in "*dry*" mode, and no error for a missing dependency will be raised (see [Dry sessions](@ref)).
 

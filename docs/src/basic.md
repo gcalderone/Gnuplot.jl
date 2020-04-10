@@ -245,6 +245,10 @@ Note that you can pass both the terminal name and its options via the `term=` ke
 ## Gnuplot scripts
 Besides exporting plots in a file **Gnuplot.jl** can also save a *script*, i.e. a file containing the minimum set of data and commands required to re-create a figure using just gnuplot.
 
+The script allows a complete decoupling of plot data and aethetics, from the Julia code used to generate them.  With scripts you can:
+- modify all aesthetic details of a plot without re-running the (possibly complex and time-consuming) code used to generate it;
+- share both data and plots with colleagues without the need to share the Julia code.
+
 To generate a script for one of the examples above use:
 ```julia
 save("script.gp")
