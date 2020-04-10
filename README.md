@@ -28,7 +28,7 @@ The latest version of **Gnuplot.jl** is 1.1.0.
 
 
 ## Quick start
-The following examples are supposed to be rather self-explaining.  See [documentation](https://gcalderone.github.io/Gnuplot.jl/v1.1.0/) for further informations.
+The following examples are supposed to be self-explaining.  See [documentation](https://gcalderone.github.io/Gnuplot.jl/v1.1.0/) for further informations.
 
 ### A simple parabola
 ```julia
@@ -38,6 +38,7 @@ save(term="pngcairo size 480,360", output="examples/ex1.png")
 save("parabola.gp")  # => save a script file with both data and command to re-create the plot.  
 ```
 ![ex1.png](examples/ex1.png)
+
 
 ### A slightly more complex plot, with unicode on X tics
 ```julia
@@ -54,6 +55,7 @@ approx = fill(0., length(x));
 save(term="pngcairo size 640,480", output="examples/ex2.png")
 ```
 ![ex2.png](examples/ex2.png)
+
 
 ### Multiplot: a 2D histogram contour plot and a 3D surface plot
 ```julia
