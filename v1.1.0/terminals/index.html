@@ -10,7 +10,7 @@ latex = raw&quot;&quot;&quot;\begin{minipage}[c]{\textwidth}\begin{equation*}&qu
 	raw&quot;&quot;&quot;\end{equation*} \end{minipage}&quot;&quot;&quot;
 @gp :- &quot;set label at graph 0.62,0.2 front center &#39;$latex&#39;&quot;
 approx = fill(0., length(x));
-@gp :- x sin.(x) approx .+= x           &quot;w filledcurve t &#39;n=0&#39; lt 1&quot;
+@gp :- x sin.(x) approx .+=  x          &quot;w filledcurve t &#39;n=0&#39; lt 1&quot;
 @gp :- x sin.(x) approx .+= -x.^3/6     &quot;w filledcurve t &#39;n=1&#39; lt 2&quot;
 @gp :- x sin.(x) approx .+=  x.^5/120   &quot;w filledcurve t &#39;n=2&#39; lt 3&quot;
 @gp :- x sin.(x) approx .+= -x.^7/5040  &quot;w filledcurve t &#39;n=3&#39; lt 4&quot;
