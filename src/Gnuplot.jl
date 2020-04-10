@@ -108,7 +108,8 @@ function parseKeywords(; kwargs...)
                 cblabel=AbstractString,
                 xlog=Bool,
                 ylog=Bool,
-                zlog=Bool)
+                zlog=Bool,
+                cblog=Bool)
 
     kw = canonicalize(template; kwargs...)
     out = Vector{String}()
@@ -125,6 +126,7 @@ function parseKeywords(; kwargs...)
     ismissing(kw.xlog   ) || (push!(out, (kw.xlog  ?  ""  :  "un") * "set logscale x"))
     ismissing(kw.ylog   ) || (push!(out, (kw.ylog  ?  ""  :  "un") * "set logscale y"))
     ismissing(kw.zlog   ) || (push!(out, (kw.zlog  ?  ""  :  "un") * "set logscale z"))
+    ismissing(kw.cblog  ) || (push!(out, (kw.cblog ?  ""  :  "un") * "set logscale cb"))
     return out
 end
 
@@ -1154,6 +1156,7 @@ The `@gp` macro, and its companion `@gsp` for 3D plots, allows to send data and 
   - `xlog=true`   => `set logscale x`;
   - `ylog=true`   => `set logscale y`;
   - `zlog=true`   => `set logscale z`.
+  - `cblog=true`  => `set logscale cb`.
 All Keyword names can be abbreviated as long as the resulting name is unambiguous.  E.g. you can use `xr=[1,10]` in place of `xrange=[1,10]`.
 """
 macro gp(args...)

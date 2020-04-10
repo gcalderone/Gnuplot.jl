@@ -57,8 +57,8 @@ Last but not least, have a look at the **Gnuplot.jl** [Examples](@ref) page.
 
 ## Notation
 In this documentation:
-- **Gnuplot.jl** refers to the Julia package;
-- gnuplot refers to the [gnuplot](http://gnuplot.info/) application.
+- "**Gnuplot.jl**" refers to the Julia package;
+- "gnuplot" refers to the [gnuplot](http://gnuplot.info/) application.
 
 
 ## Table of Contents
