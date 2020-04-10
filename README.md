@@ -24,6 +24,8 @@ using Gnuplot
 println(Gnuplot.gpversion())
 test_terminal()
 ```
+The latest version of **Gnuplot.jl** is 1.1.0.
+
 
 ## Quick start
 The following examples are supposed to be rather self-explaining.  See [documentation](https://gcalderone.github.io/Gnuplot.jl/v1.1.0/) for further informations.
@@ -44,7 +46,7 @@ approx = fill(0., length(x));
 @gp t="Polynomial approximation of sin(x)"  key="opaque" linetypes(:Blues_3)
 @gp :- "set encoding utf8" raw"""set xtics ('-π' -pi, 'π/2' -pi/2, 0, 'π/2' pi/2, 'π' pi)"""
 @gp :- xr=3.8.*[-1, 1] yr=[-1.5,1.5] "set grid"
-@gp :- x sin.(x) approx .+= x           "w filledcurve t 'n=0' lt 1"
+@gp :- x sin.(x) approx .+=  x          "w filledcurve t 'n=0' lt 1"
 @gp :- x sin.(x) approx .+= -x.^3/6     "w filledcurve t 'n=1' lt 2"
 @gp :- x sin.(x) approx .+=  x.^5/120   "w filledcurve t 'n=2' lt 3"
 @gp :- x sin.(x) approx .+= -x.^7/5040  "w filledcurve t 'n=3' lt 4"

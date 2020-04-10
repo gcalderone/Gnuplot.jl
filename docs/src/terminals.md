@@ -70,7 +70,7 @@ latex = raw"""\begin{minipage}[c]{\textwidth}\begin{equation*}""" *
 	raw"""\end{equation*} \end{minipage}"""
 @gp :- "set label at graph 0.62,0.2 front center '$latex'"
 approx = fill(0., length(x));
-@gp :- x sin.(x) approx .+= x           "w filledcurve t 'n=0' lt 1"
+@gp :- x sin.(x) approx .+=  x          "w filledcurve t 'n=0' lt 1"
 @gp :- x sin.(x) approx .+= -x.^3/6     "w filledcurve t 'n=1' lt 2"
 @gp :- x sin.(x) approx .+=  x.^5/120   "w filledcurve t 'n=2' lt 3"
 @gp :- x sin.(x) approx .+= -x.^7/5040  "w filledcurve t 'n=3' lt 4"
