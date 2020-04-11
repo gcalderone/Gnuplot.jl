@@ -316,11 +316,6 @@ function GPSession(sid::Symbol)
                     end
                 end
             end
-            if isgnuplotrepl[1] &&
-                (line != "GNUPLOT_CAPTURE_BEGIN")  &&
-                (line != "GNUPLOT_CAPTURE_END")
-                println(stdout, line)
-            end
             return line
         end
 
@@ -334,6 +329,9 @@ function GPSession(sid::Symbol)
                 saveOutput = false
             else
                 if line != ""
+                    if isgnuplotrepl[1]
+                        println(stdout, line)
+                    end
                     if options.verbose  ||  !saveOutput
                         printstyled(color=:cyan, "GNUPLOT ($sid) -> $line\n")
                     end
