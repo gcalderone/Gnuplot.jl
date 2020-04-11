@@ -17,7 +17,7 @@ export session_names, dataset_names, palette_names, linetypes, palette,
 # ---------------------------------------------------------------------
 mutable struct DataSet
     file::String
-    gpsource::String
+    source::String
     preview::Vector{String}
     data::String
 end
@@ -663,18 +663,16 @@ newBlockName(gp::Session) = string("\$data", length(gp.datas)+1)
 
 
 # ---------------------------------------------------------------------
-function add_dataset(gp::Session, gpsource::String, _accum::Vector{String})
+function DataSet(name::String, _accum::Vector{String})
     accum = deepcopy(_accum)
-    prepend!(accum, [gpsource * " << EOD"])
+    prepend!(accum, [name * " << EOD"])
     append!( accum, ["EOD"])
     preview = (length(accum) < 6  ?  accum  :  [accum[1:5]..., "...", accum[end]])
-    d = DataSet("", gpsource, preview, join(accum, "\n"))
-    gp.datas[gpsource] = d  # name is the same as gpsource
-    write(gp, d) # send now to gnuplot process
-    return gpsource
+    d = DataSet("", name, preview, join(accum, "\n"))
+    return d
 end
 
-function add_dataset(gp::Session, name::String, args...)
+function DataSet(name::String, args...)
     @assert options.preferred_format in [:auto, :bin, :text] "Unexpected value for `options.preferred_format`: $(options.preferred_format)"
 
     binary = false
@@ -695,10 +693,9 @@ function add_dataset(gp::Session, name::String, args...)
 
     if binary
         try
-            (file, gpsource) = write_binary(args...)
-            d = DataSet(file, gpsource, [""], "")
-            gp.datas[name] = d
-            return gpsource
+            (file, source) = write_binary(args...)
+            d = DataSet(file, source, [""], "")
+            return d
         catch err
             if isa(err, MethodError)
                 # @warn "No method to write data as a binary file, resort to inline datablock..."
@@ -707,7 +704,7 @@ function add_dataset(gp::Session, name::String, args...)
             end
         end
     end
-    return add_dataset(gp, name, arrays2datablock(args...))
+    return DataSet(name, arrays2datablock(args...))
 end
 
 
@@ -763,8 +760,8 @@ end
 
 # --------------------------------------------------------------------
 function stats(gp::Session, name::String)
-    @info sid=gp.sid name=name source=gp.datas[name].gpsource
-    println(gpexec(gp, "stats " * gp.datas[name].gpsource))
+    @info sid=gp.sid name=name source=gp.datas[name].source
+    println(gpexec(gp, "stats " * gp.datas[name].source))
 end
 stats(gp::Session) = for (name, d) in gp.datas
     stats(gp, name)
@@ -909,24 +906,6 @@ end
 
 # ---------------------------------------------------------------------
 function driver(args...; flag3d=false)
-    function validate_datatype(d)
-        # Return true if the data type can be handled by the `tostring` function
-        if isa(d, AbstractArray)
-            t = valtype(d)
-        else
-            t = typeof(d)
-        end
-        if  (t <: String)  ||
-            (t <: Number)  ||
-            (t <: ColorTypes.RGB)  ||
-            (t <: ColorTypes.RGBA) ||
-            (t <: ColorTypes.Gray) ||
-            (t <: ColorTypes.GrayA)
-            return true
-        end
-        return false
-    end
-
     function parseCmd(gp, s::String)
         (isplot, is3d, cmd) = (false, false, "")
 
@@ -943,7 +922,7 @@ function driver(args...; flag3d=false)
         if cmd != ""
             for (name, d) in gp.datas
                 if d.file != ""
-                    cmd = replace(cmd, name => d.gpsource)
+                    cmd = replace(cmd, name => d.source)
                 end
             end
         end
@@ -991,9 +970,15 @@ function driver(args...; flag3d=false)
                 @assert maximum(length.(dataset)) == 0 "One (or more) input arrays are empty"
             else
                 isnothing(setname)  &&  (setname = newBlockName(gp))
-                source = add_dataset(gp, setname, dataset...)
+                if (length(dataset) == 1)  &&  isa(dataset[1], DataSet)
+                    d = dataset[1]
+                else
+                    d = DataSet(setname, dataset...)
+                end
+                gp.datas[setname] = d
+                write(gp, d)  # send now to gnuplot process
                 if !isnothing(plotspec)
-                    add_plot(gp, source * " " * plotspec)
+                    add_plot(gp, d.source * " " * plotspec)
                     gp.plots[gp.curmid].flag3d = flag3d
                 end
             end
@@ -1031,11 +1016,10 @@ function driver(args...; flag3d=false)
         elseif isa(arg, Tuple)  &&  length(arg) == 2  &&  isa(arg[1], Symbol)
             add_cmd(gp; [arg]...)       # ==> a keyword/value pair
         elseif isa(arg, Pair)           # ==> a named dataset
-            @assert typeof(arg[1]) == String
-            @assert arg[1][1] == '$'
+            @assert typeof(arg[1]) == String "Dataset name must be a string"
+            @assert arg[1][1] == '$' "Dataset name must start with a dollar sign"
             setname = arg[1]
             for d in arg[2]
-                @assert validate_datatype(d) "Invalid argument type at position $iarg"
                 push!(dataset, d)
             end
             dataset_completed()
@@ -1053,10 +1037,8 @@ function driver(args...; flag3d=false)
             plotspec = "w image notit"
             dataset_completed()
         elseif isa(arg, AbstractArray)  # ==> a dataset column
-            @assert validate_datatype(arg) "Invalid argument type at position $iarg"
             push!(dataset, arg)
         elseif isa(arg, Real)           # ==> a dataset column with only one row
-            @assert validate_datatype(arg) "Invalid argument type at position $iarg"
             push!(dataset, arg)
         else
             error("Unexpected argument at position $iarg")
