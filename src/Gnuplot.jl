@@ -293,7 +293,6 @@ function GPSession(sid::Symbol)
             line = ""
             while true
                 c = read(stream, Char)
-                print(c)
                 (c == '\r')  &&  continue
                 (c == '\n')  &&  break
                 if c == Char(0x1b)  # sixel
@@ -1750,7 +1749,7 @@ function repl_init(start_key='>')
              start_key=start_key,
              mode_name="Gnuplot",
              completion_provider=nothing,  # TODO: fix autocompletion
-             valid_input_checker=repl_isvalid, sticky_mode=false)
+             valid_input_checker=repl_isvalid)
 end
 
 end #module
