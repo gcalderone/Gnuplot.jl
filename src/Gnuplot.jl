@@ -624,7 +624,8 @@ newBlockName(gp::Session) = string("\$data", length(gp.datas)+1)
 
 
 # ---------------------------------------------------------------------
-function add_dataset(gp::Session, gpsource::String, accum::Vector{String})
+function add_dataset(gp::Session, gpsource::String, _accum::Vector{String})
+    accum = deepcopy(_accum)
     prepend!(accum, [gpsource * " << EOD"])
     append!( accum, ["EOD"])
     preview = (length(accum) < 6  ?  accum  :  [accum[1:5]..., "...", accum[end]])
@@ -1605,6 +1606,7 @@ mutable struct IsoContourLines
         data = Vector{String}()
         for i in 1:length(paths)
             append!(data, arrays2datablock(paths[i].x, paths[i].y, z .* fill(1., length(paths[i].x))))
+            push!(data, "")
             push!(data, "")
         end
         return new(paths, data, z)
