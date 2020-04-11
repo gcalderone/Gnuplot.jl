@@ -1,6 +1,7 @@
 module Gnuplot
 
 using StatsBase, ColorSchemes, ColorTypes, Colors, StructC14N, DataStructures
+using REPL, ReplMaker
 
 import Base.reset
 import Base.write
@@ -284,26 +285,47 @@ end
 
 
 # ---------------------------------------------------------------------
+pagerTokens() = ["Press return for more:"]
+
 function GPSession(sid::Symbol)
     function readTask(sid, stream, channel)
-        saveOutput = false
-
-        while isopen(stream)
-            line = readline(stream)
-            if (length(line) >= 1)  &&  (line[1] == Char(0x1b)) # Escape (xterm -ti vt340)
-                buf = Vector{UInt8}()
-                append!(buf, convert(Vector{UInt8}, [line...]))
-                push!(buf, 0x0a)
-                c = 0x00
-                while c != 0x1b
-                    c = read(stream, 1)[1]
-                    push!(buf, c)
+        function gpreadline(stream)
+            line = ""
+            while true
+                c = read(stream, Char)
+                (c == '\r')  &&  continue
+                (c == '\n')  &&  break
+                if c == Char(0x1b)
+                    buf = Vector{UInt8}()
+                    push!(buf, UInt8(c))
+                    while true
+                        c = read(stream, Char)
+                        push!(buf, UInt8(c))
+                        (c == Char(0x1b))  &&  break
+                    end
+                    c = read(stream, Char)
+                    push!(buf, UInt8(c))
+                    write(stdout, buf)
+                    continue
                 end
-                c = read(stream, 1)[1]
-                push!(buf, c)
-                write(stdout, buf)
-                continue
+                line *= c
+                for token in pagerTokens()
+                    if (length(line) == length(token))  &&  (line == token)
+                        return line
+                    end
+                end
             end
+            if  (line != "GNUPLOT_CAPTURE_BEGIN")  &&
+                (line != "GNUPLOT_CAPTURE_END")    &&
+                (Base.active_repl.mistate.current_mode.prompt == "gnuplot> ")
+                println(stdout, line)
+            end
+            return line
+        end
+
+        saveOutput = false
+        while isopen(stream)
+            line = gpreadline(stream)
             if line == "GNUPLOT_CAPTURE_BEGIN"
                 saveOutput = true
             elseif line == "GNUPLOT_CAPTURE_END"
@@ -454,8 +476,26 @@ function writeread(gp::GPSession, str::AbstractString)
     out = Vector{String}()
     while true
         l = take!(gp.channel)
-        l == "GNUPLOT_CAPTURE_END"  &&  break
-        push!(out, l)
+        if l in pagerTokens()
+            # Consume all data from the pager
+            while true
+                write(gp, "")
+                sleep(0.5)
+                if isready(gp.channel)
+                    while isready(gp.channel)
+                        push!(out, take!(gp.channel))
+                    end
+                else
+                    options.verbose = false
+                    write(gp, "print 'GNUPLOT_CAPTURE_END'")
+                    options.verbose = verbose
+                    break
+                end
+            end
+        else
+            l == "GNUPLOT_CAPTURE_END"  &&  break
+            push!(out, l)
+        end
     end
     return out
 end
@@ -744,10 +784,10 @@ function gpexec(gp::GPSession, command::String)
 
     verbose = options.verbose
     options.verbose = false
-    errno = writeread(gp, "print GPVAL_ERRNO")[1]
+    errno = writeread(gp, "print GPVAL_ERRNO")
     options.verbose = verbose
-
-    if errno != "0"
+    @assert length(errno) == 1
+    if errno[1] != "0"
         @error "\n" * join(answer, "\n")
         errmsg = writeread(gp, "print GPVAL_ERRMSG")
         write(gp.pin, "reset error\n")
@@ -1682,6 +1722,34 @@ function contourlines(args...; cntrparam="level auto 10")
         push!(out, IsoContourLines(paths[i], z))
     end
     return out
+end
+
+
+"""
+    Gnuplot.init_repl(start_key='>')
+
+Install a hook to replace the common Julia REPL with a gnuplot one.  The key to start the REPL is the one provided in `start_key` (default: `>`).
+
+Note: the gnuplot REPL operates only on the default session.
+"""
+function repl_init(start_key='>')
+    function repl_exec(s)
+        writeread(getsession(), s)
+        nothing
+    end
+
+    function repl_isvalid(s)
+        input = strip(String(take!(copy(REPL.LineEdit.buffer(s)))))
+        (length(input) == 0)  ||  (input[end] != '\\')
+    end
+
+    initrepl(repl_exec,
+             prompt_text="gnuplot> ",
+             prompt_color = :blue,
+             start_key=start_key,
+             mode_name="Gnuplot",
+             completion_provider=nothing,  # TODO: fix autocompletion
+             valid_input_checker=repl_isvalid, sticky_mode=false)
 end
 
 end #module
