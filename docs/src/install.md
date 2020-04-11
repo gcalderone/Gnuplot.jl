@@ -10,14 +10,29 @@ In the Julia REPL type:
 ```julia-repl
 julia> ]add Gnuplot
 ```
-Then hit backspace key to return to Julia REPL.
+The `]` character starts the Julia [package manager](https://julialang.github.io/Pkg.jl/v1/getting-started.html#Basic-Usage-1). Then hit backspace key to return to Julia REPL.
 
 ## Check installation
+Check **Gnuplot.jl** version with:
+```julia-repl
+julia> ]st Gnuplot
+Status `~/.julia/environments/v1.4/Project.toml`
+  [dc211083] Gnuplot v1.1.0
+```
+If the displayed version is not `v1.1.0` you are probably having a dependency conflict.  In this case try forcing installation of the correct version with:
+```julia-repl
+julia> ]add Gnuplot@1.1.0
+```
+and check which package is causing the conflict.
+
+
 Check execution and version of the underlying `gnuplot` process:
 ```@repl
 using Gnuplot
 Gnuplot.gpversion()
 ```
+The minimum required version is `v5.0`.
+
 
 Generate the first plot:
 ```julia-repl
