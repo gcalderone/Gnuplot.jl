@@ -293,9 +293,10 @@ function GPSession(sid::Symbol)
             line = ""
             while true
                 c = read(stream, Char)
+                print(c)
                 (c == '\r')  &&  continue
                 (c == '\n')  &&  break
-                if c == Char(0x1b)
+                if c == Char(0x1b)  # sixel
                     buf = Vector{UInt8}()
                     push!(buf, UInt8(c))
                     while true
@@ -309,17 +310,17 @@ function GPSession(sid::Symbol)
                     continue
                 end
                 line *= c
-                for token in pagerTokens()
+                for token in pagerTokens()  # handle pager interaction
                     if (length(line) == length(token))  &&  (line == token)
-                        return line
+                        break
                     end
                 end
             end
-            if  (line != "GNUPLOT_CAPTURE_BEGIN")  &&
-                (line != "GNUPLOT_CAPTURE_END")    &&
-                (Base.active_repl.mistate.current_mode.prompt == "gnuplot> ")
-                println(stdout, line)
-            end
+            # TODO if  (line != "GNUPLOT_CAPTURE_BEGIN")  &&
+            # TODO     (line != "GNUPLOT_CAPTURE_END")    &&
+            # TODO     (Base.active_repl.mistate.current_mode.prompt == "gnuplot> ")
+            # TODO     println(stdout, line)
+            # TODO end
             return line
         end
 
