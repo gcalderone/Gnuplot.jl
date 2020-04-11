@@ -89,6 +89,7 @@ end
 # ╰───────────────────────────────────────────────────────────────────╯
 const sessions = OrderedDict{Symbol, Session}()
 const options = Options()
+const isgnuplotrepl = [false]
 
 
 # ╭───────────────────────────────────────────────────────────────────╮
@@ -311,15 +312,15 @@ function GPSession(sid::Symbol)
                 line *= c
                 for token in pagerTokens()  # handle pager interaction
                     if (length(line) == length(token))  &&  (line == token)
-                        break
+                        return line
                     end
                 end
             end
-            # TODO if  (line != "GNUPLOT_CAPTURE_BEGIN")  &&
-            # TODO     (line != "GNUPLOT_CAPTURE_END")    &&
-            # TODO     (Base.active_repl.mistate.current_mode.prompt == "gnuplot> ")
-            # TODO     println(stdout, line)
-            # TODO end
+            if isgnuplotrepl[1] &&
+                (line != "GNUPLOT_CAPTURE_BEGIN")  &&
+                (line != "GNUPLOT_CAPTURE_END")
+                println(stdout, line)
+            end
             return line
         end
 
@@ -1734,7 +1735,9 @@ Note: the gnuplot REPL operates only on the default session.
 """
 function repl_init(start_key='>')
     function repl_exec(s)
+        isgnuplotrepl[1] = true
         writeread(getsession(), s)
+        isgnuplotrepl[1] = false
         nothing
     end
 
