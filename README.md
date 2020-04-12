@@ -17,6 +17,15 @@ Install with:
 ```
 A working [gnuplot](http://gnuplot.sourceforge.net/) package must be installed on your platform.
 
+You check the installed **Gnuplot.jl** version with:
+```julia
+]st Gnuplot
+```
+If the displayed version is not v1.1.0 you are probably having a dependency conflict. In this case try forcing installation of the correct version with:
+```julia
+]add Gnuplot@1.1.0
+```
+and check which package is causing the conflict.
 
 Test package:
 ```julia
@@ -24,7 +33,6 @@ using Gnuplot
 println(Gnuplot.gpversion())
 test_terminal()
 ```
-The latest version of **Gnuplot.jl** is 1.1.0.
 
 
 ## Quick start
