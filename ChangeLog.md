@@ -6,13 +6,16 @@ released on:
 	* REPL mode: a new `Gnuplot.repl_init()` function is available to
       install a gnuplot REPL;
 
-	* `@gp` and `@gsp` now accepts a `Gnuplot.DataSet` object, to
+	* `@gp` and `@gsp` now accepts a `Gnuplot.PlotRecipe` object, to
 	allow customized data input;
+
+	* The `plotrecipe` function can be extended to register new plot
+      recipes for custom input data;
 
 - Bugfix:
 	* When a `Vector{String}` is passed to `driver()` it used to be
-	modified, and couldn't be used again in a second call.  Now a copy
-	is made and the original is preserved;
+	modified, and couldn't be used again in a second call.  Now the
+	original is preserved;
 
 	* `contourlines()` used to return a single blanck line to
 	distinguish iso-contour lines, and this may cause problems in 3D

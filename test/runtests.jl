@@ -103,6 +103,8 @@ ls = linetypes(:deepsea)
 # Test wth empty dataset
 @gp Float64[]
 @gsp Float64[]
+@gp Float64[] Float64[]
+@gsp Float64[] Float64[]
 
 
 #-----------------------------------------------------------------
