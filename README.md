@@ -17,7 +17,7 @@ Install with:
 ```
 A working [gnuplot](http://gnuplot.sourceforge.net/) package must be installed on your platform.
 
-You check th installed **Gnuplot.jl** version with:
+You check the installed **Gnuplot.jl** version with:
 ```julia
 ]st Gnuplot
 ```
