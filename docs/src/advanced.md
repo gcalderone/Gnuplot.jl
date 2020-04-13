@@ -1,17 +1,16 @@
-# Advanced usage
-
-Here we will show a few advanced techniques for data visualization using **Gnuplot.jl**.
-
-
 ```@setup abc
 using Gnuplot
 Gnuplot.quitall()
 mkpath("assets")
-saveas(file) = save(term="pngcairo size 480,360 fontscale 0.8", output="assets/$(file).png")
 empty!(Gnuplot.options.init)
-gpexec("set term unknown")
+push!( Gnuplot.options.init, "set term unknown")
+empty!(Gnuplot.options.reset)
+push!( Gnuplot.options.reset, linetypes(:Set1_5, lw=2))
+saveas(file) = save(term="pngcairo size 550,350 fontscale 0.8", output="assets/$(file).png")
 ```
+# Advanced usage
 
+Here we will show a few advanced techniques for data visualization using **Gnuplot.jl**.
 
 ## Named datasets
 
@@ -128,7 +127,6 @@ The output value is the exit status of the underlying gnuplot process.
 You may also quit all active sessions at once with [`Gnuplot.quitall()`](@ref):
 ```@repl abc
 Gnuplot.quitall()
-gpexec("set term unknown") # hide
 ```
 
 ## Histograms
@@ -218,14 +216,9 @@ save(term="gif animate size 480,360 delay 5", output="assets/animation.gif")
 
 
 ## Direct command execution
-When gnuplot commands are passed to `@gp` or `@gsp` they are stored in a session for future use, or to be saved in [Gnuplot scripts](@ref).  If you simply wish to execute a command, without storing it in the session, use [`gpexec`](@ref).  E.g. if you wish to temporarily change the current terminal:
-```@repl abc
-gpexec("set term wxt");
-```
-The gnuplot process replies are returned as a string, e.g.:
+When gnuplot commands are passed to `@gp` or `@gsp` they are stored in a session for future use, or to be saved in [Gnuplot scripts](@ref).  If you simply wish to execute a command without storing it in the session, and possibly retrieve a value, use [`gpexec`](@ref).  E.g. if you wish to retrieve the value of a gnuplot variable:
 ```@repl abc
 gpexec("print GPVAL_TERM")
-gpexec("set term unknown")  #hide
 ```
 
 You may also provide a session ID as first argument (see [Multiple sessions](@ref)) to redirect the command to a specific session.
@@ -233,9 +226,8 @@ You may also provide a session ID as first argument (see [Multiple sessions](@re
 
 ## Dry sessions
 A "*dry session*" is a session with no underlying gnuplot process.  To enable dry sessions type:
-```@repl abc
+```julia
 Gnuplot.options.dry = true;
-Gnuplot.options.dry = false  #hide
 ```
 before starting a session (see also [Options](@ref)).  Note that the `dry` option is a global one, i.e. it affects all sessions started after setting the option.
 
@@ -245,15 +237,21 @@ If a gnuplot process can not be started the package will print a warning, and au
 
 
 ## Options
-Thepackage options are stored in a global structure available in Julia as `Gnuplot.option` (the type of the structure is [`Gnuplot.Options`](@ref)).  The most important settings are as follows:
+The package options are stored in a global structure available in Julia as `Gnuplot.option` (the type of the structure is [`Gnuplot.Options`](@ref)).  The most important settings are as follows:
 
-- `dry::Bool`: if true all new sessions will be started [Dry sessions](@ref).  Default is `false`, but if the package is not able to start a gnuplot it will automatically switch to `false`;
+- `dry::Bool`: if true all new sessions will be started as [Dry sessions](@ref).  Default is `false`, but if the package is not able to start a gnuplot it will automatically switch to `false`;
 
-- `init::Vector{String}`: This vector can be used to `push!` initialization commands to be executed when a new session is started.  Default is an empty vector.  It can be used to, e.g., set a custom terminal for all new sessions:
+- `init::Vector{String}`: initialization commands to be executed when a new session is created.  Default is an empty vector.  It can be used to, e.g., set a custom terminal:
 ```@repl abc
-push!(Gnuplot.options.init, "set term sixelgd");
+push!(Gnuplot.options.start, "set term sixelgd");
 ```
-Note that this is a global option, i.e. it will affect all new sessions.  Also note that the commands in `Gnuplot.options.init` are not saved in [Gnuplot scripts](@ref);
+Note that this is option affect all the newly created sessions, not the older ones.  Also note that the commands in `Gnuplot.options.init` **are not** saved in [Gnuplot scripts](@ref);
+
+- `reset::Vector{String}`: initialization commands to be executed when a session is reset.  Default is an empty vector.  It can be used to, e.g., set custom linetypes or palette:
+```@repl abc
+push!(Gnuplot.options.init, linetypes(:Set1_5, lw=2));
+```
+Note that this is option affect all the sessions.  Also note that the commands in `Gnuplot.options.reset` **are** saved in [Gnuplot scripts](@ref);
 
 - `verbose::Bool`: a flag to set verbosity of the package.  In particular if it is `true` all communication with the underlying process will be printed on stdout. E.g.:
 ```@repl abc
@@ -262,13 +260,10 @@ Gnuplot.options.verbose = true;
 x = 1.:10;
 @gp x x.^2 "w l t 'Parabola'"
 save(term="pngcairo size 480,360 fontscale 0.8", output="output.png")
+Gnuplot.options.verbose = false # hide
+gpexec("set term unknown")      # hide
 ```
 Each line reports the package name (`GNUPLOT`), the session name (`default`), the command or string being sent to gnuplot process, and the returned response (line starting with `->`).  Default value is `false`;
-
-```@setup abc
-Gnuplot.options.verbose = false
-gpexec("set term unknown")
-```
 
 - `cmd::String`: command to start the gnuplot process, default value is `"gnuplot"`.  If you need to specify a custom path to the gnuplot executable you may change this value;
 
@@ -278,3 +273,4 @@ gpexec("set term unknown")
    - `bin`: provides best performances for large datasets, but uses temporary files;
    - `text`: may be slow for large datasets, but no temporary file is involved;
    - `auto` (default) automatically choose the best strategy.
+

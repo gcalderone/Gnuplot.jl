@@ -3,9 +3,11 @@ using Gnuplot
 Gnuplot.quitall()
 mkpath("assets")
 Gnuplot.splash("assets/logo.png")
-saveas(file) = save(term="pngcairo size 480,360 fontscale 0.8", output="assets/$(file).png")
 empty!(Gnuplot.options.init)
-gpexec("set term unknown")
+push!( Gnuplot.options.init, "set term unknown")
+empty!(Gnuplot.options.reset)
+push!( Gnuplot.options.reset, linetypes(:Set1_5, lw=2))
+saveas(file) = save(term="pngcairo size 550,350 fontscale 0.8", output="assets/$(file).png")
 ```
 
 # Basic usage
@@ -209,22 +211,34 @@ saveas("ex008a") # hide
 ```
 ![](assets/ex008a.png)
 
+The list of all available palette can be retrieved with [`palette_names()`](@ref):
+```@repl abc
+palette_names()
+```
 
-The [ColorSchemes](https://juliagraphics.github.io/ColorSchemes.jl/stable/basics/#Pre-defined-schemes-1) palettes can also be used to generate line types (actually just line colors), by means of the [`linetypes()`](@ref) function, e.g.
+
+The [ColorSchemes](https://juliagraphics.github.io/ColorSchemes.jl/stable/basics/#Pre-defined-schemes-1) palettes can also be used to generate line type colors, and optionally the line width, point size and dashed pattern, by means of the [`linetypes()`](@ref) function, e.g.
 ```@example abc
-@gp linetypes(:deepsea)
-x = 1:0.1:4pi
-for i in 1:5
-    @gp :- x i.* sin.(x) "w l notit lw 5"
+@gp "set key left" "set multiplot layout 1,2"
+@gp :- 1 linetypes(:Set1_5, lw=2)
+for i in 1:10
+    @gp :- i .* (0:10) "w lp t '$i'"
+end
+@gp :- 2 linetypes(:Set1_5, dashed=true, ps=2)
+for i in 1:10
+    @gp :- i .* (0:10) "w lp t '$i'"
 end
 saveas("ex009") # hide
 ```
 ![](assets/ex009.png)
 
-The list of all available palette can be retrieved with [`palette_names()`](@ref):
-```@repl abc
-palette_names()
+The plot on the left features the `:Set1_5` palette and where each line is solid and has a width of 2 by default.  The plot on the right shows the same palette but default line widths are 1, default point size is 2 (for the first N line types, where N is the number of discrete colors in the palette), and the dashed pattern is automatically changed.  
+
+You may set a default line types for all plots with:
+```julia
+push!( Gnuplot.options.init, linetypes(:Set1_5, lw=2))
 ```
+(see [Options](@ref) for further informations).  All plot in this documentation were generated with the latter settings.
 
 
 ## Exporting plots to files
@@ -237,13 +251,13 @@ terminals()
 
 Once you choose the proper terminal (i.e. format of the exported file), use the [`save()`](@ref) function to export.  As an example, all the plots in this page have been saved with:
 ```julia
-save(term="pngcairo size 480,360 fontscale 0.8", output="assets/output.png")
+save(term="pngcairo size 550,350 fontscale 0.8", output="assets/output.png")
 ```
 Note that you can pass both the terminal name and its options via the `term=` keyword.  See [Gnuplot terminals](@ref) for further info on the terminals.
 
 
 ## Gnuplot scripts
-Besides exporting plots in a file **Gnuplot.jl** can also save a *script*, i.e. a file containing the minimum set of data and commands required to re-create a figure using just gnuplot.
+Besides exporting plots in image files, **Gnuplot.jl** can also save a *script*, i.e. a file containing the minimum set of data and commands required to re-create a figure using just gnuplot.
 
 The script allows a complete decoupling of plot data and aethetics, from the Julia code used to generate them.  With scripts you can:
 - modify all aesthetic details of a plot without re-running the (possibly complex and time-consuming) code used to generate it;
@@ -257,7 +271,7 @@ after the plot has been displayed.  Note that when images or large datasets are 
 
 
 E.g., the following code:
-```julia
+```@example abc
 x = 1:10
 @gp x x.^2 "w l"
 save("script1.gp")
@@ -283,7 +297,7 @@ set output
 ```
 
 While the following:
-```julia
+```@example abc
 img = testimage("lighthouse");
 @gp "set size square" "set autoscale fix" img "rotate=-90deg with rgbimage notit"
 save("script2.gp")
@@ -301,6 +315,7 @@ set output
 The above scripts can be loaded into a pure gnuplot session (Julia is no longer needed) as follows:
 ```
 gunplot> load 'script1.gp'
+gunplot> load 'script2.gp'
 ```
 to generate a plot identical to the original one.
 
