@@ -118,7 +118,6 @@ end
 # ╰───────────────────────────────────────────────────────────────────╯
 const sessions = OrderedDict{Symbol, Session}()
 const options = Options()
-const isgnuplotrepl = [false]
 
 
 # ╭───────────────────────────────────────────────────────────────────╮
@@ -358,9 +357,6 @@ function GPSession(sid::Symbol)
                 saveOutput = false
             else
                 if line != ""
-                    if isgnuplotrepl[1]
-                        println(stdout, line)
-                    end
                     if options.verbose  ||  !saveOutput
                         printstyled(color=:cyan, "GNUPLOT ($sid) -> $line\n")
                     end
@@ -1784,9 +1780,9 @@ Note: the gnuplot REPL operates only on the default session.
 """
 function repl_init(start_key='>')
     function repl_exec(s)
-        isgnuplotrepl[1] = true
-        writeread(getsession(), s)
-        isgnuplotrepl[1] = false
+        for s in writeread(getsession(), s)
+            println(s)
+        end
         nothing
     end
 
