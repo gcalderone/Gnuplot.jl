@@ -94,7 +94,8 @@ Structure containing the package global options, accessible through `Gnuplot.opt
 - `dry::Bool`: whether to use *dry* sessions, i.e. without an underlying Gnuplot process (default: `false`)
 - `cmd::String`: command to start the Gnuplot process (default: `"gnuplot"`)
 - `default::Symbol`: default session name (default: `:default`)
-- `init::Vector{String}`: commands to initialize the gnuplot session (e.g., to set default terminal)
+- `init::Vector{String}`: commands to initialize the session when it is created (e.g., to set default terminal);
+- `reset::Vector{String}`: commands to initialize the session when it is reset (e.g., to set default palette);
 - `verbose::Bool`: verbosity flag (default: `false`)
 - `preferred_format::Symbol`: preferred format to send data to gnuplot.  Value must be one of:
    - `bin`: fastest solution for large datasets, but uses temporary files;
@@ -106,6 +107,7 @@ Base.@kwdef mutable struct Options
     cmd::String = "gnuplot"
     default::Symbol = :default
     init::Vector{String} = Vector{String}()
+    reset::Vector{String} = Vector{String}()
     verbose::Bool = false
     preferred_format::Symbol = :auto
 end
@@ -678,7 +680,10 @@ function reset(gp::Session)
     gp.datas = OrderedDict{String, DataSet}()
     gp.plots = [SinglePlot()]
     gp.curmid = 1
+    gpexec(gp, "set output")
+    gpexec(gp, "unset multiplot")
     gpexec(gp, "reset session")
+    add_cmd.(Ref(gp), options.reset)
     return nothing
 end
 
@@ -1078,7 +1083,7 @@ function expandrecipes(args...; flag3d=false)
             push!(out, pr.plot[i])
         end
     end
-    
+
     out = Vector{Any}()
     for arg in args
         if hasmethod(plotrecipe, tuple(typeof(arg)))
@@ -1360,23 +1365,27 @@ palette_names() = Symbol.(keys(ColorSchemes.colorschemes))
 
 
 """
-    linetypes(cmap::ColorScheme; rev=false)
-    linetypes(s::Symbol; rev=false)
+    linetypes(cmap::ColorScheme; lw=1, ps="default", dashed=false, rev=false)
+    linetypes(s::Symbol; lw=1, ps="default", dashed=false, rev=false)
 
 Convert a `ColorScheme` object into a string containing the gnuplot commands to set up *linetype* colors.
 
-If the argument is a `Symbol` it is interpreted as the name of one of the predefined schemes in [ColorSchemes](https://juliagraphics.github.io/ColorSchemes.jl/stable/basics/#Pre-defined-schemes-1). If `rev=true` the line colors are reversed.
+If the argument is a `Symbol` it is interpreted as the name of one of the predefined schemes in [ColorSchemes](https://juliagraphics.github.io/ColorSchemes.jl/stable/basics/#Pre-defined-schemes-1).
+
+If `rev=true` the line colors are reversed.  If a numeric or string value is provided through the `lw` and `ps` keywords thay are used to set the line width and the point size respectively.  If `dashed` is true the linetypes with index greater than 1 will be displayed with dashed pattern.
 """
-linetypes(s::Symbol; rev=false) = linetypes(colorschemes[s], rev=rev)
-function linetypes(cmap::ColorScheme; rev=false)
+linetypes(s::Symbol; kwargs...) = linetypes(colorschemes[s]; kwargs...)
+function linetypes(cmap::ColorScheme; lw=1, ps="default", dashed=false, rev=false)
     out = Vector{String}()
+    push!(out, "unset for [i=1:256] linetype i")
     for i in 1:length(cmap.colors)
         if rev
             color = cmap.colors[end - i + 1]
         else
             color = cmap.colors[i]
         end
-        push!(out, "set linetype $i lc rgb '#" * Colors.hex(color))
+        dt = (dashed  ?  "$i"  :  "solid")
+        push!(out, "set linetype $i lc rgb '#" * Colors.hex(color) * "' lw $lw dt $dt pt $i ps $ps")
     end
     return join(out, "\n") * "\nset linetype cycle " * string(length(cmap.colors)) * "\n"
 end
