@@ -9,8 +9,10 @@ makedocs(sitename="Gnuplot.jl",
              "Installation" => "install.md",
              "Basic usage" => "basic.md",
              "Advanced usage" => "advanced.md",
+             "Package options" => "options.md",
              "Style guide" => "style.md",
              "Gnuplot terminals" => "terminals.md",
+             "Plot recipes" => "recipes.md",
              "Examples" => "examples.md",
              "API" => "api.md"
          ])
