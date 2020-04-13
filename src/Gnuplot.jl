@@ -1796,7 +1796,7 @@ function repl_init(start_key='>')
              prompt_color = :blue,
              start_key=start_key,
              mode_name="Gnuplot",
-             completion_provider=nothing,  # TODO: fix autocompletion
+             completion_provider=REPL.LineEdit.EmptyCompletionProvider(),
              valid_input_checker=repl_isvalid)
 end
 
