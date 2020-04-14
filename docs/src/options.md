@@ -59,15 +59,15 @@ If you use **Gnuplot.jl** frequently you may find convenient to collect all the 
 ```julia
 macro gnuplotrc()
     return :(
-        using Gnuplot
+        using Gnuplot;
 
         # Uncomment the following if you don't have the gnuplot
         # executable installed on your platform
-        #Gnuplot.options.dry = true
+        #Gnuplot.options.dry = true;
 
         # Uncomment the following and set the proper path if the
         # gnuplot executable is not in your $PATH
-        #Gnuplot.options.cmd = "/path/to/gnuplot"
+        #Gnuplot.options.cmd = "/path/to/gnuplot";
 
         # Set the default terminal for interacitve use
         push!(Gnuplot.options.init, "set term wxt size 700,400");
@@ -77,7 +77,7 @@ macro gnuplotrc()
 
         # Initialize the gnuplot REPL using the provided `start_key`.
         # Comment the following to disable the REPL.
-        Gnuplot.repl_init(start_key='>')
+        Gnuplot.repl_init(start_key='>');
     )
 end
 ```
