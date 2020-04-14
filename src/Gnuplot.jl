@@ -15,39 +15,39 @@ export session_names, dataset_names, palette_names, linetypes, palette,
 # │                           TYPE DEFINITIONS                        │
 # ╰───────────────────────────────────────────────────────────────────╯
 # ---------------------------------------------------------------------
-abstract type DataSet end
+abstract type Dataset end
 
-mutable struct DataSetText <: DataSet
+mutable struct DatasetText <: Dataset
     preview::Vector{String}
     data::String
-    DataSetText(::Val{:inner}, preview, data) = new(preview, data)
+    DatasetText(::Val{:inner}, preview, data) = new(preview, data)
 end
 
-mutable struct DataSetBin <: DataSet
+mutable struct DatasetBin <: Dataset
     file::String
     source::String
-    DataSetBin(::Val{:inner}, file, source) = new(file, source)
+    DatasetBin(::Val{:inner}, file, source) = new(file, source)
 end
 
-struct PlotRecipe
+struct PlotElements
     mid::Int
     cmds::Vector{String}
-    data::Vector{DataSet}
+    data::Vector{Dataset}
     plot::Vector{String}
 
-    function PlotRecipe(;mid::Int=0,
-                        cmds::Union{String, Vector{String}}=Vector{String}(),
-                        data::Union{DataSet, Vector{DataSet}}=Vector{DataSet}(),
-                        plot::Union{String, Vector{String}}="",
-                        kwargs...)
+    function PlotElements(;mid::Int=0,
+                    cmds::Union{String, Vector{String}}=Vector{String}(),
+                    data::Union{Dataset, Vector{Dataset}}=Vector{Dataset}(),
+                    plot::Union{String, Vector{String}}="",
+                    kwargs...)
         c = isa(cmds, String)  ? [cmds] : cmds
         append!(c, parseKeywords(; kwargs...))
         new(mid, c,
-            isa(data, DataSet) ? [data] : data,
+            isa(data, Dataset) ? [data] : data,
             isa(plot, String)  ? [plot] : plot)
     end
 end
-plotrecipe() = nothing
+recipe() = nothing
 
 
 # ---------------------------------------------------------------------
@@ -64,7 +64,7 @@ abstract type Session end
 
 mutable struct DrySession <: Session
     sid::Symbol                         # session ID
-    datas::OrderedDict{String, DataSet} # data sets
+    datas::OrderedDict{String, Dataset} # data sets
     plots::Vector{SinglePlot}           # commands and plot commands (one entry for each plot of the multiplot)
     curmid::Int                         # current multiplot ID
 end
@@ -73,7 +73,7 @@ end
 # ---------------------------------------------------------------------
 mutable struct GPSession <: Session
     sid::Symbol                         # session ID
-    datas::OrderedDict{String, DataSet} # data sets
+    datas::OrderedDict{String, Dataset} # data sets
     plots::Vector{SinglePlot}           # commands and plot commands (one entry for each plot of the multiplot)
     curmid::Int                         # current multiplot ID
     pin::Base.Pipe;
@@ -307,7 +307,7 @@ end
 # ---------------------------------------------------------------------
 function DrySession(sid::Symbol)
     (sid in keys(sessions))  &&  error("Gnuplot session $sid is already active")
-    out = DrySession(sid, OrderedDict{String, DataSet}(), [SinglePlot()], 1)
+    out = DrySession(sid, OrderedDict{String, Dataset}(), [SinglePlot()], 1)
     sessions[sid] = out
     return out
 end
@@ -470,9 +470,9 @@ function write(gp::GPSession, str::AbstractString)
 end
 
 
-write(gp::DrySession, name::String, d::DataSet) = nothing
-write(gp::GPSession, name::String, d::DataSetBin) = nothing
-function write(gp::GPSession, name::String, d::DataSetText)
+write(gp::DrySession, name::String, d::Dataset) = nothing
+write(gp::GPSession, name::String, d::DatasetBin) = nothing
+function write(gp::GPSession, name::String, d::DatasetText)
     if options.verbose
         printstyled(color=:light_black,      "GNUPLOT ($(gp.sid)) ", name, " << EOD\n")
         printstyled(color=:light_black, join("GNUPLOT ($(gp.sid)) " .* d.preview, "\n") * "\n")
@@ -530,7 +530,7 @@ end
 
 
 # ╭───────────────────────────────────────────────────────────────────╮
-# │                       DataSet CONSTRUCTORS                        │
+# │                       Dataset CONSTRUCTORS                        │
 # ╰───────────────────────────────────────────────────────────────────╯
 
 #=
@@ -555,80 +555,27 @@ end
 =#
 
 # ---------------------------------------------------------------------
-function DataSetBin(M::Matrix{T}) where T <: Number
+function DatasetBin(VM::Vararg{AbstractMatrix{T}, N}) where {T <: Number, N}
+    for i in 2:N
+        @assert size(VM[i]) == size(VM[1])
+    end
+    s = size(VM[1])
     (path, io) = mktemp()
-    for j in 1:size(M)[2]
-        for i in 1:size(M)[1]
-            write(io, Float32(M[i,j]))
+    for j in 1:s[2]
+        for i in 1:s[1]
+            for k in 1:N
+                write(io, Float32(VM[k][i,j]))
+            end
         end
     end
     close(io)
-    source = " '$path' binary array=(" * join(string.(size(M)), ", ") * ")"
-    return DataSetBin(Val(:inner), path, source)
+    source = " '$path' binary array=(" * join(string.(s), ", ") * ")"
+    return DatasetBin(Val(:inner), path, source)
 end
 
 
 # ---------------------------------------------------------------------
-function DataSetBin(M::Matrix{ColorTypes.RGB{T}}) where T
-    (path, io) = mktemp()
-    for j in 1:size(M)[2]
-        for i in 1:size(M)[1]
-            write(io, Float32(256 * M[i,j].r))
-            write(io, Float32(256 * M[i,j].g))
-            write(io, Float32(256 * M[i,j].b))
-        end
-    end
-    close(io)
-    source = " '$path' binary array=(" * join(string.(size(M)), ", ") * ")"
-    return DataSetBin(Val(:inner), path, source)
-end
-
-
-# ---------------------------------------------------------------------
-function DataSetBin(M::Matrix{ColorTypes.RGBA{T}}) where T
-    (path, io) = mktemp()
-    for j in 1:size(M)[2]
-        for i in 1:size(M)[1]
-            write(io, Float32(256 * M[i,j].r))
-            write(io, Float32(256 * M[i,j].g))
-            write(io, Float32(256 * M[i,j].b))
-        end
-    end
-    close(io)
-    source = " '$path' binary array=(" * join(string.(size(M)), ", ") * ")"
-    return DataSetBin(Val(:inner), path, source)
-end
-
-
-# ---------------------------------------------------------------------
-function DataSetBin(M::Matrix{ColorTypes.Gray{T}}) where T
-    (path, io) = mktemp()
-    for j in 1:size(M)[2]
-        for i in 1:size(M)[1]
-            write(io, Float32(256 * M[i,j].val))
-        end
-    end
-    close(io)
-    source = " '$path' binary array=(" * join(string.(size(M)), ", ") * ")"
-    return DataSetBin(Val(:inner), path, source, "")
-end
-
-# ---------------------------------------------------------------------
-function DataSetBin(M::Matrix{ColorTypes.GrayA{T}}) where T
-    (path, io) = mktemp()
-    for j in 1:size(M)[2]
-        for i in 1:size(M)[1]
-            write(io, Float32(256 * M[i,j].val))
-        end
-    end
-    close(io)
-    source = " '$path' binary array=(" * join(string.(size(M)), ", ") * ")"
-    return DataSetBin(Val(:inner), path, source)
-end
-
-
-# ---------------------------------------------------------------------
-function DataSetBin(cols::Vararg{AbstractVector, N}) where N
+function DatasetBin(cols::Vararg{AbstractVector, N}) where N
     source = "binary record=$(length(cols[1])) format='"
     types = Vector{DataType}()
     (length(cols) == 1)  &&  (source *= "%int")
@@ -654,15 +601,15 @@ function DataSetBin(cols::Vararg{AbstractVector, N}) where N
         end
     end
     close(io)
-    return DataSetBin(Val(:inner), path, source)
+    return DatasetBin(Val(:inner), path, source)
 end
 
 
 # ---------------------------------------------------------------------
-DataSetText(args...) = DataSetText(arrays2datablock(args...))
-function DataSetText(data::Vector{String})
+DatasetText(args...) = DatasetText(arrays2datablock(args...))
+function DatasetText(data::Vector{String})
     preview = (length(data) <= 4  ?  deepcopy(data)  :  [data[1:4]..., "..."])
-    d = DataSetText(Val(:inner), preview, join(data, "\n"))
+    d = DatasetText(Val(:inner), preview, join(data, "\n"))
     return d
 end
 
@@ -673,7 +620,7 @@ end
 # ---------------------------------------------------------------------
 function reset(gp::Session)
     delete_binaries(gp)
-    gp.datas = OrderedDict{String, DataSet}()
+    gp.datas = OrderedDict{String, Dataset}()
     gp.plots = [SinglePlot()]
     gp.curmid = 1
     gpexec(gp, "set output")
@@ -695,7 +642,7 @@ end
 
 
 # ---------------------------------------------------------------------
-newDataSetName(gp::Session) = string("\$data", length(gp.datas)+1)
+newDatasetName(gp::Session) = string("\$data", length(gp.datas)+1)
 
 
 # ---------------------------------------------------------------------
@@ -737,7 +684,7 @@ end
 # ---------------------------------------------------------------------
 function delete_binaries(gp::Session)
     for (name, d) in gp.datas
-        if isa(d, DataSetBin)  &&  (d.file != "")
+        if isa(d, DatasetBin)  &&  (d.file != "")
             rm(d.file, force=true)
         end
     end
@@ -850,7 +797,7 @@ function savescript(gp::Session, filename; term::AbstractString="", output::Abst
         path_to   = Vector{String}()
         datapath  = data_dirname(filename)
         for (name, d) in gp.datas
-            if isa(d, DataSetBin)  &&  (d.file != "")
+            if isa(d, DatasetBin)  &&  (d.file != "")
                 if (length(path_from) == 0)
                     isdir(datapath)  &&  rm(datapath, recursive=true)
                     mkdir(datapath)
@@ -886,7 +833,7 @@ function savescript(gp::Session, filename; term::AbstractString="", output::Abst
 
     paths = copy_binary_files(gp, filename)
     for (name, d) in gp.datas
-        if isa(d, DataSetText)
+        if isa(d, DatasetText)
             println(stream, name * " << EOD")
             println(stream, d.data)
             println(stream, "EOD")
@@ -929,7 +876,7 @@ function driver(args...; flag3d=false)
 
         if cmd != ""
             for (name, d) in gp.datas
-                if isa(d, DataSetBin)  &&  (d.file != "")
+                if isa(d, DatasetBin)  &&  (d.file != "")
                     cmd = replace(cmd, name => d.source)
                 end
             end
@@ -973,35 +920,35 @@ function driver(args...; flag3d=false)
     plotspec = nothing
     function dataset_ready()
         if length(dataAccum) > 0
-            # Ensure DataSet objects are processed one at a time
+            # Ensure Dataset objects are processed one at a time
             for i in 1:length(dataAccum)
-                @assert !isa(dataAccum[i], DataSet)  ||  (length(dataAccum) == 1)
+                @assert !isa(dataAccum[i], Dataset)  ||  (length(dataAccum) == 1)
             end
 
             # Check if dataset is empty
             emptyset = false
-            if !isa(dataAccum[1], DataSet)
+            if !isa(dataAccum[1], Dataset)
                 mm = extrema(length.(dataAccum))
                 (mm[1] == 0)  &&  (@assert mm[1] == mm[2] "At least one input array is empty, while other(s) are not")
                 emptyset = (mm[2] == 0)
             end
 
             if !emptyset
-                if isa(dataAccum[1], DataSet)
+                if isa(dataAccum[1], Dataset)
                     d = dataAccum[1]
                 else
                     if sendAsBinary(dataAccum...)
-                        d = DataSetBin(dataAccum...)
+                        d = DatasetBin(dataAccum...)
                     else
-                        d = DataSetText(dataAccum...)
+                        d = DatasetText(dataAccum...)
                     end
                 end
 
-                isnothing(dsetname)  &&  (dsetname = newDataSetName(gp))
+                isnothing(dsetname)  &&  (dsetname = newDatasetName(gp))
                 gp.datas[dsetname] = d
                 write(gp, dsetname, d)  # send now to gnuplot process
                 if !isnothing(plotspec)
-                    if isa(d, DataSetBin)
+                    if isa(d, DatasetBin)
                         add_plot(gp, d.source * " " * plotspec)
                     else
                         add_plot(gp, dsetname * " " * plotspec)
@@ -1054,7 +1001,7 @@ function driver(args...; flag3d=false)
             push!(dataAccum, arg)
         elseif isa(arg, Real)           # ==> a dataset column with only one row
             push!(dataAccum, arg)
-        elseif isa(arg, DataSet)
+        elseif isa(arg, Dataset)
             push!(dataAccum, arg)
         else
             error("Unexpected argument at position $iarg with type " * string(typeof(arg)))
@@ -1070,7 +1017,7 @@ end
 
 
 function expandrecipes(args...; flag3d=false)
-    function push_recipe!(out::Vector{Any}, pr::PlotRecipe)
+    function push_elements!(out::Vector{Any}, pr::PlotElements)
         @assert length(pr.data) <= length(pr.plot)
         (pr.mid > 0)  &&  push!(out, pr.mid)
         append!(out, pr.cmds)
@@ -1079,19 +1026,22 @@ function expandrecipes(args...; flag3d=false)
             push!(out, pr.plot[i])
         end
     end
+    function push_elements!(out::Vector{Any}, v::Vector{PlotElements})
+        for pr in v
+            push_elements!(out, pr)
+        end
+    end
 
     out = Vector{Any}()
     for arg in args
-        if hasmethod(plotrecipe, tuple(typeof(arg)))
-            push_recipe!(out, plotrecipe(arg))
-        elseif isa(arg, PlotRecipe)
-            push_recipe!(out, arg)
-        elseif isa(arg, Vector{PlotRecipe})
-            for pr in arg
-                push_recipe!(out, pr)
-            end
+        if hasmethod(recipe, tuple(typeof(arg)))  # implicit recipe
+            push_elements!(out, recipe(arg))
+        elseif isa(arg, PlotElements)             # explicit recipe (scalar)
+            push_elements!(out, arg)
+        elseif isa(arg, Vector{PlotElements})     # explicit recipe (vector)
+            push_elements!(out, pr)
         else
-            push!(out, arg)
+            push!(out, arg)                       # simple argument
         end
     end
     driver(out...; flag3d=flag3d)
@@ -1756,29 +1706,18 @@ function contourlines(args...; cntrparam="level auto 10")
 end
 
 
-
-
-# ╭───────────────────────────────────────────────────────────────────╮
-# │                           RECIPES                                 │
-# ╰───────────────────────────────────────────────────────────────────╯
-# --------------------------------------------------------------------
-plotrecipe(h::Histogram1D) = PlotRecipe(cmds="set grid", data=DataSetText(h.bins, h.counts), plot="w histep notit lw 2 lc rgb 'black'")
-plotrecipe(h::Histogram2D) = PlotRecipe(cmds="set autoscale fix", data=DataSetText(h.bins1, h.bins2, h.counts), plot="w image notit 'black'")
-
-
-
 # ╭───────────────────────────────────────────────────────────────────╮
 # │                        GNUPLOT REPL                               │
 # ╰───────────────────────────────────────────────────────────────────╯
 # --------------------------------------------------------------------
 """
-    Gnuplot.init_repl(start_key='>')
+    Gnuplot.init_repl(; start_key='>')
 
 Install a hook to replace the common Julia REPL with a gnuplot one.  The key to start the REPL is the one provided in `start_key` (default: `>`).
 
 Note: the gnuplot REPL operates only on the default session.
 """
-function repl_init(start_key='>')
+function repl_init(; start_key='>')
     function repl_exec(s)
         for s in writeread(getsession(), s)
             println(s)
@@ -1799,5 +1738,10 @@ function repl_init(start_key='>')
              completion_provider=REPL.LineEdit.EmptyCompletionProvider(),
              valid_input_checker=repl_isvalid)
 end
+
+
+
+include("recipes.jl")
+
 
 end #module
