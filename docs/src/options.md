@@ -14,7 +14,7 @@ saveas(file) = save(term="pngcairo size 550,350 fontscale 0.8", output="assets/$
 ## Options
 The package options are stored in a global structure available in Julia as `Gnuplot.option` (the type of the structure is [`Gnuplot.Options`](@ref)).  The most important settings are as follows:
 
-- `dry::Bool`: if true all new sessions will be started as [Dry sessions](@ref).  Default is `false`, but if the package is not able to start a gnuplot it will automatically switch to `false`;
+- `dry::Bool`: if true all new sessions will be started as [Dry sessions](@ref).  Default is `false`, but if the package is not able to start a gnuplot it will automatically switch to `true`;
 
 - `init::Vector{String}`: initialization commands to be executed when a new session is created.  Default is an empty vector.  It can be used to, e.g., set a custom terminal:
 ```@repl abc
