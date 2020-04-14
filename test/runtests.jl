@@ -96,8 +96,8 @@ s = Gnuplot.arrays2datablock(1:3, 1:3, ["One", "Two", "Three"])
 #-----------------------------------------------------------------
 pal = palette(:deepsea)
 @test pal == "set palette defined (0.0 '#2B004D', 0.25 '#4E0F99', 0.5 '#3C54D4', 0.75 '#48A9F8', 1.0 '#C5ECFF')\nset palette maxcol 5\n"
-ls = linetypes(:deepsea)
-@test ls == "unset for [i=1:256] linetype i\nset linetype 1 lc rgb '#2B004D' lw 1 dt solid pt 1 ps default\nset linetype 2 lc rgb '#4E0F99' lw 1 dt solid pt 2 ps default\nset linetype 3 lc rgb '#3C54D4' lw 1 dt solid pt 3 ps default\nset linetype 4 lc rgb '#48A9F8' lw 1 dt solid pt 4 ps default\nset linetype 5 lc rgb '#C5ECFF' lw 1 dt solid pt 5 ps default\nset linetype cycle 5\n"
+ls = linetypes(:Set1_5)
+@test ls == "unset for [i=1:256] linetype i\nset linetype 1 lc rgb '#E41A1C' lw 1 dt solid pt 1 ps 1\nset linetype 2 lc rgb '#377EB8' lw 1 dt solid pt 2 ps 1\nset linetype 3 lc rgb '#4DAF4A' lw 1 dt solid pt 3 ps 1\nset linetype 4 lc rgb '#984EA3' lw 1 dt solid pt 4 ps 1\nset linetype 5 lc rgb '#FF7F00' lw 1 dt solid pt 5 ps 1\nset linetype cycle 5\n"
 
 #-----------------------------------------------------------------
 # Test wth empty dataset
@@ -136,7 +136,7 @@ noise = err .* randn(length(x));
 
 h = hist(noise, nbins=10)
 @gp h.bins h.counts "w histeps"
-
+@gp h
 
 @gp x y
 @gp x y "w l"
@@ -183,7 +183,7 @@ name = "\$MyDataSet1"
 @gp :- :dry 2 xlab="X label" ylab="Residuals"                :-
 @gp :- :dry "plot $name u 1:((f(\$1)-\$2) / \$3):(1) w errorbars notit" :-
 @gp :- :dry
-save("test.gp")        # write on file test.gp
+save(:dry, "test.gp")        # write on file test.gp
 Gnuplot.quitall()
 gpexec("load 'test.gp'") # load file test.gp
 

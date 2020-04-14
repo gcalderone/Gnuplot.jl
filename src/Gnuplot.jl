@@ -5,17 +5,22 @@ using REPL, ReplMaker
 
 import Base.reset
 import Base.write
+import Base.display
 
 export session_names, dataset_names, palette_names, linetypes, palette,
     terminal, terminals, test_terminal,
     stats, @gp, @gsp, save, gpexec,
-    boxxyerror, contourlines, hist
+    boxxyerror, contourlines, hist, recipe
 
 # ╭───────────────────────────────────────────────────────────────────╮
-# │                           TYPE DEFINITIONS                        │
+# │                        TYPE DEFINITIONS                           │
+# │                     User data representation                      │
 # ╰───────────────────────────────────────────────────────────────────╯
 # ---------------------------------------------------------------------
 abstract type Dataset end
+
+struct DatasetEmpty <: Dataset
+end
 
 mutable struct DatasetText <: Dataset
     preview::Vector{String}
@@ -29,32 +34,60 @@ mutable struct DatasetBin <: Dataset
     DatasetBin(::Val{:inner}, file, source) = new(file, source)
 end
 
-struct PlotElements
+# ---------------------------------------------------------------------
+mutable struct PlotElement
     mid::Int
+    is3d::Bool
     cmds::Vector{String}
-    data::Vector{Dataset}
+    name::String
+    data::Dataset
     plot::Vector{String}
 
-    function PlotElements(;mid::Int=0,
-                    cmds::Union{String, Vector{String}}=Vector{String}(),
-                    data::Union{Dataset, Vector{Dataset}}=Vector{Dataset}(),
-                    plot::Union{String, Vector{String}}="",
-                    kwargs...)
+    function PlotElement(;mid::Int=0, is3d::Bool=false,
+                          cmds::Union{String, Vector{String}}=Vector{String}(),
+                          name::String="",
+                          data::Dataset=DatasetEmpty(),
+                          plot::Union{String, Vector{String}}=Vector{String}(),
+                          kwargs...)
         c = isa(cmds, String)  ? [cmds] : cmds
         append!(c, parseKeywords(; kwargs...))
-        new(mid, c,
-            isa(data, Dataset) ? [data] : data,
-            isa(plot, String)  ? [plot] : plot)
+        new(mid, is3d, deepcopy(c), name, data,
+            isa(plot, String)  ? [plot] : deepcopy(plot))
     end
 end
-recipe() = nothing
 
 
+function display(v::PlotElement)
+    if isa(v.data, DatasetText)
+        data = "DatasetText: \n" * join(v.data.preview, "\n")
+    elseif isa(v.data, DatasetBin)
+        data = "DatasetBin: \n" * v.data.source
+    else
+        data = "DatasetEmpty"
+    end
+    plot = length(v.plot) > 0  ?  join(v.plot, "\n")  :  []
+    @info("PlotElement", mid=v.mid, is3d=v.is3d, cmds=join(v.cmds, "\n"),
+          name=v.name, data, plot=plot)
+end
+
+function display(v::Vector{PlotElement})
+    for p in v
+        display(p)
+        println()
+    end
+end
+
+
+# ╭───────────────────────────────────────────────────────────────────╮
+# │                        TYPE DEFINITIONS                           │
+# │                    Sessions data structures                       │
+# ╰───────────────────────────────────────────────────────────────────╯
+# ---------------------------------------------------------------------
 # ---------------------------------------------------------------------
 mutable struct SinglePlot
     cmds::Vector{String}
     elems::Vector{String}
-    flag3d::Bool
+    is3d::Bool
     SinglePlot() = new(Vector{String}(), Vector{String}(), false)
 end
 
@@ -123,7 +156,6 @@ const options = Options()
 # ╭───────────────────────────────────────────────────────────────────╮
 # │                         LOW LEVEL FUNCTIONS                       │
 # ╰───────────────────────────────────────────────────────────────────╯
-
 # ---------------------------------------------------------------------
 function parseKeywords(; kwargs...)
     template = (xrange=NTuple{2, Real},
@@ -157,16 +189,11 @@ function parseKeywords(; kwargs...)
     ismissing(kw.ylog   ) || (push!(out, (kw.ylog  ?  ""  :  "un") * "set logscale y"))
     ismissing(kw.zlog   ) || (push!(out, (kw.zlog  ?  ""  :  "un") * "set logscale z"))
     ismissing(kw.cblog  ) || (push!(out, (kw.cblog ?  ""  :  "un") * "set logscale cb"))
-    return out
+    return join(out, ";\n")
 end
 
 
 # ---------------------------------------------------------------------
-tostring(v::AbstractString) = "\"" * string(v) * "\""
-tostring(v::Number) = string(v)
-tostring(::Missing) = "?"
-tostring(c::ColorTypes.RGB) = string(Int(c.r*255)) * " " * string(Int(c.g*255)) * " " * string(Int(c.b*255))
-
 """
     arrays2datablock(arrays...)
 
@@ -177,6 +204,10 @@ Data are sent from Julia to gnuplot in the form of an array of strings, also cal
 If you experience errors when sending data to gnuplot try to filter the arrays through this function.
 """
 function arrays2datablock(args...)
+    tostring(v::AbstractString) = "\"" * string(v) * "\""
+    tostring(v::Real) = string(v)
+    tostring(::Missing) = "?"
+    #tostring(c::ColorTypes.RGB) = string(Int(c.r*255)) * " " * string(Int(c.g*255)) * " " * string(Int(c.b*255))
     @assert length(args) > 0
 
     # Collect lengths and number of dims
@@ -537,7 +568,7 @@ end
 The following is dismissed since `binary matrix` do not allows to use
 keywords such as `rotate`.
 # ---------------------------------------------------------------------
-function write_binary(M::Matrix{T}) where T <: Number
+function write_binary(M::Matrix{T}) where T <: Real
     x = collect(1:size(M)[1])
     y = collect(1:size(M)[2])
 
@@ -555,7 +586,7 @@ end
 =#
 
 # ---------------------------------------------------------------------
-function DatasetBin(VM::Vararg{AbstractMatrix{T}, N}) where {T <: Number, N}
+function DatasetBin(VM::Vararg{AbstractMatrix{T}, N}) where {T <: Real, N}
     for i in 2:N
         @assert size(VM[i]) == size(VM[1])
     end
@@ -646,7 +677,7 @@ newDatasetName(gp::Session) = string("\$data", length(gp.datas)+1)
 
 
 # ---------------------------------------------------------------------
-function sendAsBinary(args...)
+function useBinaryMethod(args...)
     @assert options.preferred_format in [:auto, :bin, :text] "Unexpected value for `options.preferred_format`: $(options.preferred_format)"
     binary = false
     if options.preferred_format == :bin
@@ -664,13 +695,6 @@ end
 function add_cmd(gp::Session, v::String)
     (v != "")  &&  (push!(gp.plots[gp.curmid].cmds, v))
     (length(gp.plots) == 1)  &&  (gpexec(gp, v))  # execute now to check against errors
-    return nothing
-end
-
-function add_cmd(gp::Session; args...)
-    for v in parseKeywords(;args...)
-        add_cmd(gp, v)
-    end
     return nothing
 end
 
@@ -721,9 +745,8 @@ end
 
 
 # ╭───────────────────────────────────────────────────────────────────╮
-# │             gpexec(), execall(), dump() and driver()              │
+# │             gpexec(), execall(), amd savescript()                 │
 # ╰───────────────────────────────────────────────────────────────────╯
-
 # ---------------------------------------------------------------------
 gpexec(gp::DrySession, command::String) = ""
 function gpexec(gp::GPSession, command::String)
@@ -763,7 +786,7 @@ function execall(gp::GPSession; term::AbstractString="", output::AbstractString=
             gpexec(gp, d.cmds[j])
         end
         if length(d.elems) > 0
-            s = (d.flag3d  ?  "splot "  :  "plot ") * " \\\n  " *
+            s = (d.is3d  ?  "splot "  :  "plot ") * " \\\n  " *
                 join(d.elems, ", \\\n  ")
             gpexec(gp, s)
         end
@@ -799,8 +822,8 @@ function savescript(gp::Session, filename; term::AbstractString="", output::Abst
         for (name, d) in gp.datas
             if isa(d, DatasetBin)  &&  (d.file != "")
                 if (length(path_from) == 0)
-                    isdir(datapath)  &&  rm(datapath, recursive=true)
-                    mkdir(datapath)
+                    #isdir(datapath)  &&  rm(datapath, recursive=true)
+                    mkpath(datapath)
                 end
                 to = datapath * basename(d.file)
                 cp(d.file, to, force=true)
@@ -846,7 +869,7 @@ function savescript(gp::Session, filename; term::AbstractString="", output::Abst
             println(stream, d.cmds[j])
         end
         if length(d.elems) > 0
-            s = (d.flag3d  ?  "splot "  :  "plot ") * " \\\n  " *
+            s = (d.is3d  ?  "splot "  :  "plot ") * " \\\n  " *
                 join(redirect_elements(d.elems, paths...), ", \\\n  ")
             println(stream, s)
         end
@@ -858,12 +881,13 @@ function savescript(gp::Session, filename; term::AbstractString="", output::Abst
 end
 
 
+# ╭───────────────────────────────────────────────────────────────────╮
+# │                  parseArgument() amd driver()                     │
+# ╰───────────────────────────────────────────────────────────────────╯
 # ---------------------------------------------------------------------
-function driver(args...; flag3d=false)
-
-    function parseCmd(gp, s::String)
-        (isplot, is3d, cmd) = (false, false, "")
-
+function parseArguments(_args...)
+    function parseCmd(s::String)
+        (isplot, is3d, cmd) = (false, false, s)
         (length(s) >= 2)  &&  (s[1:2] ==  "p "    )  &&  ((isplot, is3d, cmd) = (true, false, strip(s[2:end])))
         (length(s) >= 3)  &&  (s[1:3] ==  "pl "   )  &&  ((isplot, is3d, cmd) = (true, false, strip(s[3:end])))
         (length(s) >= 4)  &&  (s[1:4] ==  "plo "  )  &&  ((isplot, is3d, cmd) = (true, false, strip(s[4:end])))
@@ -873,178 +897,252 @@ function driver(args...; flag3d=false)
         (length(s) >= 4)  &&  (s[1:4] ==  "spl "  )  &&  ((isplot, is3d, cmd) = (true, true , strip(s[4:end])))
         (length(s) >= 5)  &&  (s[1:5] ==  "splo " )  &&  ((isplot, is3d, cmd) = (true, true , strip(s[5:end])))
         (length(s) >= 6)  &&  (s[1:6] ==  "splot ")  &&  ((isplot, is3d, cmd) = (true, true , strip(s[6:end])))
-
-        if cmd != ""
-            for (name, d) in gp.datas
-                if isa(d, DatasetBin)  &&  (d.file != "")
-                    cmd = replace(cmd, name => d.source)
-                end
-            end
-        end
-        return (isplot, is3d, cmd)
-    end
-
-    if length(args) == 0
-        gp = getsession()
-        execall(gp)
-        return nothing
+        return (isplot, is3d, string(cmd))
     end
 
     # First pass: check for `:-` and session names
-    gp = nothing
+    sid = options.default
     doDump  = true
     doReset = true
-    for iarg in 1:length(args)
-        arg = args[iarg]
+    if length(_args) == 0
+        return (sid, doReset, doDump, Vector{PlotElement}())
+    end
+    for iarg in 1:length(_args)
+        arg = _args[iarg]
 
         if typeof(arg) == Symbol
             if arg == :-
                 if iarg == 1
                     doReset = false
-                elseif iarg == length(args)
+                elseif iarg == length(_args)
                     doDump  = false
                 else
                     @warn "Symbol `:-` at position $iarg in argument list has no meaning."
                 end
             else
-                @assert isnothing(gp) "Only one session at a time can be addressed"
-                gp = getsession(arg)
+                @assert (sid == options.default) "Only one session at a time can be addressed"
+                sid = arg
             end
         end
     end
-    (gp == nothing)  &&  (gp = getsession())
-    doReset  &&  reset(gp)
 
-    dataAccum = Vector{Any}()
-    dsetname = nothing
-    plotspec = nothing
-    function dataset_ready()
-        if length(dataAccum) > 0
-            # Ensure Dataset objects are processed one at a time
-            for i in 1:length(dataAccum)
-                @assert !isa(dataAccum[i], Dataset)  ||  (length(dataAccum) == 1)
-            end
-
-            # Check if dataset is empty
-            emptyset = false
-            if !isa(dataAccum[1], Dataset)
-                mm = extrema(length.(dataAccum))
-                (mm[1] == 0)  &&  (@assert mm[1] == mm[2] "At least one input array is empty, while other(s) are not")
-                emptyset = (mm[2] == 0)
-            end
-
-            if !emptyset
-                if isa(dataAccum[1], Dataset)
-                    d = dataAccum[1]
-                else
-                    if sendAsBinary(dataAccum...)
-                        d = DatasetBin(dataAccum...)
-                    else
-                        d = DatasetText(dataAccum...)
-                    end
-                end
-
-                isnothing(dsetname)  &&  (dsetname = newDatasetName(gp))
-                gp.datas[dsetname] = d
-                write(gp, dsetname, d)  # send now to gnuplot process
-                if !isnothing(plotspec)
-                    if isa(d, DatasetBin)
-                        add_plot(gp, d.source * " " * plotspec)
-                    else
-                        add_plot(gp, dsetname * " " * plotspec)
-                    end
-                    gp.plots[gp.curmid].flag3d = flag3d
-                end
-            end
-        end
-        dataAccum = Vector{Any}()
-        dsetname = nothing
-        plotspec = nothing
-    end
-
-    # Second pass
-    for iarg in 1:length(args)
-        arg = args[iarg]
-        isa(arg, Symbol)  &&  continue  # already handled
-
-        if isa(arg, Int)                # ==> change current multiplot index
+    # Second pass: check data types, run implicit recipes and splat
+    # Vector{PlotElement}
+    args = Vector{Any}([_args...])
+    pos = 1
+    while pos <= length(args)
+        arg = args[pos]
+        if isa(arg, Symbol)                          # session ID (already handled)
+            deleteat!(args, pos)
+            continue
+        elseif isa(arg, Int)                         # ==> multiplot index
             @assert arg > 0 "Multiplot index must be a positive integer"
-            plotspec = "" # use an empty plotspec for pending dataset
-            dataset_ready()
-            setmulti(gp, arg)
-            gp.plots[gp.curmid].flag3d = flag3d
-        elseif isa(arg, String)         # ==> either a plotspec or a command
-            arg = string(strip(arg))
-            if length(dataAccum) > 0       #   ==> a plotspec
-                plotspec = arg
-                dataset_ready()
-            else
-                (isPlot, is3d, cmd) = parseCmd(gp, arg)
-                if isPlot                  #   ==> a (s)plot command
-                    gp.plots[gp.curmid].flag3d = is3d
-                    add_plot(gp, cmd)
-                else                       #   ==> a command
-                    add_cmd(gp, arg)
-                end
-            end
-        elseif isa(arg, Tuple)  &&  length(arg) == 2  &&  isa(arg[1], Symbol)
-            add_cmd(gp; [arg]...)       # ==> a keyword/value pair
-        elseif isa(arg, Pair)           # ==> a named dataset
+        elseif isa(arg, AbstractString)              # ==> a plotspec or a command
+            deleteat!(args, pos)
+            insert!(args, pos, string(strip(arg)))
+        elseif isa(arg, Tuple)  &&                   # ==> a keyword/value pair
+            length(arg) == 2    &&
+                isa(arg[1], Symbol)
+            deleteat!(args, pos)
+            insert!(args, pos, parseKeywords(; [arg]...))
+            continue
+        elseif isa(arg, Pair)                        # ==> a named dataset
             @assert typeof(arg[1]) == String "Dataset name must be a string"
             @assert arg[1][1] == '$' "Dataset name must start with a dollar sign"
-            dsetname = arg[1]
-            for d in arg[2]
-                push!(dataAccum, d)
+            deleteat!(args, pos)
+            for i in length(arg[2]):-1:1
+                insert!(args, pos, arg[2][i])
             end
-            dataset_ready()
-        elseif isa(arg, AbstractArray)  # ==> a dataset column
-            push!(dataAccum, arg)
-        elseif isa(arg, Real)           # ==> a dataset column with only one row
-            push!(dataAccum, arg)
-        elseif isa(arg, Dataset)
-            push!(dataAccum, arg)
+            insert!(args, pos, string(strip(arg[1])) => nothing)
+        elseif isa(arg, AbstractArray) &&            # ==> a dataset column
+            ((valtype(arg) <: Real)    ||
+             (valtype(arg) <: AbstractString))  ;
+        elseif isa(arg, Real)                        # ==> a dataset column with only one row
+            args[pos] = [arg]
+        elseif isa(arg, Dataset)                ;    # ==> a Dataset object
+        elseif hasmethod(recipe, tuple(typeof(arg))) # ==> implicit recipe
+            @info which(recipe, tuple(typeof(arg)))  # debug
+            deleteat!(args, pos)
+            insert!(args, pos, recipe(arg))
+            continue
+        elseif isa(arg, Vector{PlotElement})         # ==> explicit recipe (vector)
+            deleteat!(args, pos)
+            for i in length(arg):-1:1
+                insert!(args, arg[i])
+            end
+        elseif isa(arg, PlotElement)            ;    # ==> explicit recipe (scalar)
         else
-            error("Unexpected argument at position $iarg with type " * string(typeof(arg)))
+            error("Unexpected argument with type " * string(typeof(arg)))
         end
+
+        pos += 1
     end
 
-    plotspec = ""
-    dataset_ready()
-    (doDump)  &&  (execall(gp))
+    # Third pass: collect PlotElement objects
+    mid = 0
+    name = ""
+    cmds = Vector{String}()
+    elems = Vector{PlotElement}()
+    pos = 1
+    while pos <= length(args)
+        arg = args[pos]
 
-    return nothing
+        if isa(arg, Int)                         # ==> multiplot index
+            if length(cmds) > 0
+                push!(elems, PlotElement(mid=mid, cmds=cmds))
+                empty!(cmds)
+            end
+            mid = arg
+            name = ""
+            empty!(cmds)
+        elseif isa(arg, String)                  # ==> a plotspec or a command
+            (isPlot, is3d, s) = parseCmd(arg)
+            if isPlot
+                push!(elems, PlotElement(mid=mid, is3d=is3d, cmds=cmds, plot=s))
+                empty!(cmds)
+            else
+                push!(cmds, s)
+            end
+            name = ""
+        elseif isa(arg, Pair)                    # ==> dataset name
+            name = arg[1]
+        elseif isa(arg, AbstractArray)   &&      # ==> beginning of a dataset
+            ((valtype(arg) <: Real)  ||
+             (valtype(arg) <: AbstractString))
+
+            accum = Vector{Any}()
+            while isa(arg, AbstractArray)  &&
+                ((valtype(arg) <: Real)    ||
+                 (valtype(arg) <: AbstractString))
+                push!(accum, arg)
+                deleteat!(args, pos)
+                if pos <= length(args)
+                    arg = args[pos]
+                else
+                    break
+                end
+            end
+
+            spec = Vector{String}()
+            if name == ""  # only unnamed data sets have an associated plot spec
+                spec = ""
+                if (pos <= length(args))  &&
+                    isa(args[pos], String)
+                    spec = args[pos]
+                    deleteat!(args, pos)
+                end
+            end
+
+            mm = extrema(length.(accum))
+            if mm[1] == 0
+                # empty Dataset
+                @assert mm[1] == mm[2] "At least one input array is empty, while other(s) are not"
+            else
+                if useBinaryMethod(accum...)
+                    d = DatasetBin(accum...)
+                else
+                    d = DatasetText(accum...)
+                end
+                push!(elems, PlotElement(mid=mid, cmds=cmds, name=name, data=d, plot=spec))
+            end
+            name = ""
+            empty!(cmds)
+            continue
+        elseif isa(arg, Dataset)                 # ==> a Dataset object
+            deleteat!(args, pos)
+            spec = ""
+            if (pos <= length(args))  &&
+                isa(args[pos], String)
+                spec = args[pos]
+                deleteat!(args, pos)
+            end
+            push!(elems, PlotElement(mid=mid, cmds=cmds, name=name, data=arg, plot=spec))
+            name = ""
+            empty!(cmds)
+            continue
+        elseif isa(arg, PlotElement)
+            if length(cmds) > 0
+                push!(elems, PlotElement(mid=mid, cmds=cmds))
+                empty!(cmds)
+            end
+            name = ""
+            (mid != 0)  &&  (arg.mid = mid)
+            push!(elems, arg)
+        else
+            error("Unexpected argument with type " * string(typeof(arg)))
+        end
+        pos += 1
+    end
+    if length(cmds) > 0
+        push!(elems, PlotElement(mid=mid, cmds=cmds))
+        empty!(cmds)
+    end
+
+    return (sid, doReset, doDump, elems)
 end
 
 
-function expandrecipes(args...; flag3d=false)
-    function push_elements!(out::Vector{Any}, pr::PlotElements)
-        @assert length(pr.data) <= length(pr.plot)
-        (pr.mid > 0)  &&  push!(out, pr.mid)
-        append!(out, pr.cmds)
-        for i in 1:length(pr.plot)
-            (i <= length(pr.data))  &&  push!(out, pr.data[i])
-            push!(out, pr.plot[i])
+function driver(_args...; is3d=false)
+    if length(_args) == 0
+        gp = getsession()
+        execall(gp)
+        return nothing
+    end
+
+    (sid, doReset, doDump, elems) = parseArguments(_args...)
+    gp = getsession(sid)
+    doReset  &&  reset(gp)
+
+    # Set curent multiplot ID and sort elements
+    for elem in elems
+        if elem.mid == 0
+            elem.mid = gp.curmid
         end
     end
-    function push_elements!(out::Vector{Any}, v::Vector{PlotElements})
-        for pr in v
-            push_elements!(out, pr)
+    elems = elems[sortperm(getfield.(elems, :mid))]
+    display(elems)  # debug
+
+    # Set dataset names and send them to gnuplot process
+    for elem in elems
+        (elem.name == "")  &&  (elem.name = newDatasetName(gp))
+        if  !isa(elem.data, DatasetEmpty)  &&
+            !haskey(gp.datas, elem.name)
+            gp.datas[elem.name] = elem.data
+            write(gp, elem.name, elem.data)
         end
     end
 
-    out = Vector{Any}()
-    for arg in args
-        if hasmethod(recipe, tuple(typeof(arg)))  # implicit recipe
-            push_elements!(out, recipe(arg))
-        elseif isa(arg, PlotElements)             # explicit recipe (scalar)
-            push_elements!(out, arg)
-        elseif isa(arg, Vector{PlotElements})     # explicit recipe (vector)
-            push_elements!(out, pr)
+    for elem in elems
+        (elem.mid > 0)  &&  setmulti(gp, elem.mid)
+        gp.plots[gp.curmid].is3d = (is3d | elem.is3d)
+
+        for cmd in elem.cmds
+            add_cmd(gp, cmd)
+        end
+
+        if !isa(elem.data, DatasetEmpty)
+            for spec in elem.plot
+                if isa(elem.data, DatasetBin)
+                    add_plot(gp, elem.data.source * " " * spec)
+                else
+                    add_plot(gp, elem.name * " " * spec)
+                end
+            end
         else
-            push!(out, arg)                       # simple argument
+            for spec in elem.plot
+                for (name, data) in gp.datas
+                    if isa(data, DatasetBin)
+                        spec = replace(spec, name => data.source)
+                    end
+                end
+                add_plot(gp, spec)
+            end
         end
     end
-    driver(out...; flag3d=flag3d)
+
+    (doDump)  &&  (execall(gp))
+
+    return nothing
 end
 
 
@@ -1146,13 +1244,13 @@ end
 
 The `@gp` macro, and its companion `@gsp` for 3D plots, allows to send data and commands to the gnuplot using an extremely concise syntax.  The macros accepts any number of arguments, with the following meaning:
 
-- one, or a group of consecutive, array(s) build up a dataset.  The different arrays are accessible as columns 1, 2, etc. from the `gnuplot` process.  The number of required input arrays depends on the chosen plot style (see `gnuplot` documentation);
+- one, or a group of consecutive, array(s) of either `Real` or `String` build up a dataset.  The different arrays are accessible as columns 1, 2, etc. from the `gnuplot` process.  The number of required input arrays depends on the chosen plot style (see `gnuplot` documentation);
 
 - a string occurring before a dataset is interpreted as a `gnuplot` command (e.g. `set grid`);
 
 - a string occurring immediately after a dataset is interpreted as a *plot element* for the dataset, by which you can specify `using` clause, `with` clause, line styles, etc..  All keywords may be abbreviated following gnuplot conventions.  Moreover, "plot" and "splot" can be abbreviated to "p" and "s" respectively;
 
-- the special symbol `:-`, whose meaning is to avoid starting a new plot (if given as first argument), or to avoid immediately running all commands to create the final plot (if given as last argument).  Its purpose is to allow splitting one long statement into multiple (shorter) ones;
+- the special symbol `:-` allows to split one long statement into multiple (shorter) ones.  If given as first argument it avoids starting a new plot.  If it given as last argument it avoids immediately running all commands to create the final plot;
 
 - any other symbol is interpreted as a session ID;
 
@@ -1176,10 +1274,14 @@ The `@gp` macro, and its companion `@gsp` for 3D plots, allows to send data and 
   - `zlog=true`   => `set logscale z`.
   - `cblog=true`  => `set logscale cb`.
 All Keyword names can be abbreviated as long as the resulting name is unambiguous.  E.g. you can use `xr=[1,10]` in place of `xrange=[1,10]`.
+
+- a `PlotElement` object is expanded in and its fields processed as one of the previous arguments;
+
+- any other data type is processed through an implicit recipe. If a suitable recipe do not exists an error is raised.
 """
 macro gp(args...)
     out = Expr(:call)
-    push!(out.args, :(Gnuplot.expandrecipes))
+    push!(out.args, :(Gnuplot.driver))
     for iarg in 1:length(args)
         arg = args[iarg]
         if (isa(arg, Expr)  &&  (arg.head == :(=)))
@@ -1202,7 +1304,7 @@ This macro accepts the same syntax as [`@gp`](@ref), but produces a 3D plot inst
 macro gsp(args...)
     out = Expr(:macrocall, Symbol("@gp"), LineNumberNode(1, nothing))
     push!(out.args, args...)
-    push!(out.args, Expr(:kw, :flag3d, true))
+    push!(out.args, Expr(:kw, :is3d, true))
     return esc(out)
 end
 
@@ -1311,8 +1413,8 @@ palette_names() = Symbol.(keys(ColorSchemes.colorschemes))
 
 
 """
-    linetypes(cmap::ColorScheme; lw=1, ps="default", dashed=false, rev=false)
-    linetypes(s::Symbol; lw=1, ps="default", dashed=false, rev=false)
+    linetypes(cmap::ColorScheme; lw=1, ps=1, dashed=false, rev=false)
+    linetypes(s::Symbol; lw=1, ps=1, dashed=false, rev=false)
 
 Convert a `ColorScheme` object into a string containing the gnuplot commands to set up *linetype* colors.
 
@@ -1321,7 +1423,7 @@ If the argument is a `Symbol` it is interpreted as the name of one of the predef
 If `rev=true` the line colors are reversed.  If a numeric or string value is provided through the `lw` and `ps` keywords thay are used to set the line width and the point size respectively.  If `dashed` is true the linetypes with index greater than 1 will be displayed with dashed pattern.
 """
 linetypes(s::Symbol; kwargs...) = linetypes(colorschemes[s]; kwargs...)
-function linetypes(cmap::ColorScheme; lw=1, ps="default", dashed=false, rev=false)
+function linetypes(cmap::ColorScheme; lw=1, ps=1, dashed=false, rev=false)
     out = Vector{String}()
     push!(out, "unset for [i=1:256] linetype i")
     for i in 1:length(cmap.colors)
@@ -1447,7 +1549,7 @@ end
 
 # --------------------------------------------------------------------
 """
-    hist(v::Vector{T}; range=extrema(v), bs=NaN, nbins=0, pad=true) where T <: Number
+    hist(v::Vector{T}; range=extrema(v), bs=NaN, nbins=0, pad=true) where T <: Real
 
 Calculates the histogram of the values in `v` and returns a [`Histogram1D`](@ref) structure.
 
@@ -1468,7 +1570,7 @@ h = hist(v, bs=0.5)
 @gp h.bins h.counts "w histep notit"
 ```
 """
-function hist(v::Vector{T}; range=[NaN,NaN], bs=NaN, nbins=0, pad=true) where T <: Number
+function hist(v::Vector{T}; range=[NaN,NaN], bs=NaN, nbins=0, pad=true) where T <: Real
     i = findall(isfinite.(v))
     isnan(range[1])  &&  (range[1] = minimum(v[i]))
     isnan(range[2])  &&  (range[2] = maximum(v[i]))
@@ -1502,7 +1604,7 @@ end
 
 
 """
-    hist(v1::Vector{T1 <: Number}, v2::Vector{T2 <: Number}; range1=[NaN,NaN], bs1=NaN, nbins1=0, range2=[NaN,NaN], bs2=NaN, nbins2=0)
+    hist(v1::Vector{T1 <: Real}, v2::Vector{T2 <: Real}; range1=[NaN,NaN], bs1=NaN, nbins1=0, range2=[NaN,NaN], bs2=NaN, nbins2=0)
 
 Calculates the 2D histogram of the values in `v1` and `v2` and returns a [`Histogram2D`](@ref) structure.
 
@@ -1529,7 +1631,7 @@ h = hist(v1, v2, bs1=0.5, bs2=0.5)
 """
 function hist(v1::Vector{T1}, v2::Vector{T2};
               range1=[NaN,NaN], bs1=NaN, nbins1=0,
-              range2=[NaN,NaN], bs2=NaN, nbins2=0) where {T1 <: Number, T2 <: Number}
+              range2=[NaN,NaN], bs2=NaN, nbins2=0) where {T1 <: Real, T2 <: Real}
     @assert length(v1) == length(v2)
     i = findall(isfinite.(v1)  .&  isfinite.(v2))
     isnan(range1[1])  &&  (range1[1] = minimum(v1[i]))
@@ -1659,7 +1761,7 @@ end
 """
 function contourlines(args...; cntrparam="level auto 10")
     lines = gp_write_table("set contour base", "unset surface",
-                           "set cntrparam $cntrparam", args..., flag3d=true)
+                           "set cntrparam $cntrparam", args..., is3d=true)
 
     level = NaN
     path = Path2d()
