@@ -16,6 +16,7 @@ The main purpose of the **Gnuplot.jl** package is to send data and commands to t
 
 The most important symbols exported by the package are the [`@gp`](@ref) (for 2D plots) and [`@gsp`](@ref) (for 3D plots) macros.  The simplemost example is as follows:
 ```@example abc
+using Gnuplot
 @gp 1:20
 saveas("ex000") # hide
 ```
