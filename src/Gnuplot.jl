@@ -632,6 +632,7 @@ function DatasetBin(cols::Vararg{AbstractVector, N}) where N
         end
     end
     close(io)
+    source *= " using " * join(1:N, ":") * " "
     return DatasetBin(Val(:inner), path, source)
 end
 
@@ -684,6 +685,8 @@ function useBinaryMethod(args...)
         binary = true
     elseif options.preferred_format == :auto
         if (length(args) == 1)  &&  isa(args[1], AbstractMatrix)
+            binary = true
+        elseif length(args[1]) > 10^4
             binary = true
         end
     end
@@ -960,7 +963,7 @@ function parseArguments(_args...)
         elseif isa(arg, Real)                        # ==> a dataset column with only one row
             args[pos] = [arg]
         elseif hasmethod(recipe, tuple(typeof(arg))) # ==> implicit recipe
-            @info which(recipe, tuple(typeof(arg)))  # debug
+            # @info which(recipe, tuple(typeof(arg)))  # debug
             deleteat!(args, pos)
             insert!(args, pos, recipe(arg))
             continue
@@ -1088,7 +1091,7 @@ function driver(_args...; is3d=false)
         end
     end
     elems = elems[sortperm(getfield.(elems, :mid))]
-    display(elems)  # debug
+    # display(elems)  # debug
 
     # Set dataset names and send them to gnuplot process
     for elem in elems
