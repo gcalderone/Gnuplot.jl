@@ -59,7 +59,7 @@ end
 
 function display(v::PlotElement)
     if isa(v.data, DatasetText)
-        data = "DatasetText: \n" * join(v.data.preview, "\n")
+        data = "DatasetText"
     elseif isa(v.data, DatasetBin)
         data = "DatasetBin: \n" * v.data.source
     else
@@ -962,6 +962,7 @@ function parseArguments(_args...)
              (valtype(arg) <: AbstractString))  ;
         elseif isa(arg, Real)                        # ==> a dataset column with only one row
             args[pos] = [arg]
+        elseif isa(arg, Dataset)                ;    # ==> a Dataset object
         elseif hasmethod(recipe, tuple(typeof(arg))) # ==> implicit recipe
             # @info which(recipe, tuple(typeof(arg)))  # debug
             deleteat!(args, pos)
@@ -980,7 +981,47 @@ function parseArguments(_args...)
         pos += 1
     end
 
-    # Third pass: collect PlotElement objects
+    # Third pass: convert data into Dataset objetcs
+    pos = 1
+    while pos <= length(args)
+        arg = args[pos]
+        if isa(arg, AbstractArray)   &&      # ==> beginning of a dataset
+            ((valtype(arg) <: Real)  ||
+             (valtype(arg) <: AbstractString))
+
+            # Collect all data
+            accum = Vector{AbstractArray}()
+            while isa(arg, AbstractArray)  &&
+                ((valtype(arg) <: Real)    ||
+                 (valtype(arg) <: AbstractString))
+                push!(accum, arg)
+                deleteat!(args, pos)
+                if pos <= length(args)
+                    arg = args[pos]
+                else
+                    break
+                end
+            end
+
+            mm = extrema(length.(accum))
+            if mm[1] == 0
+                # empty Dataset
+                @assert mm[1] == mm[2] "At least one input array is empty, while other(s) are not"
+                d = DatasetEmpty()
+            else
+                if useBinaryMethod(accum...)
+                    d = DatasetBin(accum...)
+                else
+                    d = DatasetText(accum...)
+                end
+            end
+            insert!(args, pos, d)
+        end
+        pos += 1
+    end
+
+
+    # Fourth pass: collect PlotElement objects
     mid = 0
     name = ""
     cmds = Vector{String}()
@@ -1008,49 +1049,21 @@ function parseArguments(_args...)
             name = ""
         elseif isa(arg, Pair)                    # ==> dataset name
             name = arg[1]
-        elseif isa(arg, AbstractArray)   &&      # ==> beginning of a dataset
-            ((valtype(arg) <: Real)  ||
-             (valtype(arg) <: AbstractString))
-
-            # Collect all data
-            accum = Vector{Any}()
-            while isa(arg, AbstractArray)  &&
-                ((valtype(arg) <: Real)    ||
-                 (valtype(arg) <: AbstractString))
-                push!(accum, arg)
-                deleteat!(args, pos)
-                if pos <= length(args)
-                    arg = args[pos]
-                else
-                    break
-                end
-            end
-
+        elseif isa(arg, Dataset)                 # ==> A Dataset
             spec = Vector{String}()
             if name == ""  # only unnamed data sets have an associated plot spec
                 spec = ""
-                if (pos <= length(args))  &&
-                    isa(args[pos], String)
-                    spec = args[pos]
-                    deleteat!(args, pos)
+                if (pos < length(args))  &&
+                    isa(args[pos+1], String)
+                    spec = args[pos+1]
+                    deleteat!(args, pos+1)
                 end
             end
-
-            mm = extrema(length.(accum))
-            if mm[1] == 0
-                # empty Dataset
-                @assert mm[1] == mm[2] "At least one input array is empty, while other(s) are not"
-            else
-                if useBinaryMethod(accum...)
-                    d = DatasetBin(accum...)
-                else
-                    d = DatasetText(accum...)
-                end
-                push!(elems, PlotElement(mid=mid, cmds=cmds, name=name, data=d, plot=spec))
+            if !isa(arg, DatasetEmpty)
+                push!(elems, PlotElement(mid=mid, cmds=cmds, name=name, data=arg, plot=spec))
             end
             name = ""
             empty!(cmds)
-            continue
         elseif isa(arg, PlotElement)
             if length(cmds) > 0
                 push!(elems, PlotElement(mid=mid, cmds=cmds))
