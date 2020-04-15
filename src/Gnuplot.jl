@@ -1100,7 +1100,7 @@ function driver(_args...; is3d=false)
         end
     end
     elems = elems[sortperm(getfield.(elems, :mid))]
-    display(elems)  # debug
+    # display(elems)  # debug
 
     # Set dataset names and send them to gnuplot process
     for elem in elems
@@ -1140,9 +1140,9 @@ function driver(_args...; is3d=false)
         end
     end
 
-    (doDump)  &&  (execall(gp))
+    # (doDump)  &&  (execall(gp))
 
-    return nothing
+    return gp
 end
 
 
@@ -1327,6 +1327,41 @@ save(sid::Symbol; kw...) = execall(getsession(sid); kw...)
 save(             file::AbstractString; kw...) = savescript(getsession()   , file, kw...)
 save(sid::Symbol, file::AbstractString; kw...) = savescript(getsession(sid), file, kw...)
 
+# ╭───────────────────────────────────────────────────────────────────╮
+# │                     Interfacing Julia's show                      │
+# ╰───────────────────────────────────────────────────────────────────╯
+# --------------------------------------------------------------------
+
+# Define a display that will be used when Gnuplot.jl is used
+# in the Julia REPL (see PGFPlotsX.jl).
+struct GnuplotDisplay <: AbstractDisplay end
+function __init__()
+    pushdisplay(GnuplotDisplay())
+    atreplinit(i -> begin
+        if PlotDisplay() in Base.Multimedia.displays
+            popdisplay(GnuplotDisplay())
+        end
+        pushdisplay(GnuplotDisplay())
+    end)
+end
+function Base.display(d::GnuplotDisplay, gp::Session)
+    execall(gp)
+    return
+end
+function Base.show(io::IO, ::MIME"image/svg+xml", gp::Session)
+    tmpfile = tempname()*".svg"
+    execall(gp; output=tmpfile, term="svg")
+    write(io, read(tmpfile))
+    rm(tmpfile; force=true)
+    return
+end
+function Base.show(io::IO, ::MIME"image/png", gp::Session)
+    tmpfile = tempname()*".png"
+    execall(gp; output=tmpfile, term="png")
+    write(io, read(tmpfile))
+    rm(tmpfile; force=true)
+    return
+end
 
 # ╭───────────────────────────────────────────────────────────────────╮
 # │                     HIGH LEVEL FACILITIES                         │
