@@ -17,26 +17,26 @@ recipe(h::Histogram2D) =
 
 # --------------------------------------------------------------------
 # Images
-recipe(M::Matrix{ColorTypes.RGB{T}}; rot="-90deg", opt="") where T = 
+recipe(M::Matrix{ColorTypes.RGB{T}}; rot="-90deg", opt="") where T =
     PlotElement(cmds=["set autoscale fix", "set size square"],
                 data=DatasetBin(256 .* getfield.(M, :r),
                                 256 .* getfield.(M, :g),
                                 256 .* getfield.(M, :b)),
                 plot="rotate=$rot $opt with rgbimage notit")
 
-recipe(M::Matrix{ColorTypes.RGBA{T}}; rot="-90deg", opt="") where T = 
+recipe(M::Matrix{ColorTypes.RGBA{T}}; rot="-90deg", opt="") where T =
     PlotElement(cmds=["set autoscale fix", "set size square"],
                 data=DatasetBin(256 .* getfield.(M, :r),
                                 256 .* getfield.(M, :g),
                                 256 .* getfield.(M, :b)),
                 plot="rotate=$rot $opt with rgbimage notit")
 
-recipe(M::Matrix{ColorTypes.Gray{T}}; rot="-90deg", opt="") where T = 
+recipe(M::Matrix{ColorTypes.Gray{T}}; rot="-90deg", opt="") where T =
     PlotElement(cmds=["set autoscale fix", "set size square"],
                 data=DatasetBin(256 .* getfield.(M, :val)),
                 plot="rotate=$rot $opt with image notit")
 
-recipe(M::Matrix{ColorTypes.GrayA{T}}; rot="-90deg", opt="") where T = 
+recipe(M::Matrix{ColorTypes.GrayA{T}}; rot="-90deg", opt="") where T =
     PlotElement(cmds=["set autoscale fix", "set size square"],
                 data=DatasetBin(256 .* getfield.(M, :val)),
                 plot="rotate=$rot $opt with image notit")
@@ -58,11 +58,11 @@ macro recipes_DataFrames()
         data = Vector{Gnuplot.Dataset}();
         plot = Vector{String}();
         for g in sort(unique(df[:, group]));
-        i = findall(df[:, group] .== g);
-        if length(i) > 0;
-        push!(data, Gnuplot.DatasetText(df[i, colx], df[i, coly]));
-        push!(plot, "w p t '$g'");
-        end;
+            i = findall(df[:, group] .== g);
+            if length(i) > 0;
+                push!(data, Gnuplot.DatasetText(df[i, colx], df[i, coly]));
+                push!(plot, "w p t '$g'");
+            end;
         end;
         return Gnuplot.PlotElement(xlab=string(colx), ylab=string(coly),
                                    data=data, plot=plot);

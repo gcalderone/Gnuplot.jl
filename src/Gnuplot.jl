@@ -10,7 +10,7 @@ import Base.display
 export session_names, dataset_names, palette_names, linetypes, palette,
     terminal, terminals, test_terminal,
     stats, @gp, @gsp, save, gpexec,
-    boxxyerror, contourlines, hist, recipe
+    boxxyerror, contourlines, hist, recipe, gpvars
 
 # ╭───────────────────────────────────────────────────────────────────╮
 # │                        TYPE DEFINITIONS                           │
@@ -654,8 +654,8 @@ function reset(gp::Session)
     gp.datas = OrderedDict{String, Dataset}()
     gp.plots = [SinglePlot()]
     gp.curmid = 1
-    gpexec(gp, "set output")
     gpexec(gp, "unset multiplot")
+    gpexec(gp, "set output")
     gpexec(gp, "reset session")
     add_cmd.(Ref(gp), options.reset)
     return nothing
@@ -959,7 +959,6 @@ function parseArguments(_args...)
              (valtype(arg) <: AbstractString))  ;
         elseif isa(arg, Real)                        # ==> a dataset column with only one row
             args[pos] = [arg]
-        elseif isa(arg, Dataset)                ;    # ==> a Dataset object
         elseif hasmethod(recipe, tuple(typeof(arg))) # ==> implicit recipe
             @info which(recipe, tuple(typeof(arg)))  # debug
             deleteat!(args, pos)
@@ -1010,6 +1009,7 @@ function parseArguments(_args...)
             ((valtype(arg) <: Real)  ||
              (valtype(arg) <: AbstractString))
 
+            # Collect all data
             accum = Vector{Any}()
             while isa(arg, AbstractArray)  &&
                 ((valtype(arg) <: Real)    ||
@@ -1045,18 +1045,6 @@ function parseArguments(_args...)
                 end
                 push!(elems, PlotElement(mid=mid, cmds=cmds, name=name, data=d, plot=spec))
             end
-            name = ""
-            empty!(cmds)
-            continue
-        elseif isa(arg, Dataset)                 # ==> a Dataset object
-            deleteat!(args, pos)
-            spec = ""
-            if (pos <= length(args))  &&
-                isa(args[pos], String)
-                spec = args[pos]
-                deleteat!(args, pos)
-            end
-            push!(elems, PlotElement(mid=mid, cmds=cmds, name=name, data=arg, plot=spec))
             name = ""
             empty!(cmds)
             continue
@@ -1840,6 +1828,39 @@ function repl_init(; start_key='>')
              completion_provider=REPL.LineEdit.EmptyCompletionProvider(),
              valid_input_checker=repl_isvalid)
 end
+
+
+
+# ╭───────────────────────────────────────────────────────────────────╮
+# │                        VARIABLE ACCESS                            │
+# ╰───────────────────────────────────────────────────────────────────╯
+# --------------------------------------------------------------------
+gpvars() = gpvars(options.default)
+function gpvars(sid::Symbol)
+    gp = getsession(sid)
+    vars = string.(strip.(split(gpexec("show var all"), '\n')))
+
+    out = Dict{Symbol, Union{String, Real}}()
+    for v in vars
+        if length(v) > 6
+            if v[1:6] == "GPVAL_"
+                s = string.(strip.(split(v[7:end], '=')))
+                key = Symbol(s[1])
+                if s[2][1] == '"'
+                    out[key] = s[2][2:end-1]
+                else
+                    try
+                        out[key] = Meta.parse(s[2])
+                    catch
+                        out[key] = s[2]
+                    end
+                end
+            end
+        end
+    end
+    return out
+end
+
 
 
 
