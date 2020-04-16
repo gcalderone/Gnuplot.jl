@@ -28,6 +28,9 @@
       `bmargin`, `tmargin`, `margins`, to set plot margins;
 	  
 - New recipes:
+	* to display histograms (as returned by `hist()`);
+
+    * to display images;
 
 - Bugfix:
 	* When a `Vector{String}` is passed to `driver()` it used to be
