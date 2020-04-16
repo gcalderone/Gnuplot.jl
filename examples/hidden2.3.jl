@@ -32,10 +32,10 @@ for loop in 1:2
     x = [cos(u) + .5 * cos(u) * cos(v)      for u in U, v in V]
     y = [sin(u) + .5 * sin(u) * cos(v)      for u in U, v in V]
     z = [.5 * sin(v)                        for u in U, v in V]
-    @gsp :-  x y z "w pm3d"
+    @gsp :- x' y' z' "w pm3d"
 
     x = [1 + cos(u) + .5 * cos(u) * cos(v)  for u in U, v in V]
     y = [.5 * sin(v)                        for u in U, v in V]
     z = [sin(u) + .5 * sin(u) * cos(v)      for u in U, v in V]
-    @gsp :- x y z "w pm3d"
+    @gsp :- x' y' z' "w pm3d"
 end
