@@ -646,6 +646,12 @@ function DatasetBin(cols::Vararg{AbstractVector, N}) where N
         end
     end
     close(io)
+
+    #=
+    The following is needed to cope with the following case:
+    x = randn(10001)
+    @gp x x x "w p lc pal"
+    =#
     source *= " using " * join(1:N, ":") * " "
     return DatasetBin(Val(:inner), path, source)
 end
@@ -1112,6 +1118,25 @@ end
 
 
 function driver(_args...; is3d=false)
+    function dropDuplicatedUsing(source, spec)
+        # Ensure there is no duplicated `using` clause
+        m0 = match(r"(.*) using 1", source)
+        if !isnothing(m0)
+            for r in [r"u +[\d,\(]",
+                      r"us +[\d,\(]",
+                      r"usi +[\d,\(]",
+                      r"usin +[\d,\(]",
+                      r"using +[\d,\(]"]
+                m = match(r, spec)
+                if !isnothing(m)
+                    source = string(m0.captures[1])
+                    break
+                end
+            end
+        end
+        return source
+    end
+
     if length(_args) == 0
         gp = getsession()
         execall(gp)
@@ -1152,7 +1177,8 @@ function driver(_args...; is3d=false)
         if !isa(elem.data, DatasetEmpty)
             for spec in elem.plot
                 if isa(elem.data, DatasetBin)
-                    add_plot(gp, elem.data.source * " " * spec)
+                    source = dropDuplicatedUsing(elem.data.source, spec)
+                    add_plot(gp, source * " " * spec)
                 else
                     add_plot(gp, elem.name * " " * spec)
                 end
@@ -1161,7 +1187,8 @@ function driver(_args...; is3d=false)
             for spec in elem.plot
                 for (name, data) in gp.datas
                     if isa(data, DatasetBin)
-                        spec = replace(spec, name => data.source)
+                        source = dropDuplicatedUsing(elem.data.source, spec)
+                        spec = replace(spec, name => source)
                     end
                 end
                 add_plot(gp, spec)
@@ -1303,11 +1330,11 @@ The `@gp` macro, and its companion `@gsp` for 3D plots, allows to send data and 
   - `ylog=true`   => `set logscale y`;
   - `zlog=true`   => `set logscale z`.
   - `cblog=true`  => `set logscale cb`;
-  - `margins=...  => `set margins ...`;
-  - `lmargin=...  => `set lmargin ...`;
-  - `rmargin=...  => `set rmargin ...`;
-  - `bmargin=...  => `set bmargin ...`;
-  - `tmargin=...  => `set tmargin ...`;
+  - `margins=...` => `set margins ...`;
+  - `lmargin=...` => `set lmargin ...`;
+  - `rmargin=...` => `set rmargin ...`;
+  - `bmargin=...` => `set bmargin ...`;
+  - `tmargin=...` => `set tmargin ...`;
 
 All Keyword names can be abbreviated as long as the resulting name is unambiguous.  E.g. you can use `xr=[1,10]` in place of `xrange=[1,10]`.
 
