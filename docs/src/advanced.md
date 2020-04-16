@@ -51,21 +51,22 @@ name = "\$MyDataSet1"
 
 The parameter best fit values can be retrieved as follows:
 ```@example abc
+vars = gpvars();
 @info("Best fit values:",
-  a = gpexec("print a"),
-  b = gpexec("print b"),
-  c = gpexec("print c"))
+  a = vars.a,
+  b = vars.b,
+  c = vars.c)
 ```
-
-A named dataset is available until the session is reset, i.e. as long as `:-` is used as first argument to `@gp`.
-
 
 ## Multiplot
 
 **Gnuplot.jl** can draw multiple plots in the same figure by exploiting the `multiplot` command.  Each plot is identified by a positive integer number, which can be used as argument to `@gp` to redirect commands to the appropriate plot.
 
-Continuing with the previous example we can plot both data and best fit model (in plot `1`) and residuals (in plot `2`):
+Recycling data from the previous example we can plot both data and best fit model (in plot `1`) and residuals (in plot `2`):
 ```@example abc
+@gp    "f(x) = a * sin(b + c*x)"
+@gp :- "a=$(vars.a)" "b=$(vars.b)" "c=$(vars.c)"
+@gp :- name=>(x, y, err)
 @gp :- "set multiplot layout 2,1"
 @gp :- 1 "p $name w errorbars t 'Data'"
 @gp :-   "p $name u 1:(f(\$1)) w l t 'Best fit model'"
@@ -77,12 +78,61 @@ saveas("advanced011") # hide
 
 Note that the order of the plots is not relevant, i.e. we would get the same results with:
 ```julia
+@gp    "f(x) = a * sin(b + c*x)"
+@gp :- "a=$(vars.a)" "b=$(vars.b)" "c=$(vars.c)"
+@gp :- name=>(x, y, err)
 @gp :- "set multiplot layout 2,1"
 @gp :- 2 "p $name u 1:((f(\$1)-\$2) / \$3):(1) w errorbars t 'Resid. [{/Symbol s}]'"
 @gp :-   [extrema(x)...] [0,0] "w l notit dt 2 lc rgb 'black'" # reference line
 @gp :- 1 "p $name w errorbars t 'Data'"
 @gp :-   "p $name u 1:(f(\$1)) w l t 'Best fit model'"
 ```
+
+## Customized layout
+
+It is also possible to customize the plot layout using the margin keywords (see [Histograms](@ref) for further info):
+```@example abc
+# Generate random numbers
+x = randn(1000);
+y = randn(1000);
+
+# Overall plot margins (normalized in the range 0:1)
+margins = (l=0.08, r=0.98, b=0.13, t=0.98)
+
+# Right and top margins of main plot
+right, top = 0.8, 0.75
+
+# Gap between main plot and histograms
+gap  = 0.015
+
+# Main plot
+@gp "set multiplot"
+@gp :- 1 ma=margins rma=right tma=top :-
+@gp :-   x y "w p notit" xlab="X" ylab="Y"
+xr = gpranges().x  # save current X range
+yr = gpranges().y  # save current Y range
+
+# Histogram on X
+h = hist(x, nbins=10)
+@gp :- 2 ma=margins bma=top+gap rma=right :-
+@gp :-   "set xtics format ''" "set ytics format ''"  xlab="" ylab="" :-
+bs = fill(h.binsize, length(h.bins));
+@gp :-   xr=xr h.bins h.counts./2 bs./2 h.counts./2 "w boxxy notit fs solid 0.4" :-
+
+# Histogram on Y
+h = hist(y, nbins=10)
+@gp :- 3 ma=margins lma=right+gap tma=top :-
+@gp :-     "unset xrange" :-
+bs = fill(h.binsize, length(h.bins));
+@gp :-   yr=yr h.counts./2 h.bins h.counts./2 bs./2 "w boxxy notit fs solid 0.4" :-
+@gp
+saveas("advanced011b") # hide
+```
+![](assets/advanced011b.png)
+
+
+
+
 
 ### Mixing 2D and 3D plots
 A multiplot can also mix 2D and 3D plots:
