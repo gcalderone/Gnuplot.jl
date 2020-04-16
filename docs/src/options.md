@@ -2,10 +2,11 @@
 using Gnuplot
 Gnuplot.quitall()
 mkpath("assets")
+
 empty!(Gnuplot.options.init)
 push!( Gnuplot.options.init, "set term unknown")
 empty!(Gnuplot.options.reset)
-push!( Gnuplot.options.reset, linetypes(:Set1_5, lw=2))
+push!( Gnuplot.options.reset, linetypes(:Set1_5, lw=1.5))
 saveas(file) = save(term="pngcairo size 550,350 fontscale 0.8", output="assets/$(file).png")
 ```
 
@@ -24,7 +25,7 @@ Note that this is option affect all the newly created sessions, not the older on
 
 - `reset::Vector{String}`: initialization commands to be executed when a session is reset.  Default is an empty vector.  It can be used to, e.g., set custom linetypes or palette:
 ```@repl abc
-push!(Gnuplot.options.reset, linetypes(:Set1_5, lw=2));
+push!(Gnuplot.options.reset, linetypes(:Set1_5, lw=1.5));
 ```
 Note that this is option affect all the sessions.  Also note that the commands in `Gnuplot.options.reset` **are** saved in [Gnuplot scripts](@ref);
 
@@ -37,8 +38,8 @@ x = 1.:10;
 @gp x x.^2 "w l t 'Parabola'"
 save(term="pngcairo size 480,360 fontscale 0.8", output="output.png")
 Gnuplot.options.verbose = false # hide
-push!( Gnuplot.options.reset, linetypes(:Set1_5, lw=2));  # hide
-gpexec("set term unknown");                               # hide
+push!( Gnuplot.options.reset, linetypes(:Set1_5, lw=1.5));  # hide
+gpexec("set term unknown");                                 # hide
 ```
 Each line reports the package name (`GNUPLOT`), the session name (`default`), the command or string being sent to gnuplot process, and the returned response (line starting with `->`).  Default value is `false`;
 
@@ -88,21 +89,3 @@ At the Julia prompt you may load the package and the associated settings by typi
 julia> @gnuplotrc
 ```
 and you're ready to go.
-
-
-
-## The gnuplot REPL
-The **Gnuplot.jl** package comes with a built-in REPL mode to directly send commands to the underlying gnuplot process.  In order to avoid conflcts with other REPL modes, you need to explicitly activate such mode with:
-```julia
-Gnuplot.repl_init(start_key='>')
-```
-The customizable `start_key` character is the key which triggers activation of the REPL mode.  To quit the gnuplot REPL mode hit the `backspace` key.
-
-If you wish to activate the REPL at Julia startup insert th following code in `.julia/config/startup.jl`:
-```julia
-using Gnuplot
-
-atreplinit() do repl
-    Gnuplot.repl_init(start_key='>')
-end
-```

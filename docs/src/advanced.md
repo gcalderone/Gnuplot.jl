@@ -2,10 +2,11 @@
 using Gnuplot
 Gnuplot.quitall()
 mkpath("assets")
+
 empty!(Gnuplot.options.init)
 push!( Gnuplot.options.init, "set term unknown")
 empty!(Gnuplot.options.reset)
-push!( Gnuplot.options.reset, linetypes(:Set1_5, lw=2))
+push!( Gnuplot.options.reset, linetypes(:Set1_5, lw=1.5))
 saveas(file) = save(term="pngcairo size 550,350 fontscale 0.8", output="assets/$(file).png")
 ```
 
@@ -51,9 +52,9 @@ name = "\$MyDataSet1"
 The parameter best fit values can be retrieved as follows:
 ```@example abc
 @info("Best fit values:",
-a = gpexec("print a"),
-b = gpexec("print b"),
-c = gpexec("print c"))
+  a = gpexec("print a"),
+  b = gpexec("print b"),
+  c = gpexec("print c"))
 ```
 
 A named dataset is available until the session is reset, i.e. as long as `:-` is used as first argument to `@gp`.
@@ -112,7 +113,7 @@ In order to redirect commands to a specific session simply insert a symbol into 
 @gp :GP2 "plot sin(x)"    # opens secondo window
 @gp :- :GP1 "plot cos(x)" # add a plot on first window
 ```
-The session ID can appear in every position in the argument list, but only one ID can be present in each call.  If the session ID is not specified the `:default` session is considered.
+The session ID can appear in every position in the argument list, but only one ID can be present in each call.  If the session ID is not specified the `:default` session is used.
 
 The names of all current sessions can be retrieved with [`session_names()`](@ref):
 ```@repl abc
@@ -131,7 +132,7 @@ Gnuplot.quitall()
 ```
 
 ## Histograms
-**Gnuplot.jl** provides facilities to compute and display histograms, through the [`hist()`](@ref) function.  E.g., to quickly preview an histogram:
+**Gnuplot.jl** provides facilities to compute (see [`hist()`](@ref) function) and display (see [Histogram recipes](@ref)) histograms.  E.g., to quickly preview an histogram:
 ```@example abc
 x = randn(1000);
 @gp hist(x)
@@ -141,7 +142,7 @@ saveas("ex013a") # hide
 
 A finer control on the output is achieved by setting the range to consider (`range=` keyword) and either the bin size (`bs=`) or the total number of bins (`nbins=`) in the histogram.  See [`hist()`](@ref) documentation for further information.
 
-Moreover, the [`hist()`](@ref) return a [`Gnuplot.Histogram1D`](@ref) structure, whose content can be exploited to customize histogram appearence, e.g.:
+The [`hist()`](@ref) return a [`Gnuplot.Histogram1D`](@ref) structure, whose content can be exploited to customize histogram appearence, e.g.:
 ```@example abc
 x = randn(1000);
 h = hist(x, range=3 .* [-1,1], bs=0.5)
@@ -225,6 +226,14 @@ gpexec("print GPVAL_TERM")
 You may also provide a session ID as first argument (see [Multiple sessions](@ref)) to redirect the command to a specific session.
 
 Alternatively you may start the [The gnuplot REPL](@ref) to type commands directly from the Julia prompt.
+
+
+## The gnuplot REPL
+The **Gnuplot.jl** package comes with a built-in REPL mode to directly send commands to the underlying gnuplot process.  Since the REPL is a global resource, the gnuplot mode is not enabled by default.  You can start it with:
+```julia
+Gnuplot.repl_init(start_key='>')
+```
+The customizable `start_key` character is the key which triggers activation of the REPL mode. To quit the gnuplot REPL mode hit the `backspace` key.
 
 
 ## Dry sessions

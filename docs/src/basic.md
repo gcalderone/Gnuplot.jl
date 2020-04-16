@@ -6,7 +6,7 @@ Gnuplot.splash("assets/logo.png")
 empty!(Gnuplot.options.init)
 push!( Gnuplot.options.init, "set term unknown")
 empty!(Gnuplot.options.reset)
-push!( Gnuplot.options.reset, linetypes(:Set1_5, lw=2))
+push!( Gnuplot.options.reset, linetypes(:Set1_5, lw=1.5))
 saveas(file) = save(term="pngcairo size 550,350 fontscale 0.8", output="assets/$(file).png")
 ```
 
@@ -18,9 +18,9 @@ The most important symbols exported by the package are the [`@gp`](@ref) (for 2D
 ```@example abc
 using Gnuplot
 @gp 1:20
-saveas("ex000") # hide
+saveas("basic000") # hide
 ```
-![](assets/ex000.png)
+![](assets/basic000.png)
 
 
 Both macros accept any number of arguments, whose meaning is interpreted as follows:
@@ -56,17 +56,17 @@ before running the examples.
 #### Plot a sinusoid:
 ```@example abc
 @gp "plot sin(x)"
-saveas("ex001") # hide
+saveas("basic001") # hide
 ```
-![](assets/ex001.png)
+![](assets/basic001.png)
 
 ---
 #### Plot two curves:
 ```@example abc
 @gp "set key left" "plot sin(x)" "pl cos(x)"
-saveas("ex002") # hide
+saveas("basic002") # hide
 ```
-![](assets/ex002.png)
+![](assets/basic002.png)
 
 !!! note
     Note that all gnuplot commands can be abbreviated as long as the resulting string is not ambiguous.  In the example above we used `pl` in place of `plot`.
@@ -77,9 +77,9 @@ saveas("ex002") # hide
 @gp    "set grid"  :-
 @gp :- "p sin(x)"  :-
 @gp :- "plo cos(x)"
-saveas("ex003") # hide
+saveas("basic003") # hide
 ```
-![](assets/ex003.png)
+![](assets/basic003.png)
 !!! note
     The trailing `:-` symbol means the plot will not be updated until the last statement.
 
@@ -89,9 +89,9 @@ saveas("ex003") # hide
 #### Plot a parabola
 ```@example abc
 @gp (1:20).^2
-saveas("ex004") # hide
+saveas("basic004") # hide
 ```
-![](assets/ex004.png)
+![](assets/basic004.png)
 
 
 ---
@@ -99,9 +99,9 @@ saveas("ex004") # hide
 ```@example abc
 x = 1:20
 @gp "set key left"   x ./ 20   x.^2   "with lines tit 'Parabola'"
-saveas("ex005") # hide
+saveas("basic005") # hide
 ```
-![](assets/ex005.png)
+![](assets/basic005.png)
 
 ---
 #### Multiple datasets, logarithmic axis, labels and colors, etc.
@@ -112,9 +112,9 @@ x = 1:0.1:10
 @gp :- x x.^0.5 "w l tit 'Pow 0.5' dt 2 lw 2 lc rgb 'red'"
 @gp :- x x      "w l tit 'Pow 1'   dt 1 lw 3 lc rgb 'blue'"
 @gp :- x x.^2   "w l tit 'Pow 2'   dt 3 lw 2 lc rgb 'purple'"
-saveas("ex006") # hide
+saveas("basic006") # hide
 ```
-![](assets/ex006.png)
+![](assets/basic006.png)
 
 !!! note
     The above example lacks the trailing `:-` symbol.  This means the plot will be updated at each command, adding one curve at a time.
@@ -135,6 +135,11 @@ In order to avoid typing long, and very frequently used gnuplot commands, **Gnup
  - `xlog=true`   => `set logscale x`;
  - `ylog=true`   => `set logscale y`;
  - `zlog=true`   => `set logscale z`;
+ - `margins=...` => `set margins ...`;
+ - `lmargin=...` => `set lmargin ...`;
+ - `rmargin=...` => `set rmargin ...`;
+ - `bmargin=...` => `set bmargin ...`;
+ - `tmargin=...` => `set tmargin ...`;
 
 All such keywords can be abbreviated to unambiguous names.
 
@@ -151,39 +156,31 @@ can be replaced with a shorter version:
 where `NaN` in the `xrange` keyword means using axis autoscaling.
 
 
-## Plot images
+## Plot matrix as images
 
-**Gnuplot.jl** can also display images, i.e. 2D arrays:
+**Gnuplot.jl** can display a 2D matrix as an image:
 ```@example abc
-img = randn(Float64, 30, 50)
+img = randn(Float64, 15, 5)
 img[10,:] .= -5
 @gp img "w image notit"
-saveas("ex007a") # hide
+saveas("basic007a") # hide
 ```
-![](assets/ex007a.png)
+![](assets/basic007a.png)
 
-Note that the first index in the `img` matrix corresponds to the `x` coordinate when the image is displayed.
+Note that the first index in the `img` matrix corresponds to the rows in the displayed image coordinate when the image is displayed.
 
-If the orientation is not the correct one you may adjust it with the gnuplot `rotate=` keyword (the following example requires the `TestImages` package to be installed):
+A simple way to remember the convention is to compare how matrix are displayed on the REPL:
 ```@example abc
-using TestImages
-img = testimage("lighthouse");
-@gp "set size square" "set autoscale fix" img "rotate=-90deg with rgbimage notit"
-saveas("ex007b") # hide
+img = reshape(1:15, 5, 3)
 ```
-![](assets/ex007b.png)
-
-
-To display a gray image use `with image` in place of `with rgbimage`, e.g.:
+and their image representation, which is essentially upside down:
 ```@example abc
-img = testimage("walkbridge");
-@gp palette(:viridis) "set size square" "set autoscale fix" img "rotate=-0.5pi with image notit"
-saveas("ex007c") # hide
+@gp img "w image notit"
+saveas("basic007b") # hide
 ```
-![](assets/ex007c.png)
+![](assets/basic007b.png)
 
-Note that we used a custom palette (`:lapaz`, see [Palettes and line types](@ref)) and the rotation angle has been expressed in radians (`-0.5pi`).
-
+Also note that the `img[1,1]` pixel is shown at coordinates x=0, y=0.  See [Image recipes](@ref) for further info.
 
 
 ## [3D plots](@id plots3d)
@@ -193,9 +190,9 @@ E.g., to plot a spiral increasing in size along the `X` direction:
 ```@example abc
 x = 0:0.1:10pi
 @gsp cbr=[-1,1].*30  x  sin.(x) .* x  cos.(x) .* x  x./20  "w p pt 7 ps var lc pal"
-saveas("ex008") # hide
+saveas("basic008") # hide
 ```
-![](assets/ex008.png)
+![](assets/basic008.png)
 
 Note that the fourth array in the dataset, `x./20`, is used as by gnuplot as point size (`ps var`).  Also note that all the keywords discussed above can also be used in 3D plots.
 
@@ -208,9 +205,9 @@ A gnuplot-compliant palette can be retrieved with [`palette()`](@ref), and used 
 x = 0:0.1:10pi
 @gsp palette(:viridis) cbr=[-1,1].*30 :-
 @gsp :-  x  sin.(x) .* x  cos.(x) .* x  x./20  "w p pt 7 ps var lc pal"
-saveas("ex008a") # hide
+saveas("basic008a") # hide
 ```
-![](assets/ex008a.png)
+![](assets/basic008a.png)
 
 The list of all available palette can be retrieved with [`palette_names()`](@ref):
 ```@repl abc
@@ -220,31 +217,36 @@ palette_names()
 
 The [ColorSchemes](https://juliagraphics.github.io/ColorSchemes.jl/stable/basics/#Pre-defined-schemes-1) palettes can also be used to generate line type colors, and optionally the line width, point size and dashed pattern, by means of the [`linetypes()`](@ref) function, e.g.
 ```@example abc
-@gp "set key left" "set multiplot layout 1,2"
-@gp :- 1 linetypes(:Set1_5, lw=2)
+@gp key="left" linetypes(:Set1_5, lw=2)
 for i in 1:10
     @gp :- i .* (0:10) "w lp t '$i'"
 end
-@gp :- 2 linetypes(:Set1_5, dashed=true, ps=2)
-for i in 1:10
-    @gp :- i .* (0:10) "w lp t '$i'"
-end
-saveas("ex009") # hide
+saveas("basic009a") # hide
 ```
-![](assets/ex009.png)
+![](assets/basic009a.png)
 
-The plot on the left features the `:Set1_5` palette and where each line is solid and has a width of 2 by default.  The plot on the right shows the same palette but default line widths are 1, default point size is 2 (for the first N line types, where N is the number of discrete colors in the palette), and the dashed pattern is automatically changed.  
 
-You may set a default line types for all plots with:
+```@example abc
+@gp key="left" linetypes(:Set1_5, dashed=true, ps=2)
+for i in 1:10
+    @gp :- i .* (0:10) "w lp t '$i'"
+end
+saveas("basic009b") # hide
+```
+![](assets/basic009b.png)
+
+The first plot features the `:Set1_5` palette, with solid lines whose width is 2 times the default.  The second plot shows the same palette but default line widths are 1, default point size is 2 (for the first N line types, where N is the number of discrete colors in the palette), and the dashed pattern is automatically changed.
+
+As discussed in [Options](@ref), you may set a default line types for all plots with:
 ```julia
-push!( Gnuplot.options.init, linetypes(:Set1_5, lw=2))
+push!(Gnuplot.options.init, linetypes(:Set1_5, lw=2))
 ```
-(see [Options](@ref) for further informations).  All plot in this documentation were generated with the latter settings.
+All plot in this documentation were generated with these settings.
 
 
 ## Exporting plots to files
 
-**Gnuplot.jl** to export all plots (as well as multiplots, see [Multiplot](@ref)) to an external file using one of the many available gnuplot terminals.  To check which terminals are available in your platform type:
+**Gnuplot.jl** can export all plots (as well as multiplots, see [Multiplot](@ref)) to an external file using one of the many available gnuplot terminals.  To check which terminals are available in your platform type:
 ```@repl abc
 terminals()
 ```
@@ -299,17 +301,17 @@ set output
 
 While the following:
 ```@example abc
-img = testimage("lighthouse");
-@gp "set size square" "set autoscale fix" img "rotate=-90deg with rgbimage notit"
+img = randn(100, 300);
+@gp "set size ratio -1" "set autoscale fix" img "flipy with image notit"
 save("script2.gp")
 ```
 will produce:
 ```
 reset session
-set size square
+set size ratio -1
 set autoscale fix
 plot  \
-   './script2_data/jl_vH8X4k' binary array=(512, 768) rotate=-90deg with rgbimage notit
+   './script2_data/jl_OQrt9A' binary array=(300, 100) flipy with image notit
 set output
 ```
 

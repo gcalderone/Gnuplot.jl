@@ -1,25 +1,33 @@
-# Version 1.2.0  (not yet released)
+# Version 1.2.0 (not yet released)
 
 - New features:
 	* REPL mode: a new `Gnuplot.repl_init()` function is available to
       install a gnuplot REPL;
 
-	* `@gp` and `@gsp` now accepts a `Gnuplot.PlotRecipe` object,
-      collect commands, data and plot specifications in a single
+	* `@gp` and `@gsp` now accepts a `Gnuplot.PlotElements` object,
+      containing commands, data and plot specifications in a single
       argument;
 
-	* The `plotrecipe` function can be extended to register new implicit
+	* The `recipe()` function can be extended to register new implicit
       recipes to display input data;
 
-	* The `linetypes` function now accept the `lw` and `ps` keywords
-      (to set the line width and point size respectively), and the
-      `dashed` keyword (to use dashed patterns in place of solid
-      lines);
+	* The `linetypes` function now accept the `lw`, `ps` (to set the
+      line width and point size respectively), and the `dashed` (to
+      use dashed patterns in place of solid lines) keywords;
 
 	* The new `Gnuplot.options.reset::Vector{String}` field allows to
       set initialization commands to be executed when a session is
-      reset.  Unlike `Gnuplot.options.reset`, these commands are saved
-      in the session and can be dumped to a script;
+      reset.  Unlike `Gnuplot.options.init`, these commands are saved
+      in the session and can be saved into a script;
+
+	* New functions: `gpvars()` to retrieve all gnuplot variables,
+      `gpmargins()` to retrieve current plot margins (in screen
+      coordinates, `gpranges()` to retrieve current plot axis ranges;
+	
+	* New keywords for `@gp` and `@gsp`: `lmargin`, `rmargin`,
+      `bmargin`, `tmargin`, `margins`, to set plot margins;
+	  
+- New recipes:
 
 - Bugfix:
 	* When a `Vector{String}` is passed to `driver()` it used to be
