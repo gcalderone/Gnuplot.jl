@@ -83,7 +83,6 @@ end
 # │                    Sessions data structures                       │
 # ╰───────────────────────────────────────────────────────────────────╯
 # ---------------------------------------------------------------------
-# ---------------------------------------------------------------------
 mutable struct SinglePlot
     cmds::Vector{String}
     elems::Vector{String}
@@ -172,7 +171,7 @@ function parseKeywords(; kwargs...)
                 ylog=Bool,
                 zlog=Bool,
                 cblog=Bool,
-                margins=AbstractString,
+                margins=Union{AbstractString,NamedTuple},
                 lmargin=Union{AbstractString,Real},
                 rmargin=Union{AbstractString,Real},
                 bmargin=Union{AbstractString,Real},
@@ -195,7 +194,13 @@ function parseKeywords(; kwargs...)
     ismissing(kw.zlog   ) || (push!(out, (kw.zlog  ?  ""  :  "un") * "set logscale z"))
     ismissing(kw.cblog  ) || (push!(out, (kw.cblog ?  ""  :  "un") * "set logscale cb"))
 
-    ismissing(kw.margins) ||  push!(out, "set margins $(kw.margins)")
+    if !ismissing(kw.margins)
+        if isa(kw.margins, AbstractString)
+            push!(out, "set margins $(kw.margins)")
+        else
+            push!(out, "set margins at screen $(kw.margins.l), at screen $(kw.margins.r), at screen $(kw.margins.b), at screen $(kw.margins.t)")
+        end
+    end
     ismissing(kw.lmargin) ||  push!(out, (kw.lmargin == ""  ?  "unset lmargin"  :  "set lmargin at screen $(kw.lmargin)"))
     ismissing(kw.rmargin) ||  push!(out, (kw.rmargin == ""  ?  "unset rmargin"  :  "set rmargin at screen $(kw.rmargin)"))
     ismissing(kw.bmargin) ||  push!(out, (kw.bmargin == ""  ?  "unset bmargin"  :  "set bmargin at screen $(kw.bmargin)"))
@@ -1914,7 +1919,7 @@ end
     gpvars(sid::Symbol)
     gpvars()
 
-Return a `Dict{Symbol, Union{String, Real}}` with all currently defined gnuplot variables.  If the `sid` argument is not provided, the default session is considered.
+Return a `NamedTuple` with all currently defined gnuplot variables.  If the `sid` argument is not provided, the default session is considered.
 """
 gpvars() = gpvars(options.default)
 function gpvars(sid::Symbol)
@@ -1925,21 +1930,24 @@ function gpvars(sid::Symbol)
     for v in vars
         if length(v) > 6
             if v[1:6] == "GPVAL_"
-                s = string.(strip.(split(v[7:end], '=')))
-                key = Symbol(s[1])
-                if s[2][1] == '"'
-                    out[key] = s[2][2:end-1]
-                else
-                    try
-                        out[key] = Meta.parse(s[2])
-                    catch
-                        out[key] = s[2]
-                    end
+                v = v[7:end]
+            end
+        end
+        s = string.(strip.(split(v, '=')))
+        if length(s) == 2
+            key = Symbol(s[1])
+            if s[2][1] == '"'
+                out[key] = s[2][2:end-1]
+            else
+                try
+                    out[key] = Meta.parse(s[2])
+                catch
+                    out[key] = s[2]
                 end
             end
         end
     end
-    return out
+    return (; zip(keys(out), values(out))...)
 end
 
 
@@ -1953,10 +1961,10 @@ Return a `NamedTuple` with keys `l`, `r`, `b` and `t` containing respectively th
 gpmargins() = gpmargins(options.default)
 function gpmargins(sid::Symbol)
     vars = gpvars()
-    l = vars[:TERM_XMIN] / (vars[:TERM_XSIZE] / vars[:TERM_SCALE])
-    r = vars[:TERM_XMAX] / (vars[:TERM_XSIZE] / vars[:TERM_SCALE])
-    b = vars[:TERM_YMIN] / (vars[:TERM_YSIZE] / vars[:TERM_SCALE])
-    t = vars[:TERM_YMAX] / (vars[:TERM_YSIZE] / vars[:TERM_SCALE])
+    l = vars.TERM_XMIN / (vars.TERM_XSIZE / vars.TERM_SCALE)
+    r = vars.TERM_XMAX / (vars.TERM_XSIZE / vars.TERM_SCALE)
+    b = vars.TERM_YMIN / (vars.TERM_YSIZE / vars.TERM_SCALE)
+    t = vars.TERM_YMAX / (vars.TERM_YSIZE / vars.TERM_SCALE)
     return (l=l, r=r, b=b, t=t)
 end
 
@@ -1969,10 +1977,10 @@ Return a `NamedTuple` with keys `x`, `y`, `z` and `cb` containing respectively t
 gpranges() = gpranges(options.default)
 function gpranges(sid::Symbol)
     vars = gpvars()
-    x = [vars[:X_MIN], vars[:X_MAX]]
-    y = [vars[:Y_MIN], vars[:Y_MAX]]
-    z = [vars[:Z_MIN], vars[:Z_MAX]]
-    c = [vars[:CB_MIN], vars[:CB_MAX]]
+    x = [vars.X_MIN, vars.X_MAX]
+    y = [vars.Y_MIN, vars.Y_MAX]
+    z = [vars.Z_MIN, vars.Z_MAX]
+    c = [vars.CB_MIN, vars.CB_MAX]
     return (x=x, y=y, z=z, cb=c)
 end
 
