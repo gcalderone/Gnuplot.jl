@@ -12,6 +12,7 @@ export session_names, dataset_names, palette_names, linetypes, palette,
     stats, @gp, @gsp, save, gpexec,
     boxxyerror, contourlines, hist, recipe, gpvars, gpmargins, gpranges
 
+
 # ╭───────────────────────────────────────────────────────────────────╮
 # │                        TYPE DEFINITIONS                           │
 # │                     User data representation                      │
@@ -1408,7 +1409,7 @@ The `@gp` macro, and its companion `@gsp` for 3D plots, allows to send data and 
 
 All Keyword names can be abbreviated as long as the resulting name is unambiguous.  E.g. you can use `xr=[1,10]` in place of `xrange=[1,10]`.
 
-- a `PlotElement` object is expanded in and its fields processed as one of the previous arguments;
+- a `PlotElement` object is expanded in its fields and processed as one of the previous arguments;
 
 - any other data type is processed through an implicit recipe. If a suitable recipe do not exists an error is raised.
 """

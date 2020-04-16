@@ -182,17 +182,7 @@ Gnuplot.quitall()
 ```
 
 ## Histograms
-**Gnuplot.jl** provides facilities to compute (see [`hist()`](@ref) function) and display (see [Histogram recipes](@ref)) histograms.  E.g., to quickly preview an histogram:
-```@example abc
-x = randn(1000);
-@gp hist(x)
-saveas("advanced013a") # hide
-```
-![](assets/advanced013a.png)
-
-A finer control on the output is achieved by setting the range to consider (`range=` keyword) and either the bin size (`bs=`) or the total number of bins (`nbins=`) in the histogram.  See [`hist()`](@ref) documentation for further information.
-
-The [`hist()`](@ref) return a [`Gnuplot.Histogram1D`](@ref) structure, whose content can be exploited to customize histogram appearence, e.g.:
+**Gnuplot.jl** provides a facility to compute (see [`hist()`](@ref) function) an histogram.  It allows to set the range to consider (`range=` keyword) and either the bin size (`bs=`) or the total number of bins (`nbins=`) in the histogram (see [`hist()`](@ref) documentation for further information) and return a [`Gnuplot.Histogram1D`](@ref) structure, whose content can be visualized as follows:
 ```@example abc
 x = randn(1000);
 h = hist(x, range=3 .* [-1,1], bs=0.5)
@@ -201,18 +191,10 @@ saveas("advanced013b") # hide
 ```
 ![](assets/advanced013b.png)
 
-
-**Gnuplot.jl** also allows to compute 2D histograms by passing two vectors (with the same lengths) to [`hist()`](@ref).  A quick preview is simply obtained by:
+**Gnuplot.jl** also allows to compute 2D histograms by passing two vectors (with the same lengths) to [`hist()`](@ref).  Again, a finer control can be achieved by specifying ranges, bin size or number of bins (along both dimensions) and by explicitly using the content of the returned [`Gnuplot.Histogram2D`](@ref) structure:
 ```@example abc
 x = randn(10_000)
 y = randn(10_000)
-@gp "set size ratio -1" hist(x, y)
-saveas("advanced014a") # hide
-```
-![](assets/advanced014a.png)
-
-Again, a finer control can be achieved by specifying ranges, bin size or number of bins (along both dimensions) and by explicitly using the content of the returned [`Gnuplot.Histogram2D`](@ref) structure:
-```@example abc
 h = hist(x, y, bs1=0.25, nbins2=20, range1=[-3,3], range2=[-3,3])
 @gp "set size ratio -1" h.bins1 h.bins2 h.counts "w image notit"
 saveas("advanced014b") # hide
@@ -228,6 +210,8 @@ box = boxxyerror(h.bins1, h.bins2, cartesian=true)
 saveas("advanced014c") # hide
 ```
 ![](assets/advanced014c.png)
+
+See also [Histogram recipes](@ref) for a quicker way to preview histogram plots.
 
 
 ## Contour lines

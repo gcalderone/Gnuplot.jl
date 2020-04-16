@@ -37,11 +37,16 @@ The following functions are not exported by the **Gnuplot.jl** package since the
 In order to call these functions you should add the `Gnuplot.` prefix to the function name.
 
 ```@docs
+Gnuplot.Dataset
+Gnuplot.DatasetEmpty
+Gnuplot.DatasetText
+Gnuplot.DatasetBin
 Gnuplot.Histogram1D
 Gnuplot.Histogram2D
 Gnuplot.IsoContourLines
 Gnuplot.Options
 Gnuplot.Path2d
+Gnuplot.PlotElement
 Gnuplot.gpversion
 Gnuplot.quit
 Gnuplot.quitall
