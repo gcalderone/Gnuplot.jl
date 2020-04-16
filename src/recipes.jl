@@ -17,26 +17,26 @@ recipe(h::Histogram2D) =
 
 # --------------------------------------------------------------------
 # Images
-recipe(M::Matrix{ColorTypes.RGB{T}}; opt="flipy") where T =
+recipe(M::Matrix{ColorTypes.RGB{T}}, opt="flipy") where T =
     PlotElement(cmds=["set autoscale fix", "set size ratio -1"],
                 data=DatasetBin(256 .* getfield.(M, :r),
                                 256 .* getfield.(M, :g),
                                 256 .* getfield.(M, :b)),
                 plot="$opt with rgbimage notit")
 
-recipe(M::Matrix{ColorTypes.RGBA{T}}; opt="flipy") where T =
+recipe(M::Matrix{ColorTypes.RGBA{T}}, opt="flipy") where T =
     PlotElement(cmds=["set autoscale fix", "set size ratio -1"],
                 data=DatasetBin(256 .* getfield.(M, :r),
                                 256 .* getfield.(M, :g),
                                 256 .* getfield.(M, :b)),
                 plot="$opt with rgbimage notit")
 
-recipe(M::Matrix{ColorTypes.Gray{T}}; opt="flipy") where T =
+recipe(M::Matrix{ColorTypes.Gray{T}}, opt="flipy") where T =
     PlotElement(cmds=["set autoscale fix", "set size ratio -1"],
                 data=DatasetBin(256 .* getfield.(M, :val)),
                 plot="$opt with image notit")
 
-recipe(M::Matrix{ColorTypes.GrayA{T}}; opt="flipy") where T =
+recipe(M::Matrix{ColorTypes.GrayA{T}}, opt="flipy") where T =
     PlotElement(cmds=["set autoscale fix", "set size ratio -1"],
                 data=DatasetBin(256 .* getfield.(M, :val)),
                 plot="$opt with image notit")
