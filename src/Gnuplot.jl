@@ -226,7 +226,7 @@ function arrays2datablock(args...)
 
     # All scalars
     if minimum(dims) == 0
-        #@info "Case 0"
+        # @info "Case 0" # debug
         @assert maximum(dims) == 0 "Input data are ambiguous: either use all scalar or arrays of floats"
         v = ""
         for iarg in 1:length(args)
@@ -241,7 +241,7 @@ function arrays2datablock(args...)
 
     # All 1D
     if firstMultiDim == 0
-        #@info "Case 1"
+        # @info "Case 1" # debug
         @assert minimum(lengths) == maximum(lengths) "Array size are incompatible"
         for i in 1:lengths[1]
             v = ""
@@ -256,10 +256,10 @@ function arrays2datablock(args...)
 
     # Multidimensional, no independent 1D indices
     if firstMultiDim == 1
-        #@info "Case 2"
+        # @info "Case 2" # debug
         @assert minimum(lengths) == maximum(lengths) "Array size are incompatible"
         i = 1
-        for CIndex in CartesianIndices(size(args[1]))
+        for CIndex in CartesianIndices(size(args[1]'))
             indices = Tuple(CIndex)
             (i > 1)  &&  (indices[end-1] == 1)  &&  (push!(accum, ""))  # blank line
             if length(args) == 1
@@ -270,7 +270,7 @@ function arrays2datablock(args...)
                 v = ""
             end
             for iarg in 1:length(args)
-                d = args[iarg]
+                d = args[iarg]'
                 v *= " " * tostring(d[i])
             end
             i += 1
@@ -285,7 +285,7 @@ function arrays2datablock(args...)
         @assert all(lengths[firstMultiDim:end] .== refLength) "Array size are incompatible"
 
         if lengths[1] < refLength
-            #@info "Case 3"
+            # @info "Case 3" # debug
             # Cartesian product of Independent variables
             checkLength = prod(lengths[1:firstMultiDim-1])
             @assert prod(lengths[1:firstMultiDim-1]) == refLength "Array size are incompatible"
@@ -308,7 +308,7 @@ function arrays2datablock(args...)
             end
             return accum
         else
-            #@info "Case 4"
+            # @info "Case 4" # debug
             # All Independent variables have the same length as the main multidimensional data
             @assert all(lengths[1:firstMultiDim-1] .== refLength) "Array size are incompatible"
 
@@ -592,15 +592,17 @@ function DatasetBin(VM::Vararg{AbstractMatrix{T}, N}) where {T <: Real, N}
     end
     s = size(VM[1])
     (path, io) = mktemp()
-    for j in 1:s[2]
-        for i in 1:s[1]
+
+    for i in 1:s[1]
+        for j in 1:s[2]
             for k in 1:N
                 write(io, Float32(VM[k][i,j]))
             end
         end
     end
+    source = " '$path' binary array=(" * join(string.(reverse(s)), ", ") * ")"
+    # Note: can't add `using` here, otherwise we can't append `flipy`.
     close(io)
-    source = " '$path' binary array=(" * join(string.(s), ", ") * ")"
     return DatasetBin(Val(:inner), path, source)
 end
 
@@ -686,11 +688,27 @@ function useBinaryMethod(args...)
     elseif options.preferred_format == :auto
         if (length(args) == 1)  &&  isa(args[1], AbstractMatrix)
             binary = true
-        elseif length(args[1]) > 10^4
-            binary = true
+        else
+            s = sum(length.(args))
+            if s > 1e4
+                binary = true
+            end
         end
     end
     return binary
+end
+
+
+# ---------------------------------------------------------------------
+function Dataset(accum)
+    if useBinaryMethod(accum...)
+        try
+            return DatasetBin(accum...)
+        catch err
+            isa(err, MethodError)  ||  rethrow()
+        end
+    end
+    return DatasetText(accum...)
 end
 
 
@@ -1009,17 +1027,12 @@ function parseArguments(_args...)
                 @assert mm[1] == mm[2] "At least one input array is empty, while other(s) are not"
                 d = DatasetEmpty()
             else
-                if useBinaryMethod(accum...)
-                    d = DatasetBin(accum...)
-                else
-                    d = DatasetText(accum...)
-                end
+                d = Dataset(accum)
             end
             insert!(args, pos, d)
         end
         pos += 1
     end
-
 
     # Fourth pass: collect PlotElement objects
     mid = 0

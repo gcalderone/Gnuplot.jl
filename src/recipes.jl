@@ -17,29 +17,29 @@ recipe(h::Histogram2D) =
 
 # --------------------------------------------------------------------
 # Images
-recipe(M::Matrix{ColorTypes.RGB{T}}; rot="-90deg", opt="") where T =
-    PlotElement(cmds=["set autoscale fix", "set size square"],
+recipe(M::Matrix{ColorTypes.RGB{T}}; opt="flipy") where T =
+    PlotElement(cmds=["set autoscale fix", "set size ratio -1"],
                 data=DatasetBin(256 .* getfield.(M, :r),
                                 256 .* getfield.(M, :g),
                                 256 .* getfield.(M, :b)),
-                plot="rotate=$rot $opt with rgbimage notit")
+                plot="$opt with rgbimage notit")
 
-recipe(M::Matrix{ColorTypes.RGBA{T}}; rot="-90deg", opt="") where T =
-    PlotElement(cmds=["set autoscale fix", "set size square"],
+recipe(M::Matrix{ColorTypes.RGBA{T}}; opt="flipy") where T =
+    PlotElement(cmds=["set autoscale fix", "set size ratio -1"],
                 data=DatasetBin(256 .* getfield.(M, :r),
                                 256 .* getfield.(M, :g),
                                 256 .* getfield.(M, :b)),
-                plot="rotate=$rot $opt with rgbimage notit")
+                plot="$opt with rgbimage notit")
 
-recipe(M::Matrix{ColorTypes.Gray{T}}; rot="-90deg", opt="") where T =
-    PlotElement(cmds=["set autoscale fix", "set size square"],
+recipe(M::Matrix{ColorTypes.Gray{T}}; opt="flipy") where T =
+    PlotElement(cmds=["set autoscale fix", "set size ratio -1"],
                 data=DatasetBin(256 .* getfield.(M, :val)),
-                plot="rotate=$rot $opt with image notit")
+                plot="$opt with image notit")
 
-recipe(M::Matrix{ColorTypes.GrayA{T}}; rot="-90deg", opt="") where T =
-    PlotElement(cmds=["set autoscale fix", "set size square"],
+recipe(M::Matrix{ColorTypes.GrayA{T}}; opt="flipy") where T =
+    PlotElement(cmds=["set autoscale fix", "set size ratio -1"],
                 data=DatasetBin(256 .* getfield.(M, :val)),
-                plot="rotate=$rot $opt with image notit")
+                plot="$opt with image notit")
 
 
 # ╭───────────────────────────────────────────────────────────────────╮
