@@ -9,11 +9,7 @@ push!(Gnuplot.options.init, "set term unknown")
 x = [1, 2, 3]
 y = [4, 5, 6]
 
-s = Gnuplot.arrays2datablock(1)
-@test all(s .== [" 1"])
 
-s = Gnuplot.arrays2datablock(1, 2)
-@test all(s .== [" 1 2"])
 
 s = Gnuplot.arrays2datablock(x)
 @test all(s .== [" 1"   ,

@@ -17,17 +17,55 @@ export session_names, dataset_names, palette_names, linetypes, palette,
 # │                     User data representation                      │
 # ╰───────────────────────────────────────────────────────────────────╯
 # ---------------------------------------------------------------------
+"""
+    Dataset
+
+Abstract type for all dataset structures.
+"""
 abstract type Dataset end
 
+"""
+    DatasetEmpty
+
+An empty dataset.
+"""
 struct DatasetEmpty <: Dataset
 end
 
+"""
+    DatasetText
+
+A dataset whose data are stored as a text buffer.
+
+Transmission to gnuplot may be slow for large datasets, but no temporary file is involved, and the dataset can be saved directly into a gnuplot script.  Also, the constructor allows to build more flexible datasets (i.e. mixing arrays with different dimensions).
+
+Constructors are defined as follows:
+```julia
+DatasetText(data::Vector{String})
+DatasetText(data::Vararg{AbstractArray, N}) where N =
+```
+In the second form the type of elements of each array must be one of `Real`, `AbstractString` and `Missing`.
+"""
 mutable struct DatasetText <: Dataset
     preview::Vector{String}
     data::String
     DatasetText(::Val{:inner}, preview, data) = new(preview, data)
 end
 
+"""
+    DatasetBin
+
+A dataset whose data are stored as a binary file.
+
+Ensure best performances for large datasets, but involve use of a temporary files.  When saving a script the file is stored in a directory with the same name as the main script file.
+
+Constructors are defined as follows:
+```julia
+DatasetBin(cols::Vararg{AbstractMatrix, N}) where N
+DatasetBin(cols::Vararg{AbstractVector, N}) where N
+```
+In both cases the element of the arrays must be a numeric type.
+"""
 mutable struct DatasetBin <: Dataset
     file::String
     source::String
@@ -35,6 +73,31 @@ mutable struct DatasetBin <: Dataset
 end
 
 # ---------------------------------------------------------------------
+"""
+    PlotElement
+
+Structure containing element(s) of a plot (commands, data, plot specifications) that can be used directly in `@gp` and `@gsp` calls.
+
+# Fields
+- `mid::Int`: multiplot ID (use 0 for single plots);
+- `is3d::Bool`: true if the data are supposed to be displayed in a 3D plot;
+- `cmds::Vector{String}`: commands to set plot properties;
+- `name::String`: name of the dataset (use "" to automatically generate a unique name);
+- `data::Dataset`: a dataset
+- `plot::Vector{String}`: plot specifications for the associated `Dataset`;
+
+The constructor is defined as follows:
+```julia
+PlotElement(;mid::Int=0, is3d::Bool=false,
+            cmds::Union{String, Vector{String}}=Vector{String}(),
+            name::String="",
+            data::Dataset=DatasetEmpty(),
+            plot::Union{String, Vector{String}}=Vector{String}(),
+            kwargs...)
+```
+No field is mandatory, i.e. even `Gnuplot.PlotElement()` provides a valid structure.
+The constructor also accept all the keywords accepted by `parseKeywords`.
+"""
 mutable struct PlotElement
     mid::Int
     is3d::Bool
@@ -50,7 +113,7 @@ mutable struct PlotElement
                           plot::Union{String, Vector{String}}=Vector{String}(),
                           kwargs...)
         c = isa(cmds, String)  ? [cmds] : cmds
-        append!(c, parseKeywords(; kwargs...))
+        push!(c, parseKeywords(; kwargs...))
         new(mid, is3d, deepcopy(c), name, data,
             isa(plot, String)  ? [plot] : deepcopy(plot))
     end
@@ -212,15 +275,13 @@ end
 
 # ---------------------------------------------------------------------
 """
-    arrays2datablock(arrays...)
+    arrays2datablock(args::Vararg{AbstractArray, N}) where N
 
-Convert one (or more) arrays into an `Vector{String}`, ready to be ingested as an *inline datablock*.
+Convert one (or more) arrays into a `Vector{String}`.
 
-Data are sent from Julia to gnuplot in the form of an array of strings, also called *inline datablock* in the gnuplot manual.  This function performs such transformation.
-
-If you experience errors when sending data to gnuplot try to filter the arrays through this function.
+This function performs the conversion from Julia arrays to a textual representation suitable to be sent to gnuplot as an *inline data block*.
 """
-function arrays2datablock(args...)
+function arrays2datablock(args::Vararg{AbstractArray, N}) where N
     tostring(v::AbstractString) = "\"" * string(v) * "\""
     tostring(v::Real) = string(v)
     tostring(::Missing) = "?"
@@ -603,7 +664,7 @@ end
 =#
 
 # ---------------------------------------------------------------------
-function DatasetBin(VM::Vararg{AbstractMatrix{T}, N}) where {T <: Real, N}
+function DatasetBin(VM::Vararg{AbstractMatrix, N}) where N
     for i in 2:N
         @assert size(VM[i]) == size(VM[1])
     end
@@ -663,7 +724,8 @@ end
 
 
 # ---------------------------------------------------------------------
-DatasetText(args...) = DatasetText(arrays2datablock(args...))
+DatasetText(args::Vararg{AbstractArray, N}) where N =
+    DatasetText(arrays2datablock(args...))
 function DatasetText(data::Vector{String})
     preview = (length(data) <= 4  ?  deepcopy(data)  :  [data[1:4]..., "..."])
     d = DatasetText(Val(:inner), preview, join(data, "\n"))
@@ -986,10 +1048,9 @@ function parseArguments(_args...)
             insert!(args, pos, string(strip(arg)))
         elseif isa(arg, Tuple)  &&                   # ==> a keyword/value pair
             length(arg) == 2    &&
-                isa(arg[1], Symbol)
-            deleteat!(args, pos)
-            insert!(args, pos, parseKeywords(; [arg]...))
-            continue
+                isa(arg[1], Symbol)             ;
+            # Delay until fourth pass to avoid misinterpreting a
+            # keyword as a plotspec. E.g.: @gp x x.^2 ylog=true
         elseif isa(arg, Pair)                        # ==> a named dataset
             @assert typeof(arg[1]) == String "Dataset name must be a string"
             @assert arg[1][1] == '$' "Dataset name must start with a dollar sign"
@@ -1074,6 +1135,10 @@ function parseArguments(_args...)
             mid = arg
             name = ""
             empty!(cmds)
+        elseif isa(arg, Tuple)  &&               # ==> a keyword/value pair
+            length(arg) == 2    &&
+                isa(arg[1], Symbol)
+            push!(cmds, parseKeywords(; [arg]...))
         elseif isa(arg, String)                  # ==> a plotspec or a command
             (isPlot, is3d, s) = parseCmd(arg)
             if isPlot
@@ -1985,6 +2050,5 @@ function gpranges(sid::Symbol)
 end
 
 include("recipes.jl")
-
 
 end #module
