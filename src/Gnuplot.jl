@@ -688,7 +688,7 @@ function useBinaryMethod(args...)
     elseif options.preferred_format == :auto
         if (length(args) == 1)  &&  isa(args[1], AbstractMatrix)
             binary = true
-        else
+        elseif all(ndims.(args) .== 1)
             s = sum(length.(args))
             if s > 1e4
                 binary = true
