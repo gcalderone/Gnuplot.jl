@@ -1073,7 +1073,7 @@ function parseArguments(_args...)
         elseif isa(arg, Vector{PlotElement})         # ==> explicit recipe (vector)
             deleteat!(args, pos)
             for i in length(arg):-1:1
-                insert!(args, arg[i])
+                insert!(args, pos, arg[i])
             end
         elseif isa(arg, PlotElement)            ;    # ==> explicit recipe (scalar)
         else
