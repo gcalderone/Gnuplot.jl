@@ -4,6 +4,9 @@
 
 # --------------------------------------------------------------------
 # Histograms
+"""
+    recipe()
+"""
 recipe(h::Histogram1D) =
     PlotElement(cmds="set grid",
                 data=DatasetText(h.bins, h.counts),

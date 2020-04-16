@@ -1911,8 +1911,8 @@ end
 # ╰───────────────────────────────────────────────────────────────────╯
 # --------------------------------------------------------------------
 """
-    gpvars()
     gpvars(sid::Symbol)
+    gpvars()
 
 Return a `Dict{Symbol, Union{String, Real}}` with all currently defined gnuplot variables.  If the `sid` argument is not provided, the default session is considered.
 """
@@ -1945,8 +1945,8 @@ end
 
 # --------------------------------------------------------------------
 """
-    gpmargins()
     gpmargins(sid::Symbol)
+    gpmargins()
 
 Return a `NamedTuple` with keys `l`, `r`, `b` and `t` containing respectively the left, rigth, bottom and top margins of the current plot (in screen coordinates).
 """
@@ -1961,8 +1961,8 @@ function gpmargins(sid::Symbol)
 end
 
 """
-    gpranges()
     gpranges(sid::Symbol)
+    gpranges()
 
 Return a `NamedTuple` with keys `x`, `y`, `z` and `cb` containing respectively the current plot ranges for the X, Y, Z and color box axis.
 """

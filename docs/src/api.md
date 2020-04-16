@@ -14,10 +14,14 @@ boxxyerror
 contourlines
 dataset_names
 gpexec
+gpmargins
+gpranges
+gpvars
 hist
 linetypes
 palette
 palette_names
+recipe
 save
 session_names
 stats
@@ -41,5 +45,6 @@ Gnuplot.Path2d
 Gnuplot.gpversion
 Gnuplot.quit
 Gnuplot.quitall
+Gnuplot.repl_init
 Gnuplot.version
 ```

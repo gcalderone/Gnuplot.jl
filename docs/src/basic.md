@@ -6,7 +6,7 @@ Gnuplot.splash("assets/logo.png")
 empty!(Gnuplot.options.init)
 push!( Gnuplot.options.init, "set term unknown")
 empty!(Gnuplot.options.reset)
-push!( Gnuplot.options.reset, linetypes(:Set1_5, lw=1.5))
+push!( Gnuplot.options.reset, linetypes(:Set1_5, lw=1.5, ps=1.5))
 saveas(file) = save(term="pngcairo size 550,350 fontscale 0.8", output="assets/$(file).png")
 ```
 
@@ -239,7 +239,7 @@ The first plot features the `:Set1_5` palette, with solid lines whose width is 2
 
 As discussed in [Options](@ref), you may set a default line types for all plots with:
 ```julia
-push!(Gnuplot.options.init, linetypes(:Set1_5, lw=2))
+push!(Gnuplot.options.init, linetypes(:Set1_5, lw=1.5, ps=1.5))
 ```
 All plot in this documentation were generated with these settings.
 

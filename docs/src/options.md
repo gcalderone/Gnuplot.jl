@@ -6,7 +6,7 @@ mkpath("assets")
 empty!(Gnuplot.options.init)
 push!( Gnuplot.options.init, "set term unknown")
 empty!(Gnuplot.options.reset)
-push!( Gnuplot.options.reset, linetypes(:Set1_5, lw=1.5))
+push!( Gnuplot.options.reset, linetypes(:Set1_5, lw=1.5, ps=1.5))
 saveas(file) = save(term="pngcairo size 550,350 fontscale 0.8", output="assets/$(file).png")
 ```
 
@@ -25,7 +25,7 @@ Note that this is option affect all the newly created sessions, not the older on
 
 - `reset::Vector{String}`: initialization commands to be executed when a session is reset.  Default is an empty vector.  It can be used to, e.g., set custom linetypes or palette:
 ```@repl abc
-push!(Gnuplot.options.reset, linetypes(:Set1_5, lw=1.5));
+push!(Gnuplot.options.reset, linetypes(:Set1_5, lw=1.5, ps=1.5));
 ```
 Note that this is option affect all the sessions.  Also note that the commands in `Gnuplot.options.reset` **are** saved in [Gnuplot scripts](@ref);
 
@@ -38,8 +38,8 @@ x = 1.:10;
 @gp x x.^2 "w l t 'Parabola'"
 save(term="pngcairo size 480,360 fontscale 0.8", output="output.png")
 Gnuplot.options.verbose = false # hide
-push!( Gnuplot.options.reset, linetypes(:Set1_5, lw=1.5));  # hide
-gpexec("set term unknown");                                 # hide
+push!(Gnuplot.options.reset, linetypes(:Set1_5, lw=1.5));  # hide
+gpexec("set term unknown");                                # hide
 ```
 Each line reports the package name (`GNUPLOT`), the session name (`default`), the command or string being sent to gnuplot process, and the returned response (line starting with `->`).  Default value is `false`;
 
