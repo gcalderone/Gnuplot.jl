@@ -1256,7 +1256,7 @@ end
 
 Execute the gnuplot command `command` on the underlying gnuplot process of the `sid` session, and return the results as a `Vector{String}`.  If a gnuplot error arises it is propagated as an `ErrorException`.
 
-The the `sid` argument is not provided, the default session is considered.
+If the `sid` argument is not provided, the default session is considered.
 
 ## Examples:
 ```julia-repl
@@ -1302,7 +1302,13 @@ The `@gp` macro, and its companion `@gsp` for 3D plots, allows to send data and 
   - `xlog=true`   => `set logscale x`;
   - `ylog=true`   => `set logscale y`;
   - `zlog=true`   => `set logscale z`.
-  - `cblog=true`  => `set logscale cb`.
+  - `cblog=true`  => `set logscale cb`;
+  - `margins=...  => `set margins ...`;
+  - `lmargin=...  => `set lmargin ...`;
+  - `rmargin=...  => `set rmargin ...`;
+  - `bmargin=...  => `set bmargin ...`;
+  - `tmargin=...  => `set tmargin ...`;
+
 All Keyword names can be abbreviated as long as the resulting name is unambiguous.  E.g. you can use `xr=[1,10]` in place of `xrange=[1,10]`.
 
 - a `PlotElement` object is expanded in and its fields processed as one of the previous arguments;
@@ -1874,9 +1880,15 @@ end
 
 
 # ╭───────────────────────────────────────────────────────────────────╮
-# │                        VARIABLE ACCESS                            │
+# │                  ACCESS GNUPLOT VARIABLES                         │
 # ╰───────────────────────────────────────────────────────────────────╯
 # --------------------------------------------------------------------
+"""
+    gpvars()
+    gpvars(sid::Symbol)
+
+Return a `Dict{Symbol, Union{String, Real}}` with all currently defined gnuplot variables.  If the `sid` argument is not provided, the default session is considered.
+"""
 gpvars() = gpvars(options.default)
 function gpvars(sid::Symbol)
     gp = getsession(sid)
@@ -1905,6 +1917,12 @@ end
 
 
 # --------------------------------------------------------------------
+"""
+    gpmargins()
+    gpmargins(sid::Symbol)
+
+Return a `NamedTuple` with keys `l`, `r`, `b` and `t` containing respectively the left, rigth, bottom and top margins of the current plot (in screen coordinates).
+"""
 gpmargins() = gpmargins(options.default)
 function gpmargins(sid::Symbol)
     vars = gpvars()
@@ -1915,6 +1933,12 @@ function gpmargins(sid::Symbol)
     return (l=l, r=r, b=b, t=t)
 end
 
+"""
+    gpranges()
+    gpranges(sid::Symbol)
+
+Return a `NamedTuple` with keys `x`, `y`, `z` and `cb` containing respectively the current plot ranges for the X, Y, Z and color box axis.
+"""
 gpranges() = gpranges(options.default)
 function gpranges(sid::Symbol)
     vars = gpvars()
