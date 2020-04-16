@@ -10,7 +10,7 @@ import Base.display
 export session_names, dataset_names, palette_names, linetypes, palette,
     terminal, terminals, test_terminal,
     stats, @gp, @gsp, save, gpexec,
-    boxxyerror, contourlines, hist, recipe, gpvars
+    boxxyerror, contourlines, hist, recipe, gpvars, gpmargins, gpranges
 
 # ╭───────────────────────────────────────────────────────────────────╮
 # │                        TYPE DEFINITIONS                           │
@@ -171,7 +171,12 @@ function parseKeywords(; kwargs...)
                 xlog=Bool,
                 ylog=Bool,
                 zlog=Bool,
-                cblog=Bool)
+                cblog=Bool,
+                margins=AbstractString,
+                lmargin=Union{AbstractString,Real},
+                rmargin=Union{AbstractString,Real},
+                bmargin=Union{AbstractString,Real},
+                tmargin=Union{AbstractString,Real})
 
     kw = canonicalize(template; kwargs...)
     out = Vector{String}()
@@ -189,6 +194,13 @@ function parseKeywords(; kwargs...)
     ismissing(kw.ylog   ) || (push!(out, (kw.ylog  ?  ""  :  "un") * "set logscale y"))
     ismissing(kw.zlog   ) || (push!(out, (kw.zlog  ?  ""  :  "un") * "set logscale z"))
     ismissing(kw.cblog  ) || (push!(out, (kw.cblog ?  ""  :  "un") * "set logscale cb"))
+
+    ismissing(kw.margins) ||  push!(out, "set margins $(kw.margins)")
+    ismissing(kw.lmargin) ||  push!(out, (kw.lmargin == ""  ?  "unset lmargin"  :  "set lmargin at screen $(kw.lmargin)"))
+    ismissing(kw.rmargin) ||  push!(out, (kw.rmargin == ""  ?  "unset rmargin"  :  "set rmargin at screen $(kw.rmargin)"))
+    ismissing(kw.bmargin) ||  push!(out, (kw.bmargin == ""  ?  "unset bmargin"  :  "set bmargin at screen $(kw.bmargin)"))
+    ismissing(kw.tmargin) ||  push!(out, (kw.tmargin == ""  ?  "unset tmargin"  :  "set tmargin at screen $(kw.tmargin)"))
+
     return join(out, ";\n")
 end
 
@@ -1208,25 +1220,6 @@ function gpversion()
 end
 
 
-# --------------------------------------------------------------------
-"""
-    gpexec(sid::Symbol, command::String)
-    gpexec(command::String)
-
-Execute the gnuplot command `command` on the underlying gnuplot process of the `sid` session, and return the results as a `Vector{String}`.  If a gnuplot error arises it is propagated as an `ErrorException`.
-
-The the `sid` argument is not provided, the default session is considered.
-
-## Examples:
-```julia-repl
-gpexec("print GPVAL_TERM")
-gpexec("plot sin(x)")
-```
-"""
-gpexec(sid::Symbol, s::String) = gpexec(getsession(sid), s)
-gpexec(s::String) = gpexec(getsession(), s)
-
-
 # ---------------------------------------------------------------------
 """
     Gnuplot.quit(sid::Symbol)
@@ -1252,9 +1245,29 @@ end
 
 
 
+
 # ╭───────────────────────────────────────────────────────────────────╮
 # │                       EXPORTED FUNCTIONS                          │
 # ╰───────────────────────────────────────────────────────────────────╯
+# --------------------------------------------------------------------
+"""
+    gpexec(sid::Symbol, command::String)
+    gpexec(command::String)
+
+Execute the gnuplot command `command` on the underlying gnuplot process of the `sid` session, and return the results as a `Vector{String}`.  If a gnuplot error arises it is propagated as an `ErrorException`.
+
+The the `sid` argument is not provided, the default session is considered.
+
+## Examples:
+```julia-repl
+gpexec("print GPVAL_TERM")
+gpexec("plot sin(x)")
+```
+"""
+gpexec(sid::Symbol, s::String) = gpexec(getsession(sid), s)
+gpexec(s::String) = gpexec(getsession(), s)
+
+
 # --------------------------------------------------------------------
 """
     @gp args...
@@ -1891,7 +1904,26 @@ function gpvars(sid::Symbol)
 end
 
 
+# --------------------------------------------------------------------
+gpmargins() = gpmargins(options.default)
+function gpmargins(sid::Symbol)
+    vars = gpvars()
+    l = vars[:TERM_XMIN] / (vars[:TERM_XSIZE] / vars[:TERM_SCALE])
+    r = vars[:TERM_XMAX] / (vars[:TERM_XSIZE] / vars[:TERM_SCALE])
+    b = vars[:TERM_YMIN] / (vars[:TERM_YSIZE] / vars[:TERM_SCALE])
+    t = vars[:TERM_YMAX] / (vars[:TERM_YSIZE] / vars[:TERM_SCALE])
+    return (l=l, r=r, b=b, t=t)
+end
 
+gpranges() = gpranges(options.default)
+function gpranges(sid::Symbol)
+    vars = gpvars()
+    x = [vars[:X_MIN], vars[:X_MAX]]
+    y = [vars[:Y_MIN], vars[:Y_MAX]]
+    z = [vars[:Z_MIN], vars[:Z_MAX]]
+    c = [vars[:CB_MIN], vars[:CB_MAX]]
+    return (x=x, y=y, z=z, cb=c)
+end
 
 include("recipes.jl")
 
