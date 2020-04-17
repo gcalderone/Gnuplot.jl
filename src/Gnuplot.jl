@@ -5,7 +5,7 @@ using REPL, ReplMaker
 
 import Base.reset
 import Base.write
-import Base.display
+import Base.show
 
 export session_names, dataset_names, palette_names, linetypes, palette,
     terminal, terminals, test_terminal,
@@ -18,6 +18,17 @@ export session_names, dataset_names, palette_names, linetypes, palette,
 # │                     User data representation                      │
 # ╰───────────────────────────────────────────────────────────────────╯
 # ---------------------------------------------------------------------
+"""
+    SessionID
+
+A structure identifying a specific session.  Used in the `show` interface.
+"""
+struct SessionID
+    sid::Symbol
+    dump::Bool
+end
+
+
 """
     Dataset
 
@@ -121,7 +132,7 @@ mutable struct PlotElement
 end
 
 
-function display(v::PlotElement)
+function show(v::PlotElement)
     if isa(v.data, DatasetText)
         data = "DatasetText"
     elseif isa(v.data, DatasetBin)
@@ -134,9 +145,9 @@ function display(v::PlotElement)
           name=v.name, data, plot=plot)
 end
 
-function display(v::Vector{PlotElement})
+function show(v::Vector{PlotElement})
     for p in v
-        display(p)
+        show(p)
         println()
     end
 end
@@ -513,6 +524,13 @@ function GPSession(sid::Symbol)
 
     for l in options.init
         gpexec(out, l)
+    end
+
+    # If running in IJulia or Juno set the unknown terminal (trick
+    # copied from Gaston.jl)
+    if  (isdefined(Main, :IJulia)  &&  Main.IJulia.inited)  ||
+        (isdefined(Main, :Juno)    &&  Main.Juno.isactive())
+        gpexec(out, "set term unknown")
     end
 
     # Set window title (if not already set)
@@ -1211,7 +1229,7 @@ function driver(_args...; is3d=false)
     if length(_args) == 0
         gp = getsession()
         execall(gp)
-        return nothing
+        return SessionID(gp.sid, doDump)
     end
 
     (sid, doReset, doDump, elems) = parseArguments(_args...)
@@ -1225,7 +1243,7 @@ function driver(_args...; is3d=false)
         end
     end
     elems = elems[sortperm(getfield.(elems, :mid))]
-    # display(elems)  # debug
+    # show(elems)  # debug
 
     # Set dataset names and send them to gnuplot process
     for elem in elems
@@ -1267,9 +1285,8 @@ function driver(_args...; is3d=false)
         end
     end
 
-    # (doDump)  &&  (execall(gp))
-
-    return gp
+    (doDump)  &&  (execall(gp))
+    return SessionID(gp.sid, doDump)
 end
 
 
@@ -1466,6 +1483,7 @@ save(sid::Symbol, file::AbstractString; kw...) = savescript(getsession(sid), fil
 # ╰───────────────────────────────────────────────────────────────────╯
 # --------------------------------------------------------------------
 
+#=
 # Define a display that will be used when Gnuplot.jl is used
 # in the Julia REPL (see PGFPlotsX.jl).
 struct GnuplotDisplay <: AbstractDisplay end
@@ -1482,19 +1500,26 @@ function Base.display(d::GnuplotDisplay, gp::Session)
     execall(gp)
     return
 end
-function Base.show(io::IO, ::MIME"image/svg+xml", gp::Session)
-    tmpfile = tempname()*".svg"
-    execall(gp; output=tmpfile, term="svg")
-    write(io, read(tmpfile))
-    rm(tmpfile; force=true)
-    return
+=#
+Base.show(gp::SessionID) = nothing
+Base.show(io::IO, gp::SessionID) = nothing
+function Base.show(io::IO, ::MIME"image/svg+xml", gp::SessionID)
+    if gp.dump
+        tmpfile = tempname()*".svg"
+        save(gp.sid; term="svg", output=tmpfile)
+        write(io, read(tmpfile))
+        rm(tmpfile; force=true)
+    end
+    nothing
 end
-function Base.show(io::IO, ::MIME"image/png", gp::Session)
-    tmpfile = tempname()*".png"
-    execall(gp; output=tmpfile, term="png")
-    write(io, read(tmpfile))
-    rm(tmpfile; force=true)
-    return
+function Base.show(io::IO, ::MIME"image/png", gp::SessionID)
+    if gp.dump
+        tmpfile = tempname()*".png"
+        save(gp.sid; output=tmpfile, term="pngcairo")
+        write(io, read(tmpfile))
+        rm(tmpfile; force=true)
+    end
+    nothing
 end
 
 # ╭───────────────────────────────────────────────────────────────────╮
