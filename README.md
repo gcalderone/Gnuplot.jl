@@ -14,9 +14,20 @@
 
 Install with:
 ```julia
-]add Gnuplot@1.1.0
+]add Gnuplot
 ```
 A working [gnuplot](http://gnuplot.sourceforge.net/) package must be installed on your platform.
+
+You may check the installed **Gnuplot.jl** version with:
+```julia
+]st Gnuplot
+```
+If the displayed version is not v1.1.0 you are probably having a dependency conflict. In this case try forcing installation of the latest version with:
+```julia
+]add Gnuplot@1.1.0
+```
+and check which package is causing the conflict.
+
 
 Test package:
 ```julia
@@ -43,9 +54,9 @@ save("parabola.gp")  # => save a script file with both data and command to re-cr
 ```julia
 x = -2pi:0.1:2pi
 approx = fill(0., length(x));
-@gp t="Polynomial approximation of sin(x)"  key="opaque" linetypes(:Blues_3)
+@gp tit="Polynomial approximation of sin(x)" key="opaque" linetypes(:Blues_4)
 @gp :- "set encoding utf8" raw"""set xtics ('-π' -pi, '-π/2' -pi/2, 0, 'π/2' pi/2, 'π' pi)"""
-@gp :- xr=3.8.*[-1, 1] yr=[-1.5,1.5] "set grid"
+@gp :- xr=3.8.*[-1, 1] yr=[-1.5,1.5] "set grid front"
 @gp :- x sin.(x) approx .+=  x          "w filledcurve t 'n=0' lt 1"
 @gp :- x sin.(x) approx .+= -x.^3/6     "w filledcurve t 'n=1' lt 2"
 @gp :- x sin.(x) approx .+=  x.^5/120   "w filledcurve t 'n=2' lt 3"

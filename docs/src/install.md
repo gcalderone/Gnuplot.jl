@@ -8,11 +8,26 @@ If `gnuplot` is not available in your platform you can still use **Gnuplot.jl** 
 ## Package installation
 In the Julia REPL type:
 ```julia-repl
-julia> ]add Gnuplot@1.2.0
+julia> ]add Gnuplot
 ```
-The `]` character starts the Julia [package manager](https://julialang.github.io/Pkg.jl/v1/getting-started.html#Basic-Usage-1). Then hit backspace key to return to Julia REPL.
+The `]` character starts the Julia [package manager](https://julialang.github.io/Pkg.jl/v1/getting-started.html#Basic-Usage-1). Hit backspace key to return to Julia prompt.
+
 
 ## Check installation
+
+Check **Gnuplot.jl** version with:
+```julia-repl
+julia> ]st Gnuplot
+Status `~/.julia/environments/v1.4/Project.toml`
+  [dc211083] Gnuplot v1.2.0
+```
+If the displayed version is not `v1.2.0` you are probably having a dependency conflict.  In this case try forcing installation of the latest version with:
+```julia-repl
+julia> ]add Gnuplot@1.2.0
+```
+and check which package is causing the conflict.
+
+
 
 Check execution and version of the underlying `gnuplot` process:
 ```@repl
