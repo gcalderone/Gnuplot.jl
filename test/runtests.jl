@@ -170,7 +170,8 @@ else
     c = Meta.parse(gpexec("print c"))
 end
 
-@gp    :dry "f(x) = a * sin(b + c*x); a = 1; b = 1; c = 1;"  :-
+@gp    :dry "set term unknwon" :-  #  avoid errors in CI
+@gp :- :dry "f(x) = a * sin(b + c*x); a = 1; b = 1; c = 1;"  :-
 @gp :- :dry "a = $a; b = $b; c = $c"                         :-
 @gp :- :dry "set multiplot layout 2,1" ylab="Data and model" :-
 name = "\$MyDataSet1"
