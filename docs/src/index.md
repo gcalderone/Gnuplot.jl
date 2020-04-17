@@ -1,5 +1,7 @@
 # Gnuplot.jl
 ## A Julia interface to gnuplot.
+[![Stars](https://img.shields.io/github/stars/gcalderone/Gnuplot.jl?style=social)](https://github.com/gcalderone/Gnuplot.jl)
+
 
 The **Gnuplot.jl** package allows easy and fast use of [gnuplot](http://gnuplot.info/) as a data visualization tool in Julia.  Have a look at [Basic usage](@ref) and [Examples](@ref) for a quick overview.  The package main features are:
 
