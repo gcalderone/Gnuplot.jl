@@ -3,7 +3,6 @@ module Gnuplot
 using StatsBase, ColorSchemes, ColorTypes, Colors, StructC14N, DataStructures
 using REPL, ReplMaker
 
-#import Base.reset
 import Base.write
 import Base.show
 
@@ -526,24 +525,6 @@ function GPSession(sid::Symbol)
                     pin, pout, perr, proc, chan)
     sessions[sid] = out
 
-    # If running in IJulia or Juno set the unknown terminal (trick
-    # copied from Gaston.jl)
-    if  (isdefined(Main, :IJulia)  &&  Main.IJulia.inited)  ||
-        (isdefined(Main, :Juno)    &&  Main.Juno.isactive())
-        gpexec(out, "set term unknown")
-    else
-        (options.term != "")  &&  gpexec(out, "set term " * options.term)
-
-        # Set window title (if not already set)
-        term = writeread(out, "print GPVAL_TERM")[1]
-        if term in ("aqua", "x11", "qt", "wxt")
-            opts = writeread(out, "print GPVAL_TERMOPTIONS")[1]
-            if findfirst("title", opts) == nothing
-                writeread(out, "set term $term $opts title 'Gnuplot.jl: $(out.sid)'")
-            end
-        end
-    end
-
     return out
 end
 
@@ -766,6 +747,24 @@ function reset(gp::Session)
     gpexec(gp, "unset multiplot")
     gpexec(gp, "set output")
     gpexec(gp, "reset session")
+
+    # When running in IJulia or Juno set the unknown terminal
+    # (trick copied from Gaston.jl)
+    if  (isdefined(Main, :IJulia)  &&  Main.IJulia.inited)  ||
+        (isdefined(Main, :Juno)    &&  Main.Juno.isactive())
+        gpexec(gp, "set term unknown")
+    else
+        (options.term != "")  &&  gpexec(gp, "set term " * options.term)
+
+        # Set window title (if not already set)
+        term = writeread(gp, "print GPVAL_TERM")[1]
+        if term in ("aqua", "x11", "qt", "wxt")
+            opts = writeread(gp, "print GPVAL_TERMOPTIONS")[1]
+            if findfirst("title", opts) == nothing
+                writeread(gp, "set term $term $opts title 'Gnuplot.jl: $(gp.sid)'")
+            end
+        end
+    end
     add_cmd.(Ref(gp), options.init)
     return nothing
 end
@@ -1231,7 +1230,7 @@ function driver(_args...; is3d=false)
     if length(_args) == 0
         gp = getsession()
         execall(gp)
-        return SessionID(gp.sid, doDump)
+        return SessionID(gp.sid, true)
     end
 
     (sid, doReset, doDump, elems) = parseArguments(_args...)
@@ -1300,7 +1299,7 @@ end
 
 Return the **Gnuplot.jl** package version.
 """
-version() = v"1.2.0"
+version() = v"1.2.0-rc"
 
 # ---------------------------------------------------------------------
 """
