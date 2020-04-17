@@ -3,10 +3,9 @@ using Gnuplot
 Gnuplot.quitall()
 mkpath("assets")
 Gnuplot.splash("assets/logo.png")
+Gnuplot.options.term = "unknown"
 empty!(Gnuplot.options.init)
-push!( Gnuplot.options.init, "set term unknown")
-empty!(Gnuplot.options.reset)
-push!( Gnuplot.options.reset, linetypes(:Set1_5, lw=1.5, ps=1.5))
+push!( Gnuplot.options.init, linetypes(:Set1_5, lw=1.5, ps=1.5))
 saveas(file) = save(term="pngcairo size 550,350 fontscale 0.8", output="assets/$(file).png")
 ```
 
@@ -22,8 +21,10 @@ saveas("basic000") # hide
 ```
 ![](assets/basic000.png)
 
+The plots are displayed either in an interactive window (if running in the Julia REPL), as an inline image (if running in Jupyter) or in the plot pane (if running in Juno).  See [Options](@ref) and [Jupyter and Juno](@ref) for further informations.
 
-Both macros accept any number of arguments, whose meaning is interpreted as follows:
+
+Both the [`@gp`](@ref) and [`@gsp`](@ref) macros accept any number of arguments, whose meaning is interpreted as follows:
 
 - one, or a group of consecutive, array(s) build up a dataset.  The different arrays are accessible as columns 1, 2, etc. from the gnuplot process.  The number of required input arrays depends on the chosen plot style (see gnuplot documentation);
 
@@ -160,7 +161,7 @@ where `NaN` in the `xrange` keyword means using axis autoscaling.
 
 **Gnuplot.jl** can display a 2D matrix as an image:
 ```@example abc
-img = randn(Float64, 15, 5)
+img = randn(Float64, 10, 5)
 img[10,:] .= -5
 @gp img "w image notit"
 saveas("basic007a") # hide
@@ -169,11 +170,11 @@ saveas("basic007a") # hide
 
 Note that the first index in the `img` matrix corresponds to the rows in the displayed image coordinate when the image is displayed.
 
-A simple way to remember the convention is to compare how matrix are displayed on the REPL:
+A simple way to remember the convention is to compare how a matrix is displayed in the REPL:
 ```@example abc
 img = reshape(1:15, 5, 3)
 ```
-and their image representation, which is essentially upside down:
+and its image representation, which is essentially upside down:
 ```@example abc
 @gp img "w image notit"
 saveas("basic007b") # hide

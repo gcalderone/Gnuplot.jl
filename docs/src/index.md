@@ -23,6 +23,8 @@ The **Gnuplot.jl** package allows easy and fast use of [gnuplot](http://gnuplot.
 
 - export to a huge number of formats such as `pdf`, `png`, `gif`, ``\LaTeX``, `svg`, etc. (actually all those supported by gnuplot);
 
+- compatibility with Jupyter and Juno;
+
 - save sessions into gnuplot scripts, to enable easy plot customization and reproducibility.
 
 If you're unfamiliar with gnuplot have a look at:
