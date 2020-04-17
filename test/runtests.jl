@@ -170,8 +170,7 @@ else
     c = Meta.parse(gpexec("print c"))
 end
 
-@gp    :dry "set term unknown" :-  #  avoid errors in CI
-@gp :- :dry "f(x) = a * sin(b + c*x); a = 1; b = 1; c = 1;"  :-
+@gp    :dry "f(x) = a * sin(b + c*x); a = 1; b = 1; c = 1;"  :-
 @gp :- :dry "a = $a; b = $b; c = $c"                         :-
 @gp :- :dry "set multiplot layout 2,1" ylab="Data and model" :-
 name = "\$MyDataSet1"
@@ -183,7 +182,7 @@ name = "\$MyDataSet1"
 @gp :- :dry
 save(:dry, "test.gp")        # write on file test.gp
 Gnuplot.quitall()
-gpexec("load 'test.gp'") # load file test.gp
+#gpexec("load 'test.gp'") # load file test.gp, commented to avoid errors in CI
 
 #-----------------------------------------------------------------
 @gp("""
