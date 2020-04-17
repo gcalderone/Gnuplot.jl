@@ -3,7 +3,7 @@ module Gnuplot
 using StatsBase, ColorSchemes, ColorTypes, Colors, StructC14N, DataStructures
 using REPL, ReplMaker
 
-import Base.reset
+#import Base.reset
 import Base.write
 import Base.show
 
@@ -201,8 +201,10 @@ Structure containing the package global options, accessible through `Gnuplot.opt
 - `dry::Bool`: whether to use *dry* sessions, i.e. without an underlying Gnuplot process (default: `false`)
 - `cmd::String`: command to start the Gnuplot process (default: `"gnuplot"`)
 - `default::Symbol`: default session name (default: `:default`)
-- `init::Vector{String}`: commands to initialize the session when it is created (e.g., to set default terminal);
-- `reset::Vector{String}`: commands to initialize the session when it is reset (e.g., to set default palette);
+- `term::String`: default terminal for interactive use (default: empty string, i.e. use gnuplot settings);
+- `term_svg::String`: terminal to save png files (default `"svg"`);
+- `term_png::String`: terminal to save png files (default `"pngcairo"`);
+- `init::Vector{String}`: commands to initialize the session when it is created or reset (e.g., to set default palette);
 - `verbose::Bool`: verbosity flag (default: `false`)
 - `preferred_format::Symbol`: preferred format to send data to gnuplot.  Value must be one of:
    - `bin`: fastest solution for large datasets, but uses temporary files;
@@ -213,8 +215,10 @@ Base.@kwdef mutable struct Options
     dry::Bool = false
     cmd::String = "gnuplot"
     default::Symbol = :default
+    term::String = ""
+    term_svg::String = "svg"
+    term_png::String = "pngcairo"
     init::Vector{String} = Vector{String}()
-    reset::Vector{String} = Vector{String}()
     verbose::Bool = false
     preferred_format::Symbol = :auto
 end
@@ -522,23 +526,21 @@ function GPSession(sid::Symbol)
                     pin, pout, perr, proc, chan)
     sessions[sid] = out
 
-    for l in options.init
-        gpexec(out, l)
-    end
-
     # If running in IJulia or Juno set the unknown terminal (trick
     # copied from Gaston.jl)
     if  (isdefined(Main, :IJulia)  &&  Main.IJulia.inited)  ||
         (isdefined(Main, :Juno)    &&  Main.Juno.isactive())
         gpexec(out, "set term unknown")
-    end
+    else
+        (options.term != "")  &&  gpexec(out, "set term " * options.term)
 
-    # Set window title (if not already set)
-    term = writeread(out, "print GPVAL_TERM")[1]
-    if term in ("aqua", "x11", "qt", "wxt")
-        opts = writeread(out, "print GPVAL_TERMOPTIONS")[1]
-        if findfirst("title", opts) == nothing
-            writeread(out, "set term $term $opts title 'Gnuplot.jl: $(out.sid)'")
+        # Set window title (if not already set)
+        term = writeread(out, "print GPVAL_TERM")[1]
+        if term in ("aqua", "x11", "qt", "wxt")
+            opts = writeread(out, "print GPVAL_TERMOPTIONS")[1]
+            if findfirst("title", opts) == nothing
+                writeread(out, "set term $term $opts title 'Gnuplot.jl: $(out.sid)'")
+            end
         end
     end
 
@@ -764,7 +766,7 @@ function reset(gp::Session)
     gpexec(gp, "unset multiplot")
     gpexec(gp, "set output")
     gpexec(gp, "reset session")
-    add_cmd.(Ref(gp), options.reset)
+    add_cmd.(Ref(gp), options.init)
     return nothing
 end
 
@@ -1506,7 +1508,7 @@ Base.show(io::IO, gp::SessionID) = nothing
 function Base.show(io::IO, ::MIME"image/svg+xml", gp::SessionID)
     if gp.dump
         tmpfile = tempname()*".svg"
-        save(gp.sid; term="svg", output=tmpfile)
+        save(gp.sid; term=options.term_svg, output=tmpfile)
         write(io, read(tmpfile))
         rm(tmpfile; force=true)
     end
@@ -1515,7 +1517,7 @@ end
 function Base.show(io::IO, ::MIME"image/png", gp::SessionID)
     if gp.dump
         tmpfile = tempname()*".png"
-        save(gp.sid; output=tmpfile, term="pngcairo")
+        save(gp.sid; term=options.term_png, output=tmpfile)
         write(io, read(tmpfile))
         rm(tmpfile; force=true)
     end

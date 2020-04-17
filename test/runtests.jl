@@ -4,7 +4,7 @@ try
 catch
     Gnuplot.options.dry = true
 end
-push!(Gnuplot.options.init, "set term unknown")
+Gnuplot.options.term = "unknown"
 
 x = [1, 2, 3]
 y = [4, 5, 6]
