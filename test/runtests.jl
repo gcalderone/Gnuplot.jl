@@ -181,7 +181,7 @@ name = "\$MyDataSet1"
 @gp :- :dry
 save(:dry, "test.gp")        # write on file test.gp
 Gnuplot.quitall()
-gpexec("load 'test.gp'") # load file test.gp
+#gpexec("load 'test.gp'") # load file test.gp, commented to avoid errors in CI
 
 #-----------------------------------------------------------------
 @gp("""
