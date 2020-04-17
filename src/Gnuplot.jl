@@ -3,6 +3,7 @@ module Gnuplot
 using StatsBase, ColorSchemes, ColorTypes, Colors, StructC14N, DataStructures
 using REPL, ReplMaker
 
+import Base.reset
 import Base.write
 import Base.show
 
