@@ -23,9 +23,9 @@ The package options are stored in a global structure available in Julia as `Gnup
 Gnuplot.options.term = "wxt size 700,400";
 ```
 
-- `term_svg::String`: terminal to save png files (default `"svg"`);
+- `term_svg::String`: terminal to save png files (default: `"svg background rgb 'white' dynamic"`);
 
-- `term_png::String`: terminal to save png files (default `"pngcairo"`);
+- `term_png::String`: terminal to save png files (default: `"pngcairo"`);
 
 - `init::Vector{String}`: commands to initialize the session when it is created or reset.  It can be used to, e.g., set a custom linetypes or palette:
 ```@repl abc

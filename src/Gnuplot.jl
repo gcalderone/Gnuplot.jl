@@ -201,7 +201,7 @@ Structure containing the package global options, accessible through `Gnuplot.opt
 - `cmd::String`: command to start the Gnuplot process (default: `"gnuplot"`)
 - `default::Symbol`: default session name (default: `:default`)
 - `term::String`: default terminal for interactive use (default: empty string, i.e. use gnuplot settings);
-- `term_svg::String`: terminal to save png files (default `"svg"`);
+- `term_svg::String`: terminal to save png files (default `"svg background rgb 'white' dynamic"`);
 - `term_png::String`: terminal to save png files (default `"pngcairo"`);
 - `init::Vector{String}`: commands to initialize the session when it is created or reset (e.g., to set default palette);
 - `verbose::Bool`: verbosity flag (default: `false`)
@@ -215,7 +215,7 @@ Base.@kwdef mutable struct Options
     cmd::String = "gnuplot"
     default::Symbol = :default
     term::String = ""
-    term_svg::String = "svg"
+    term_svg::String = "svg background rgb 'white' dynamic"
     term_png::String = "pngcairo"
     init::Vector{String} = Vector{String}()
     verbose::Bool = false
