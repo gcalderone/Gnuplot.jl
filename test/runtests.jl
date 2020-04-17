@@ -4,7 +4,6 @@ try
 catch
     Gnuplot.options.dry = true
 end
-Gnuplot.options.verbose = true
 Gnuplot.options.term = "unknown"
 
 x = [1, 2, 3]
