@@ -76,8 +76,8 @@ saveas("recipes002") # hide
 
 
 ```@example abc
-x = randn(1000);
-y = randn(1000);
+x = randn(10_000);
+y = randn(10_000);
 @gp hist(x, y)
 saveas("recipes002a") # hide
 ```
