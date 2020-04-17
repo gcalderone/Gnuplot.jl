@@ -739,6 +739,12 @@ end
 # │              PRIVATE FUNCTIONS TO MANIPULATE SESSIONS             │
 # ╰───────────────────────────────────────────────────────────────────╯
 # ---------------------------------------------------------------------
+function enableExportThroughShow()
+    return (isdefined(Main, :IJulia)  &&  Main.IJulia.inited)  ||
+        (isdefined(Main, :Juno)    &&  Main.Juno.isactive())
+end
+
+
 function reset(gp::Session)
     delete_binaries(gp)
     gp.datas = OrderedDict{String, Dataset}()
@@ -750,8 +756,7 @@ function reset(gp::Session)
 
     # When running in IJulia or Juno set the unknown terminal
     # (trick copied from Gaston.jl)
-    if  (isdefined(Main, :IJulia)  &&  Main.IJulia.inited)  ||
-        (isdefined(Main, :Juno)    &&  Main.Juno.isactive())
+    if enableExportThroughShow()
         gpexec(gp, "set term unknown")
     else
         (options.term != "")  &&  gpexec(gp, "set term " * options.term)
@@ -1505,7 +1510,8 @@ end
 Base.show(gp::SessionID) = nothing
 Base.show(io::IO, gp::SessionID) = nothing
 function Base.show(io::IO, ::MIME"image/svg+xml", gp::SessionID)
-    if gp.dump
+    if gp.dump  &&  enableExportThroughShow()
+        println("SVG")
         tmpfile = tempname()*".svg"
         save(gp.sid; term=options.term_svg, output=tmpfile)
         write(io, read(tmpfile))
@@ -1514,7 +1520,8 @@ function Base.show(io::IO, ::MIME"image/svg+xml", gp::SessionID)
     nothing
 end
 function Base.show(io::IO, ::MIME"image/png", gp::SessionID)
-    if gp.dump
+    if gp.dump  &&  enableExportThroughShow()
+        println("PNG")
         tmpfile = tempname()*".png"
         save(gp.sid; term=options.term_png, output=tmpfile)
         write(io, read(tmpfile))
