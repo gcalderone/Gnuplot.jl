@@ -52,11 +52,16 @@ The functionalities 1, 2 and 3 listed above are similar to those provided by the
 
 ## Do Gnuplot.jl suits my needs?
 
-Any modern plotting package is able to produce a simple scatter plot, with custom symbols, line styles, colors and axis labels.  Indeed, this is exactly the example that is reported in every package documentation (also here: see [2D plots](@ref plots2d)). Still, producing complex and publication-quality plots is not an easy task.  As a consequence is also not easy to determine whether a package can cope with the most difficult cases (unless you actually try it out) and a reasonable choice is typically to rely on the size of the user base, the availability of documentation / tutorials, and the possibility to preview complex examples.
+Any modern plotting framework is able to produce a simple scatter plot, with custom symbols, line styles, colors and axis labels.  Indeed, this is exactly the example that is reported in every package documentation (also here: see [2D plots](@ref plots2d)). Still, producing complex and publication-quality plots is not an easy task.  As a consequence is also hard to tell whether a package can cope with the most difficult cases, unless you actually try it out.  A reasonable choice, then, is to rely on the size of the user base, the availability of documentation / tutorials, and the possibility to preview complex examples.
 
-**Gnuplot.jl** aims to be ready for even the most challenging plots by relying on the widely used gnuplot application, and by allowing each native feature (both present and future ones) to be immediately available in the Julia language.  Moreover, **Gnuplot.jl** provides a unique syntax specifically aimed to increase productivity while performing interactive data exploration.
+By allowing transparent access to the underlying gnuplot process, the **Gnuplot.jl** package immediately exposes all capabilities of the backend and allows to take advantage of the many resources available online.  The minimalistic approach allows to value the widely spread knowledge of gnuplot syntax, and ensures a shallow learning curve for the package.  Finally, its extremely concise syntax makes it ideal for interactive data exploration.
 
-Last but not least, have a look at the **Gnuplot.jl** [Examples](@ref) page.
+As a final remark, note that the **Gnuplot.jl** features directly maps onto the different stages of production of a plot:
+- syntax conciseness, interactivity, [Plot recipes](@ref) => preliminary data exploration;
+- access to all gnuplot capabilities, allowing to tweak even the smallest detail of a plot => plot preparation;
+- [Gnuplot scripts](@ref) => post-production.
+
+Before continuing, have a look at the [Examples](@ref) page!
 
 
 ## Notation
@@ -67,5 +72,5 @@ In this documentation:
 
 ## Table of Contents
 ```@contents
-Pages = ["index.md", "install.md", "basic.md", "advanced.md", "tips.md", "examples.md", "api.md"]
+Pages = ["index.md", "install.md", "basic.md", "advanced.md", "options.md", "style.md", "terminals.md", "recipes.md", "examples.md", "api.md"]
 ```
