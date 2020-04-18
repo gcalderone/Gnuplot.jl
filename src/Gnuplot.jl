@@ -10,7 +10,7 @@ import Base.show
 export session_names, dataset_names, palette_names, linetypes, palette,
     terminal, terminals, test_terminal,
     stats, @gp, @gsp, save, gpexec,
-    boxxyerror, contourlines, hist, recipe, gpvars, gpmargins, gpranges
+    boxxy, contourlines, hist, recipe, gpvars, gpmargins, gpranges
 
 
 # ╭───────────────────────────────────────────────────────────────────╮
@@ -1865,9 +1865,12 @@ end
 
 # --------------------------------------------------------------------
 """
-    boxxyerror(x, y; xmin=NaN, ymin=NaN, xmax=NaN, ymax=NaN, cartesian=false)
+    boxxy(x, y; xmin=NaN, ymin=NaN, xmax=NaN, ymax=NaN, cartesian=false)
+    boxxy(h::Histogram2D)
+
 """
-function boxxyerror(x, y; xmin=NaN, ymin=NaN, xmax=NaN, ymax=NaN, cartesian=false)
+boxxy(h::Histogram2D) = boxxy(h.bins1, h.bins2, h.counts, cartesian=true)
+function boxxy(x, y, aux...; xmin=NaN, ymin=NaN, xmax=NaN, ymax=NaN, cartesian=false)
     function box(v; vmin=NaN, vmax=NaN)
         vlow  = Vector{Float64}(undef, length(v))
         vhigh = Vector{Float64}(undef, length(v))
@@ -1889,11 +1892,11 @@ function boxxyerror(x, y; xmin=NaN, ymin=NaN, xmax=NaN, ymax=NaN, cartesian=fals
     xlow, xhigh = box(x, vmin=xmin, vmax=xmax)
     ylow, yhigh = box(y, vmin=ymin, vmax=ymax)
     if !cartesian
-        return (x, y, xlow, xhigh, ylow, yhigh)
+        return Dataset(x, y, xlow, xhigh, ylow, yhigh, aux...)
     end
     i = repeat(1:length(x), outer=length(y))
     j = repeat(1:length(y), inner=length(x))
-    return (x[i], y[j], xlow[i], xhigh[i], ylow[j], yhigh[j])
+    return Dataset([x[i], y[j], xlow[i], xhigh[i], ylow[j], yhigh[j], aux...])
 end
 
 

@@ -161,20 +161,20 @@ where `NaN` in the `xrange` keyword means using axis autoscaling.
 
 **Gnuplot.jl** can display a 2D matrix as an image:
 ```@example abc
-img = randn(Float64, 10, 5)
-img[10,:] .= -5
+img = randn(Float64, 8, 5)
+img[2,:] .= -5
 @gp img "w image notit"
 saveas("basic007a") # hide
 ```
 ![](assets/basic007a.png)
 
-Note that the first index in the `img` matrix corresponds to the rows in the displayed image coordinate when the image is displayed.
+Note that the first index in the `img` matrix corresponds to the rows in the displayed image.
 
 A simple way to remember the convention is to compare how a matrix is displayed in the REPL:
 ```@example abc
 img = reshape(1:15, 5, 3)
 ```
-and its image representation, which is essentially upside down:
+and its image representation, which is essentially upside down (since the Y coordinates increase upwards):
 ```@example abc
 @gp img "w image notit"
 saveas("basic007b") # hide
@@ -190,7 +190,7 @@ Also note that the `img[1,1]` pixel is shown at coordinates x=0, y=0.  See [Imag
 E.g., to plot a spiral increasing in size along the `X` direction:
 ```@example abc
 x = 0:0.1:10pi
-@gsp cbr=[-1,1].*30  x  sin.(x) .* x  cos.(x) .* x  x./20  "w p pt 7 ps var lc pal"
+@gsp cbr=[-1,1].*30  x  x.*sin.(x)  x.*cos.(x)  x./20  "w p pt 7 ps var lc pal"
 saveas("basic008") # hide
 ```
 ![](assets/basic008.png)
@@ -205,7 +205,7 @@ A gnuplot-compliant palette can be retrieved with [`palette()`](@ref), and used 
 ```@example abc
 x = 0:0.1:10pi
 @gsp palette(:viridis) cbr=[-1,1].*30 :-
-@gsp :-  x  sin.(x) .* x  cos.(x) .* x  x./20  "w p pt 7 ps var lc pal"
+@gsp :-  x  x.*sin.(x)  x.*cos.(x)  x./20  "w p pt 7 ps var lc pal"
 saveas("basic008a") # hide
 ```
 ![](assets/basic008a.png)

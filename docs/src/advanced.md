@@ -89,7 +89,7 @@ Note that the order of the plots is not relevant, i.e. we would get the same res
 
 ## Customized layout
 
-It is also possible to customize the plot layout using the margin keywords (see [Histograms](@ref) for further info):
+It is also possible to customize the plot layout using the margin keywords (see [Histograms](@ref) for further info on how to generate andi display histograms):
 ```@example abc
 # Generate random numbers
 x = randn(1000);
@@ -181,7 +181,15 @@ Gnuplot.quitall()
 ```
 
 ## Histograms
-**Gnuplot.jl** provides a facility to compute (see [`hist()`](@ref) function) an histogram.  It allows to set the range to consider (`range=` keyword) and either the bin size (`bs=`) or the total number of bins (`nbins=`) in the histogram (see [`hist()`](@ref) documentation for further information) and return a [`Gnuplot.Histogram1D`](@ref) structure, whose content can be visualized as follows:
+**Gnuplot.jl** provides facilities to compute and display histograms, e.g.:
+```@example abc
+x = randn(1000);
+@gp hist(x)
+saveas("advanced013a") # hide
+```
+![](assets/advanced013a.png)
+
+The [`hist()`](@ref) function also accept keywords to set the range to consider (`range=` keyword) and either the bin size (`bs=`) or the total number of bins (`nbins=`) in the histogram.  A finer control on the output is achieved by exploiting the fields of the returned ([`Gnuplot.Histogram1D`](@ref)) structure, e.g.:
 ```@example abc
 x = randn(1000);
 h = hist(x, range=3 .* [-1,1], bs=0.5)
@@ -190,7 +198,17 @@ saveas("advanced013b") # hide
 ```
 ![](assets/advanced013b.png)
 
-**Gnuplot.jl** also allows to compute 2D histograms by passing two vectors (with the same lengths) to [`hist()`](@ref).  Again, a finer control can be achieved by specifying ranges, bin size or number of bins (along both dimensions) and by explicitly using the content of the returned [`Gnuplot.Histogram2D`](@ref) structure:
+The [`hist()`](@ref) function compute also 2D histograms by passing two vectors (with the same lengths), e.g.: 
+```@example abc
+x = randn(10_000)
+y = randn(10_000)
+h = hist(x, y)
+@gp h
+saveas("advanced014a") # hide
+```
+![](assets/advanced014a.png)
+
+Again, a finer control can be achieved by specifying ranges, bin size or number of bins (along both dimensions) and by explicitly using the content of the returned [`Gnuplot.Histogram2D`](@ref) structure:
 ```@example abc
 x = randn(10_000)
 y = randn(10_000)
@@ -201,29 +219,40 @@ saveas("advanced014b") # hide
 ![](assets/advanced014b.png)
 
 
-Alternatively, 2D histograms may be displayed using the `boxxyerror` plot style which allows more flexibility in, e.g., handling transparencies and drawing the histogram grid.  In this case the data can be prepared using the [`boxxyerror()`](@ref) function, as follows:
+Alternatively, 2D histograms may be displayed using the `boxxyerror` plot style which allows more flexibility in, e.g., handling transparencies and drawing the histogram grid.  In this case the data can be prepared using the [`boxxy()`](@ref) function, as follows:
 ```@example abc
-box = boxxyerror(h.bins1, h.bins2, cartesian=true)
 @gp "set size ratio -1" "set style fill solid 0.5 border lc rgb 'gray'" :-
-@gp :- box... h.counts "w boxxyerror notit lc pal"
+@gp :- boxxy(h) "w boxxy notit lc pal"
 saveas("advanced014c") # hide
 ```
 ![](assets/advanced014c.png)
 
-See also [Histogram recipes](@ref) for a quicker way to preview histogram plots.
 
 
 ## Contour lines
-Although gnuplot already handles contours by itself (with the `set contour` command), **Gnuplot.jl** provides a way to calculate contour lines paths before displaying them, using the [`contourlines()`](@ref) function.  We may use it for, e.g., plot contour lines with customized widths and palette, according to their z level.  Continuing with the previous example:
+Although gnuplot already handles contours by itself (with the `set contour` command), **Gnuplot.jl** provides a way to calculate contour lines paths before displaying them, using the [`contourlines()`](@ref) function.  We may preview such lines with:
 ```@example abc
-clines = contourlines(h.bins1, h.bins2, h.counts, cntrparam="levels discrete 10, 30, 60, 90");
-for i in 1:length(clines)
-    @gp :- clines[i].data "w l t '$(clines[i].z)' lw $i lc pal" :-
-end
-@gp :- key="outside top center box horizontal"
+x = randn(10_000)
+y = randn(10_000)
+h = hist(x, y)
+clines = contourlines(h, "levels discrete 10, 30, 60, 90");
+@gp clines
 saveas("advanced014d") # hide
 ```
 ![](assets/advanced014d.png)
+
+By exploiting the fields of the [`Gnuplot.IsoContourLines`](@ref) structure we may also customize line widths, colors and dashed pattern according to their z level, and plot them on top of the 2D histogram:
+
+```@example abc
+@gp "set size ratio -1" "set style fill solid 0.5 border lc rgb 'gray'" :-
+@gp :- boxxy(h) "w boxxy notit lc pal"
+for i in 1:length(clines)
+    @gp :- clines[i].data "w l t '$(clines[i].z)' lw $i dt $i lc pal" :-
+end
+@gp :- key="outside top center box horizontal"
+saveas("advanced014e") # hide
+```
+![](assets/advanced014e.png)
 
 
 ## Animations

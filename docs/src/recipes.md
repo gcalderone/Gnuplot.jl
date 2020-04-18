@@ -83,6 +83,19 @@ saveas("recipes002a") # hide
 ![](assets/recipes002a.png)
 
 
+## Contour lines recipes
+The object returned by the [`contourlines()`](@ref) function can be readily visualized by means of implicit recipes defined on the `Gnuplot.IsoContourLines` types:
+```@example abc
+x = randn(10_000);
+y = randn(10_000);
+h = hist(x, y)
+clines = contourlines(h, "levels discrete 10, 30, 60, 90");
+@gp clines
+saveas("recipes002b") # hide
+```
+![](assets/recipes002b.png)
+
+
 
 
 ## Image recipes

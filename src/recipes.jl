@@ -16,13 +16,19 @@ recipe(h::Histogram1D) =
                 plot="w histep notit lw 2 lc rgb 'black'")
 
 recipe(h::Histogram2D) =
-    PlotElement(cmds=["set autoscale fix", "set size ratio -1"],
+    PlotElement(cmds=["set autoscale fix"],
                 data=DatasetText(h.bins1, h.bins2, h.counts),
                 plot="w image notit")
 
 
 # --------------------------------------------------------------------
 # Contour lines
+"""
+    recipe(c::IsoContourLines)
+    recipe(v::Vector{IsoContourLines})
+
+Implicit recipes to visualize iso-contour lines.
+"""
 recipe(c::IsoContourLines) = PlotElement(data=c.data, plot="w l t '$(c.z)'")
 recipe(v::Vector{IsoContourLines}) = recipe.(v)
 
