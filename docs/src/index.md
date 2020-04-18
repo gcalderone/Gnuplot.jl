@@ -40,10 +40,10 @@ A powerful plotting framework is among the most important tool in the toolbox of
 **Gnuplot.jl** package fills the niche of users who needs:
 
 1. publication-quality plots, by exploiting the capabilities of a widely used tool such as gnuplot, and its many output formats available;
-2. a well-documented framework, by taking advantage of all the gnuplot documentation, tutorials and examples available on the web;
-3. a fast response, by relying on an external program (rather than on a large Julia code base);
-4. an interactive data exploration framework, by exposing a carefully designed, extremely concise and easy to remember syntax (at least for users with minimal gnuplot knowledge);
-5. a procedure to decouple plot data and aesthetics from the Julia code used to generate them.
+1. a well-documented framework, by taking advantage of all the gnuplot documentation, tutorials and examples available on the web;
+1. a fast response, by relying on an external program (rather than on a large Julia code base);
+1. an interactive data exploration framework, by exposing a carefully designed, extremely concise and easy to remember syntax (at least for users with minimal gnuplot knowledge);
+1. a procedure to decouple plot data and aesthetics from the Julia code used to generate them.
 
 Unlike other packages **Gnuplot.jl** is not a pure Julia solution as it depends on an external package to actually generate plots.  However, if gnuplot is not available on a given platform, the package could still be used in "*dry*" mode, and no error for a missing dependency will be raised (see [Dry sessions](@ref)).
 
