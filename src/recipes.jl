@@ -22,6 +22,12 @@ recipe(h::Histogram2D) =
 
 
 # --------------------------------------------------------------------
+# Contour lines
+recipe(c::IsoContourLines) = PlotElement(data=c.data, plot="w l t '$(c.z)'")
+recipe(v::Vector{IsoContourLines}) = recipe.(v)
+
+
+# --------------------------------------------------------------------
 # Images
 """
     recipe(M::Matrix{ColorTypes.RGB{T}}, opt="flipy")

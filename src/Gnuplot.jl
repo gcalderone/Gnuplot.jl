@@ -544,6 +544,7 @@ end
 
 
 function gp_write_table(args...; kw...)
+    @assert !Gnuplot.options.dry "Feature not available in *dry* mode."
     tmpfile = Base.Filesystem.tempname()
     sid = Symbol("j", Base.Libc.getpid())
     gp = getsession(sid)
@@ -1906,7 +1907,7 @@ A path in 2D.
 - `x::Vector{Float64}`
 - `y::Vector{Float64}`
 """
-mutable struct Path2d
+struct Path2d
     x::Vector{Float64}
     y::Vector{Float64}
     Path2d() = new(Vector{Float64}(), Vector{Float64}())
@@ -1923,31 +1924,36 @@ Coordinates of all contour lines of a given level.
  - `data::Vector{String}`: vector with string representation of all paths (ready to be sent to gnuplot);
  - `z::Float64`: level of the contour lines.
 """
-mutable struct IsoContourLines
+struct IsoContourLines
     paths::Vector{Path2d}
-    data::Vector{String}
+    data::Dataset
     z::Float64
     function IsoContourLines(paths::Vector{Path2d}, z)
         @assert length(z) == 1
+        # Prepare Dataset object
         data = Vector{String}()
         for i in 1:length(paths)
             append!(data, arrays2datablock(paths[i].x, paths[i].y, z .* fill(1., length(paths[i].x))))
             push!(data, "")
             push!(data, "")
         end
-        return new(paths, data, z)
+        return new(paths, DatasetText(data), z)
     end
 end
 
 
 """
-    contourlines(x::Vector{Float64}, y::Vector{Float64}, h::Matrix{Float64}; cntrparam="level auto 10")
+    contourlines(x::Vector{Float64}, y::Vector{Float64}, z::Matrix{Float64}, cntrparam="level auto 10")
+    contourlines(h::Histogram2D, cntrparam="level auto 10")
 
 Compute paths of contour lines for 2D data, and return a vector of [`IsoContourLines`](@ref) object.
 
+!!! note
+    This feature is not available in *dry* mode and will raise an error if used.
+
 # Arguments:
 - `x`, `y`: Coordinates;
-- `h`: the levels on which iso contour lines are to be calculated
+- `z`: the levels on which iso contour lines are to be calculated
 - `cntrparam`: settings to compute contour line paths (see gnuplot documentation for `cntrparam`).
 
 # Example
@@ -1955,16 +1961,23 @@ Compute paths of contour lines for 2D data, and return a vector of [`IsoContourL
 x = randn(5000);
 y = randn(5000);
 h = hist(x, y, nbins1=20, nbins2=20);
-clines = contourlines(h.bins1, h.bins2, h.counts, cntrparam="levels discrete 15, 30, 45");
+clines = contourlines(h, "levels discrete 15, 30, 45");
+
+# Use implicit recipe
+@gp clines
+
+# ...or use IsoContourLines fields:
 @gp "set size ratio -1"
 for i in 1:length(clines)
-    @gp :- clines[i].data "w l t '\$(clines[i].z)' dt \$i"
+    @gp :- clines[i].data "w l t '\$(clines[i].z)' lw \$i dt \$i"
 end
 ```
 """
-function contourlines(args...; cntrparam="level auto 10")
+contourlines(h::Histogram2D, args...) = contourlines(h.bins1, h.bins2, h.counts, args...)
+function contourlines(x::Vector{Float64}, y::Vector{Float64}, z::Matrix{Float64},
+                      cntrparam="level auto 10")
     lines = gp_write_table("set contour base", "unset surface",
-                           "set cntrparam $cntrparam", args..., is3d=true)
+                           "set cntrparam $cntrparam", x, y, z, is3d=true)
 
     level = NaN
     path = Path2d()
@@ -2003,9 +2016,9 @@ function contourlines(args...; cntrparam="level auto 10")
 
     # Join paths with the same level
     out = Vector{IsoContourLines}()
-    for z in unique(levels)
-        i = findall(levels .== z)
-        push!(out, IsoContourLines(paths[i], z))
+    for zlevel in unique(levels)
+        i = findall(levels .== zlevel)
+        push!(out, IsoContourLines(paths[i], zlevel))
     end
     return out
 end
