@@ -245,4 +245,8 @@ Gnuplot.quitall()
 	"splot x7, v, (u<0.5) ? -1 : sinc(x7,v) notitle",
 	"splot x8, v, (u<0.5) ? -1 : sinc(x8,v) notitle",
 	"splot x9, v, (u<0.5) ? -1 : sinc(x9,v) notitle")
+
+
+@gp randn(10^6) randn(10^6)
+
 Gnuplot.quitall()

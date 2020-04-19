@@ -742,8 +742,10 @@ end
 # ╰───────────────────────────────────────────────────────────────────╯
 # ---------------------------------------------------------------------
 function enableExportThroughShow()
-    return (isdefined(Main, :IJulia)  &&  Main.IJulia.inited)  ||
-        (isdefined(Main, :Juno)    &&  Main.Juno.isactive())
+    # Trick to check whether we are running in a IJulia or Juno
+    # session.  Copied from Gaston.jl.
+    return ((isdefined(Main, :IJulia)  &&  Main.IJulia.inited)  ||
+            (isdefined(Main, :Juno)    &&  Main.Juno.isactive()))
 end
 
 
@@ -756,8 +758,8 @@ function reset(gp::Session)
     gpexec(gp, "set output")
     gpexec(gp, "reset session")
 
-    # When running in IJulia or Juno set the unknown terminal
-    # (trick copied from Gaston.jl)
+    # When the `show()` method is enabled ignore options.term and set
+    # the unknown terminal
     if enableExportThroughShow()
         gpexec(gp, "set term unknown")
     else
@@ -772,6 +774,10 @@ function reset(gp::Session)
             end
         end
     end
+
+    # Note: the reason to keep Options.term and .init separate are:
+    # - .term can be overriden by enableExportThroughShow()
+    # - .init is dumped in scripts, while .term is not
     add_cmd.(Ref(gp), options.init)
     return nothing
 end
