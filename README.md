@@ -1,5 +1,5 @@
 # Gnuplot.jl
-## A Julia interface to Gnuplot.
+## A Julia interface to gnuplot.
 
 [![Build Status](https://travis-ci.org/gcalderone/Gnuplot.jl.svg?branch=master)](https://travis-ci.org/gcalderone/Gnuplot.jl)
 [![License](http://img.shields.io/badge/license-MIT-brightgreen.svg?style=flat)](LICENSE.md)
