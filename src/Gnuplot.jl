@@ -1513,7 +1513,6 @@ Base.show(gp::SessionID) = nothing
 Base.show(io::IO, gp::SessionID) = nothing
 function Base.show(io::IO, ::MIME"image/svg+xml", gp::SessionID)
     if gp.dump  &&  enableExportThroughShow()
-        println("SVG")
         tmpfile = tempname()*".svg"
         save(gp.sid; term=options.term_svg, output=tmpfile)
         write(io, read(tmpfile))
@@ -1523,7 +1522,6 @@ function Base.show(io::IO, ::MIME"image/svg+xml", gp::SessionID)
 end
 function Base.show(io::IO, ::MIME"image/png", gp::SessionID)
     if gp.dump  &&  enableExportThroughShow()
-        println("PNG")
         tmpfile = tempname()*".png"
         save(gp.sid; term=options.term_png, output=tmpfile)
         write(io, read(tmpfile))
