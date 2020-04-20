@@ -30,6 +30,8 @@
       returned by `hist()`), contour lines (as returned by
       `contourlines()`) and images;
 
+	* Implemented automatic display of plots in both Jupyter and Juno;
+
     * Documentation updated;
 
 
