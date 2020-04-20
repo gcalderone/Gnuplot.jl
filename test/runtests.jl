@@ -248,7 +248,7 @@ Gnuplot.quitall()
 
 
 Gnuplot.options.verbose = true
-Gnuplot.options.term = "sixel"
+# Gnuplot.options.term = "sixel"  not vailable in Travis CI
 @gp randn(10^6) randn(10^6)
 @gp :- 0. 0.
 Gnuplot.quit(:default)
