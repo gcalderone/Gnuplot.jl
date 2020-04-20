@@ -119,9 +119,9 @@ Gnuplot.quitall()
 @gp "plot sin(x)" "pl cos(x)"
 @gp "plo sin(x)" "s cos(x)"
 
-@gp "plot sin(x)" :-
-@gp :- "plot cos(x)"
-
+@gp mar="0,1,0,1" "plot sin(x)"
+@gp :- mar=gpmargins() "plot cos(x)"
+@gp :- 0. 0.
 
 @gp "plot sin(x)" 2 xr=(-2pi,2pi) "pause 2" "plot cos(4*x)"
 
@@ -247,6 +247,15 @@ Gnuplot.quitall()
 	"splot x9, v, (u<0.5) ? -1 : sinc(x9,v) notitle")
 
 
+Gnuplot.options.verbose = true
+Gnuplot.options.term = "sixel"
 @gp randn(10^6) randn(10^6)
+@gp :- 0. 0.
+Gnuplot.quit(:default)
+
+Gnuplot.options.dry = true
+@gp hist(randn(1000))
+
+t = terminals()
 
 Gnuplot.quitall()
