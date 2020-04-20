@@ -1,4 +1,4 @@
-# Version 1.2.0 (not yet released)
+# Version 1.2.0 (released on: Apr. 20, 2020)
 
 - New features:
     * REPL mode: a new `Gnuplot.repl_init()` function is available to
@@ -16,20 +16,19 @@
       line width and point size respectively), and the `dashed` (to
       use dashed patterns in place of solid lines) keywords;
 
-    * The new `Gnuplot.options.reset::Vector{String}` field allows to
-      set initialization commands to be executed when a session is
-      reset.  Unlike `Gnuplot.options.init`, these commands are saved
-      in the session and can be saved into a script;
+    * The new `Gnuplot.options.term::String` field allows to set the
+      default terminal for interactive sessions;
 
     * New functions: `gpvars()` to retrieve all gnuplot variables,
       `gpmargins()` to retrieve current plot margins (in screen
       coordinates, `gpranges()` to retrieve current plot axis ranges;
 
-    * New keywords for `@gp` and `@gsp`: `lmargin`, `rmargin`,
+    * New keywords accepted by `@gp` and `@gsp`: `lmargin`, `rmargin`,
       `bmargin`, `tmargin`, `margins`, to set plot margins;
 
     * Implemented new implicit recipes to display histograms (as
-      returned by `hist()`) and images;
+      returned by `hist()`), contour lines (as returned by
+      `contourlines()`) and images;
 
     * Documentation updated;
 

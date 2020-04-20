@@ -59,7 +59,7 @@ Gnuplot.options.term_svg = "svg dynamic";
 
 ## Package initialization
 
-If you use **Gnuplot.jl** frequently you may find convenient to collect all the package settings (see [Options](@ref)) in a single place, to quickly recall them in a Julia session.  I suggest to put the following code in the `~/.julia/config/startup.jl` initialization file (further info [here](https://docs.julialang.org/en/v1/stdlib/REPL/)):
+If you use **Gnuplot.jl** frequently you may find convenient to collect all the package settings ([Options](@ref)) in a single place, to quickly recall them in a Julia session.  I suggest to put the following code in the `~/.julia/config/startup.jl` initialization file (further info [here](https://docs.julialang.org/en/v1/stdlib/REPL/)):
 ```julia
 macro gnuplotrc()
     return :(

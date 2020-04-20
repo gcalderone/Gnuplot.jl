@@ -18,7 +18,7 @@ There are two kinds of recipes:
 
 - *explicit* recipe: a function which is explicitly invoked by the user.  It can have any name and accept any number of arguments and keywords.  It is typically used when the visualization of a data type requires some extra information, beside data itself (e.g. to plot data from a `DataFrame` object, see [Explicit recipe (example)](@ref));
 
-- *implicit* recipe: a function which is automatically called by **Gnuplot.jl**.  It must extend the p`recipe()`](@ref) function, and accept exactly one mandatory argument.  It is typically used when the visualization is completely determined by the data type itself (e.g. the visualization of a `Matrix{ColorTypes.RGB}` object as an image, see [Image recipes](@ref));
+- *implicit* recipe: a function which is automatically called by **Gnuplot.jl**.  It must extend the [`recipe()`](@ref) function, and accept exactly one mandatory argument.  It is typically used when the visualization is completely determined by the data type itself (e.g. the visualization of a `Matrix{ColorTypes.RGB}` object as an image, see [Image recipes](@ref));
 
 An implicit recipe is invoked whenever the data type of an argument to `@gp` or `@gsp` is not among the allowed ones (see [`@gp()`](@ref) documentation).  If a suitable recipe do not exists an error is raised.  On the other hand, an explicit recipe needs to be invoked by the user, and the output passed directly to `@gp` or `@gsp`.
 
