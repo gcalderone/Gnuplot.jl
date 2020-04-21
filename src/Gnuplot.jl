@@ -202,8 +202,7 @@ Structure containing the package global options, accessible through `Gnuplot.opt
 - `cmd::String`: command to start the Gnuplot process (default: `"gnuplot"`)
 - `default::Symbol`: default session name (default: `:default`)
 - `term::String`: default terminal for interactive use (default: empty string, i.e. use gnuplot settings);
-- `term_svg::String`: terminal to save png files (default `"svg background rgb 'white' dynamic"`);
-- `term_png::String`: terminal to save png files (default `"pngcairo"`);
+- `mime::Dict{DataType, String}`: dictionary of MIME types and corresponding gnuplot terminals.  Used to export images with [`save()`](@ref) and [The show mechanism](@ref);
 - `init::Vector{String}`: commands to initialize the session when it is created or reset (e.g., to set default palette);
 - `verbose::Bool`: verbosity flag (default: `false`)
 - `preferred_format::Symbol`: preferred format to send data to gnuplot.  Value must be one of:
@@ -216,8 +215,13 @@ Base.@kwdef mutable struct Options
     cmd::String = "gnuplot"
     default::Symbol = :default
     term::String = ""
-    term_svg::String = "svg background rgb 'white' dynamic"
-    term_png::String = "pngcairo"
+    mime::Dict{DataType, String} = Dict(
+        MIME"image/svg+xml"   => "svg background rgb 'white' dynamic",
+        MIME"image/png"       => "pngcairo",
+        MIME"image/jpeg"      => "jpeg",
+        MIME"application/pdf" => "pdfcairo",
+        MIME"text/html"       => "canvas mousing",
+        MIME"text/plain"      => "dumb")
     init::Vector{String} = Vector{String}()
     verbose::Bool = false
     preferred_format::Symbol = :auto
@@ -1312,7 +1316,7 @@ end
 
 Return the **Gnuplot.jl** package version.
 """
-version() = v"1.2.0"
+version() = v"1.2.1-dev"
 
 # ---------------------------------------------------------------------
 """
@@ -1476,65 +1480,66 @@ end
 
 # --------------------------------------------------------------------
 """
-    save(sid::Symbol; term="", output="")
-    save(sid::Symbol, script_filename::String, ;term="", output="")
-    save(; term="", output="")
-    save(script_filename::String ;term="", output="")
+    save([sid::Symbol]; term="", output="")
+    save([sid::Symbol,] mime::Type{T}; output="") where T <: MIME
+    save([sid::Symbol,] script_filename::String, ;term="", output="")
 
-Export a (multi-)plot into the external file name provided in the `output=` keyword.  The gnuplot terminal to use is provided through the `term=` keyword.
+Export a (multi-)plot into the external file name provided in the `output=` keyword.  The gnuplot terminal to use is provided through the `term=` keyword or the `mime` argument.  In the latter case the proper terminal is set according to the `Gnuplot.options.mime` dictionary.
 
 If the `script_filename` argument is provided a *gnuplot script* will be written in place of the output image.  The latter can then be used in a pure gnuplot session (Julia is no longer needed) to generate exactly the same original plot.
 
-If the `sid` argument is provided the operation applies to the corresponding session.
+If the `sid` argument is provided the operation applies to the corresponding session, otherwise the default session is considered.
+
+Example:
+```julia
+@gp hist(randn(1000))
+save(MIME"text/plain")
+save(term="pngcairo", output="output.png")
+save("script.gp")
+```
 """
 save(           ; kw...) = execall(getsession()   ; kw...)
 save(sid::Symbol; kw...) = execall(getsession(sid); kw...)
 save(             file::AbstractString; kw...) = savescript(getsession()   , file, kw...)
 save(sid::Symbol, file::AbstractString; kw...) = savescript(getsession(sid), file, kw...)
 
+save(mime::Type{T}; kw...) where T <: MIME = save(options.default, mime; kw...)
+function save(sid::Symbol, mime::Type{T}; kw...) where T <: MIME
+    if mime in keys(options.mime)
+        term = strip(options.mime[mime])
+        if term != ""
+            return save(sid; term=term, kw...)
+        end
+    end
+    @error "No terminal is defined for $mime.  Check `Gnuplot.options.mime` dictionary."
+end
+
+
 # ╭───────────────────────────────────────────────────────────────────╮
 # │                     Interfacing Julia's show                      │
 # ╰───────────────────────────────────────────────────────────────────╯
 # --------------------------------------------------------------------
-
-#=
-# Define a display that will be used when Gnuplot.jl is used
-# in the Julia REPL (see PGFPlotsX.jl).
-struct GnuplotDisplay <: AbstractDisplay end
-function __init__()
-    pushdisplay(GnuplotDisplay())
-    atreplinit(i -> begin
-        if PlotDisplay() in Base.Multimedia.displays
-            popdisplay(GnuplotDisplay())
+function internal_show(io::IO, mime::Type{T}, gp::SessionID) where T <: MIME
+    if gp.dump  &&  enableExportThroughShow()
+        if mime in keys(options.mime)
+            term = strip(options.mime[mime])
+            if term != ""
+                file = tempname()
+                save(gp.sid, term=term, output=file)
+                write(io, read(file))
+                rm(file; force=true)
+            end
         end
-        pushdisplay(GnuplotDisplay())
-    end)
-end
-function Base.display(d::GnuplotDisplay, gp::Session)
-    execall(gp)
-    return
-end
-=#
-Base.show(gp::SessionID) = nothing
-Base.show(io::IO, gp::SessionID) = nothing
-function Base.show(io::IO, ::MIME"image/svg+xml", gp::SessionID)
-    if gp.dump  &&  enableExportThroughShow()
-        tmpfile = tempname()*".svg"
-        save(gp.sid; term=options.term_svg, output=tmpfile)
-        write(io, read(tmpfile))
-        rm(tmpfile; force=true)
     end
     nothing
 end
-function Base.show(io::IO, ::MIME"image/png", gp::SessionID)
-    if gp.dump  &&  enableExportThroughShow()
-        tmpfile = tempname()*".png"
-        save(gp.sid; term=options.term_png, output=tmpfile)
-        write(io, read(tmpfile))
-        rm(tmpfile; force=true)
-    end
-    nothing
-end
+
+show(gp::SessionID) = nothing
+show(io::IO, gp::SessionID) = nothing
+show(io::IO, mime::MIME"image/svg+xml", gp::SessionID) = internal_show(io, typeof(mime), gp)
+show(io::IO, mime::MIME"image/png"    , gp::SessionID) = internal_show(io, typeof(mime), gp)
+show(io::IO, mime::MIME"text/html"    , gp::SessionID) = internal_show(io, typeof(mime), gp)
+
 
 # ╭───────────────────────────────────────────────────────────────────╮
 # │                     HIGH LEVEL FACILITIES                         │
