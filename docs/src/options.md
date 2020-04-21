@@ -63,7 +63,7 @@ If you use **Gnuplot.jl** frequently you may find convenient to collect all the 
 ```julia
 macro gnuplotrc()
     return :(
-        using Revise, Gnuplot;
+        using Gnuplot;
 
         # Uncomment following to true if you don't have the gnuplot
         # executable installed on your platform:
