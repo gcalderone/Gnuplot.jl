@@ -42,7 +42,7 @@ GNUPLOT (default) set term wxt 0 title &quot;Gnuplot.jl: default&quot; size 700,
 
 julia&gt; Gnuplot.options.term_svg = &quot;svg dynamic&quot;;</code></pre><h2 id="Package-initialization-1"><a class="docs-heading-anchor" href="#Package-initialization-1">Package initialization</a><a class="docs-heading-anchor-permalink" href="#Package-initialization-1" title="Permalink"></a></h2><p>If you use <strong>Gnuplot.jl</strong> frequently you may find convenient to collect all the package settings (<a href="#Options-1">Options</a>) in a single place, to quickly recall them in a Julia session.  I suggest to put the following code in the <code>~/.julia/config/startup.jl</code> initialization file (further info <a href="https://docs.julialang.org/en/v1/stdlib/REPL/">here</a>):</p><pre><code class="language-julia">macro gnuplotrc()
     return :(
-        using Revise, Gnuplot;
+        using Gnuplot;
 
         # Uncomment following to true if you don&#39;t have the gnuplot
         # executable installed on your platform:
