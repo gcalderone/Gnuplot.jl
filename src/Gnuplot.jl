@@ -202,6 +202,7 @@ Structure containing the package global options, accessible through `Gnuplot.opt
 - `cmd::String`: command to start the Gnuplot process (default: `"gnuplot"`)
 - `default::Symbol`: default session name (default: `:default`)
 - `term::String`: default terminal for interactive use (default: empty string, i.e. use gnuplot settings);
+- `term_html::String`: terminal to save HTML files (default `"canvas mousing`);
 - `term_svg::String`: terminal to save png files (default `"svg background rgb 'white' dynamic"`);
 - `term_png::String`: terminal to save png files (default `"pngcairo"`);
 - `init::Vector{String}`: commands to initialize the session when it is created or reset (e.g., to set default palette);
@@ -216,6 +217,7 @@ Base.@kwdef mutable struct Options
     cmd::String = "gnuplot"
     default::Symbol = :default
     term::String = ""
+    term_html::String = "canvas mousing"
     term_svg::String = "svg background rgb 'white' dynamic"
     term_png::String = "pngcairo"
     init::Vector{String} = Vector{String}()
@@ -1530,6 +1532,15 @@ function Base.show(io::IO, ::MIME"image/png", gp::SessionID)
     if gp.dump  &&  enableExportThroughShow()
         tmpfile = tempname()*".png"
         save(gp.sid; term=options.term_png, output=tmpfile)
+        write(io, read(tmpfile))
+        rm(tmpfile; force=true)
+    end
+    nothing
+end
+function Base.show(io::IO, ::MIME"text/html", gp::SessionID)
+    if gp.dump
+        tmpfile = tempname()*".png"
+        save(gp.sid; term=options.term_html, output=tmpfile)
         write(io, read(tmpfile))
         rm(tmpfile; force=true)
     end
