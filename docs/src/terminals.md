@@ -41,7 +41,7 @@ The above terminals are available if gnuplot has been compiled with the `--with-
 ## Export to image files
 
 Gnuplot provides dozens of terminals able to export on files.  Examples are:
-- `cairopng` to export PNG files;
+- `pngcairo` to export PNG files;
 - `pdfcairo` for PDF;
 - `jpeg` for JPG;
 - `gif` for GIF (see [Animations](@ref)).
