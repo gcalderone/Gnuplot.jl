@@ -452,19 +452,6 @@ function GPSession(sid::Symbol)
                 c = read(stream, Char)
                 (c == '\r')  &&  continue
                 (c == '\n')  &&  break
-                if c == Char(0x1b)  # sixel
-                    buf = Vector{UInt8}()
-                    push!(buf, UInt8(c))
-                    while true
-                        c = read(stream, Char)
-                        push!(buf, UInt8(c))
-                        (c == Char(0x1b))  &&  break
-                    end
-                    c = read(stream, Char)
-                    push!(buf, UInt8(c))
-                    write(stdout, buf)
-                    continue
-                end
                 line *= c
                 for token in pagerTokens()  # handle pager interaction
                     if (length(line) == length(token))  &&  (line == token)
@@ -477,7 +464,7 @@ function GPSession(sid::Symbol)
 
         saveOutput = false
         while isopen(stream)
-            line = readline(stream)
+            line = gpreadline(stream)
             if line == "GNUPLOT_CAPTURE_BEGIN"
                 saveOutput = true
             elseif line == "GNUPLOT_CAPTURE_END"
