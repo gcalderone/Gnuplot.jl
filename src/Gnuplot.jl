@@ -184,7 +184,6 @@ mutable struct GPSession <: Session
     plots::Vector{SinglePlot}           # commands and plot commands (one entry for each plot of the multiplot)
     curmid::Int                         # current multiplot ID
     pin::Base.Pipe;
-    pout::Base.Pipe;
     perr::Base.Pipe;
     proc::Base.Process;
     channel::Channel{String};
@@ -510,24 +509,20 @@ function GPSession(sid::Symbol)
     end
 
     pin  = Base.Pipe()
-    pout = Base.Pipe()
     perr = Base.Pipe()
     proc = run(pipeline(`$(options.cmd)`, stdin=pin, stdout=stdout, stderr=perr), wait=false)
     chan = Channel{String}(32)
 
     # Close unused sides of the pipes
-    Base.close(pout.in)
     Base.close(perr.in)
     Base.close(pin.out)
-    Base.start_reading(pout.out)
     Base.start_reading(perr.out)
 
     # Start reading tasks
-    #@async readTask(sid, pout, chan, :out)
     @async readTask(sid, perr, chan)
 
     out = GPSession(getfield.(Ref(session), fieldnames(DrySession))...,
-                    pin, pout, perr, proc, chan)
+                    pin, perr, proc, chan)
     sessions[sid] = out
 
     return out
@@ -867,7 +862,6 @@ end
 
 function quit(gp::GPSession)
     close(gp.pin)
-    close(gp.pout)
     close(gp.perr)
     wait( gp.proc)
     exitCode = gp.proc.exitcode
