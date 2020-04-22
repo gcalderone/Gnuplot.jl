@@ -220,7 +220,7 @@ Base.@kwdef mutable struct Options
         MIME"image/jpeg"      => "jpeg enhanced",
         MIME"application/pdf" => "pdfcairo enhanced",
         MIME"text/html"       => "svg enhanced dynamic",  # canvas mousing
-        MIME"text/plain"      => "dumb")
+        MIME"text/plain"      => "dumb enhanced ansi")
     init::Vector{String} = Vector{String}()
     verbose::Bool = false
     preferred_format::Symbol = :auto
@@ -442,47 +442,71 @@ end
 
 
 # ---------------------------------------------------------------------
-pagerTokens() = ["Press return for more:"]
 
-function GPSession(sid::Symbol)
-    function readTask(sid, stream, channel)
-        function gpreadline(stream)
-            line = ""
-            while true
-                c = read(stream, Char)
-                (c == '\r')  &&  continue
-                (c == '\n')  &&  break
-                line *= c
-                for token in pagerTokens()  # handle pager interaction
-                    if (length(line) == length(token))  &&  (line == token)
-                        return line
-                    end
+function readTask(gp::GPSession)
+    pagerTokens() = ["Press return for more:"]
+
+    repeatID = 0
+    function gpreadline()
+        line = ""
+        while true
+            c = read(gp.perr, Char)
+            (c == '\r')  &&  continue
+            (c == '\n')  &&  break
+            line *= c
+            for token in pagerTokens()  # handle pager interaction
+                if (length(line) == length(token))  &&  (line == token)
+                    # GNUPLOT_CAPTURE_END maybe lost when pager is
+                    # running: send it again.
+                    repeatID += 1
+                    write(gp.pin, "\nprint 'GNUPLOT_CAPTURE_END $repeatID'\n")
+                    line = ""
                 end
             end
-            return line
         end
+        if line == "GNUPLOT_CAPTURE_BEGIN"
+            repeatID += 1
+            write(gp.pin, "\nprint 'GNUPLOT_CAPTURE_END $repeatID'\n")
+        end
+        return line
+    end
 
+    try
         saveOutput = false
-        while isopen(stream)
-            line = gpreadline(stream)
+        while isopen(gp.perr)
+            line = gpreadline()
             if line == "GNUPLOT_CAPTURE_BEGIN"
                 saveOutput = true
-            elseif line == "GNUPLOT_CAPTURE_END"
-                put!(channel, line)
+            elseif line == "GNUPLOT_CAPTURE_END $repeatID"
                 saveOutput = false
+                put!(gp.channel, "GNUPLOT_CAPTURE_END")
+            elseif !isnothing(findfirst("GNUPLOT_CAPTURE_END", line))
+                continue  # old GNUPLOT_CAPTURE_END, ignore it
             else
                 if line != ""
                     if options.verbose  ||  !saveOutput
-                        printstyled(color=:cyan, "GNUPLOT ($sid) -> $line\n")
+                        printstyled(color=:cyan, "GNUPLOT ($(gp.sid)) -> $line\n")
                     end
                 end
-                (saveOutput)  &&  (put!(channel, line))
+                (saveOutput)  &&  (put!(gp.channel, line))
             end
         end
-        delete!(sessions, sid)
-        return nothing
+    catch err
+        if isopen(gp.perr)
+            @error "Error occurred in readTask for session $(gp.sid)"
+            @show(err)
+        else
+            put!(gp.channel, "GNUPLOT_CAPTURE_END")
+        end
     end
+    if options.verbose
+        printstyled(color=:red, "GNUPLOT ($(gp.sid)) Process terminated\n")
+    end
+    delete!(sessions, gp.sid)
+end
 
+
+function GPSession(sid::Symbol)
     session = DrySession(sid)
     if !options.dry
         try
@@ -505,12 +529,12 @@ function GPSession(sid::Symbol)
     Base.close(pin.out)
     Base.start_reading(perr.out)
 
-    # Start reading tasks
-    @async readTask(sid, perr, chan)
-
     out = GPSession(getfield.(Ref(session), fieldnames(DrySession))...,
                     pin, perr, proc, chan)
     sessions[sid] = out
+
+    # Start reading tasks
+    @async readTask(out)
 
     return out
 end
@@ -596,33 +620,11 @@ function writeread(gp::GPSession, str::AbstractString)
     options.verbose = verbose
     write(gp, str)
 
-    options.verbose = false
-    write(gp, "print 'GNUPLOT_CAPTURE_END'")
-    options.verbose = verbose
-
     out = Vector{String}()
     while true
         l = take!(gp.channel)
-        if l in pagerTokens()
-            # Consume all data from the pager
-            while true
-                write(gp, "")
-                sleep(0.5)
-                if isready(gp.channel)
-                    while isready(gp.channel)
-                        push!(out, take!(gp.channel))
-                    end
-                else
-                    options.verbose = false
-                    write(gp, "print 'GNUPLOT_CAPTURE_END'")
-                    options.verbose = verbose
-                    break
-                end
-            end
-        else
-            l == "GNUPLOT_CAPTURE_END"  &&  break
-            push!(out, l)
-        end
+        l == "GNUPLOT_CAPTURE_END"  &&  break
+        push!(out, l)
     end
     return out
 end
