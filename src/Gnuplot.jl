@@ -1505,7 +1505,7 @@ end
 # ╰───────────────────────────────────────────────────────────────────╯
 # --------------------------------------------------------------------
 function internal_show(io::IO, mime::Type{T}, gp::SessionID) where T <: MIME
-    if gp.dump  &&  enableExportThroughShow()
+    if gp.dump
         if mime in keys(options.mime)
             term = strip(options.mime[mime])
             if term != ""
