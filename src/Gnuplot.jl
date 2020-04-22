@@ -446,7 +446,7 @@ end
 function readTask(gp::GPSession)
     pagerTokens() = ["Press return for more:"]
 
-    repeatID = 0
+    captureID = 0
     function gpreadline()
         line = ""
         while true
@@ -458,15 +458,11 @@ function readTask(gp::GPSession)
                 if (length(line) == length(token))  &&  (line == token)
                     # GNUPLOT_CAPTURE_END maybe lost when pager is
                     # running: send it again.
-                    repeatID += 1
-                    write(gp.pin, "\nprint 'GNUPLOT_CAPTURE_END $repeatID'\n")
+                    captureID += 1
+                    write(gp.pin, "\nprint 'GNUPLOT_CAPTURE_END $(captureID)'\n")
                     line = ""
                 end
             end
-        end
-        if line == "GNUPLOT_CAPTURE_BEGIN"
-            repeatID += 1
-            write(gp.pin, "\nprint 'GNUPLOT_CAPTURE_END $repeatID'\n")
         end
         return line
     end
@@ -475,13 +471,15 @@ function readTask(gp::GPSession)
         saveOutput = false
         while isopen(gp.perr)
             line = gpreadline()
+
             if line == "GNUPLOT_CAPTURE_BEGIN"
                 saveOutput = true
-            elseif line == "GNUPLOT_CAPTURE_END $repeatID"
+            elseif line == "GNUPLOT_CAPTURE_END $(captureID)"
                 saveOutput = false
                 put!(gp.channel, "GNUPLOT_CAPTURE_END")
+                captureID = 0
             elseif !isnothing(findfirst("GNUPLOT_CAPTURE_END", line))
-                continue  # old GNUPLOT_CAPTURE_END, ignore it
+                ;# old GNUPLOT_CAPTURE_END, ignore it
             else
                 if line != ""
                     if options.verbose  ||  !saveOutput
@@ -619,6 +617,10 @@ function writeread(gp::GPSession, str::AbstractString)
 
     options.verbose = verbose
     write(gp, str)
+
+    options.verbose = false
+    write(gp, "print 'GNUPLOT_CAPTURE_END 0'")
+    options.verbose = verbose
 
     out = Vector{String}()
     while true
