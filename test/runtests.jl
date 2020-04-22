@@ -112,9 +112,7 @@ Gnuplot.options.term = "unknown"
 
 @gp 1:9
 @info "using terminal: " terminal()
-
-test_terminal()
-# test_terminal("dumb")
+test_terminal("unknown")
 
 #-----------------------------------------------------------------
 # Test wth empty dataset
