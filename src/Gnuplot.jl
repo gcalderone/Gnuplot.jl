@@ -446,34 +446,34 @@ pagerTokens() = ["Press return for more:"]
 
 function GPSession(sid::Symbol)
     function readTask(sid, stream, channel)
-        # function gpreadline(stream)
-        #     line = ""
-        #     while true
-        #         c = read(stream, Char)
-        #         (c == '\r')  &&  continue
-        #         (c == '\n')  &&  break
-        #         if c == Char(0x1b)  # sixel
-        #             buf = Vector{UInt8}()
-        #             push!(buf, UInt8(c))
-        #             while true
-        #                 c = read(stream, Char)
-        #                 push!(buf, UInt8(c))
-        #                 (c == Char(0x1b))  &&  break
-        #             end
-        #             c = read(stream, Char)
-        #             push!(buf, UInt8(c))
-        #             write(stdout, buf)
-        #             continue
-        #         end
-        #         line *= c
-        #         for token in pagerTokens()  # handle pager interaction
-        #             if (length(line) == length(token))  &&  (line == token)
-        #                 return line
-        #             end
-        #         end
-        #     end
-        #     return line
-        # end
+        function gpreadline(stream)
+            line = ""
+            while true
+                c = read(stream, Char)
+                (c == '\r')  &&  continue
+                (c == '\n')  &&  break
+                if c == Char(0x1b)  # sixel
+                    buf = Vector{UInt8}()
+                    push!(buf, UInt8(c))
+                    while true
+                        c = read(stream, Char)
+                        push!(buf, UInt8(c))
+                        (c == Char(0x1b))  &&  break
+                    end
+                    c = read(stream, Char)
+                    push!(buf, UInt8(c))
+                    write(stdout, buf)
+                    continue
+                end
+                line *= c
+                for token in pagerTokens()  # handle pager interaction
+                    if (length(line) == length(token))  &&  (line == token)
+                        return line
+                    end
+                end
+            end
+            return line
+        end
 
         saveOutput = false
         while isopen(stream)
