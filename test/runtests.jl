@@ -96,25 +96,25 @@ ls = linetypes(:Set1_5, lw=1.5, ps=2)
 @test ls == "unset for [i=1:256] linetype i\nset linetype 1 lc rgb '#E41A1C' lw 1.5 dt solid pt 1 ps 2\nset linetype 2 lc rgb '#377EB8' lw 1.5 dt solid pt 2 ps 2\nset linetype 3 lc rgb '#4DAF4A' lw 1.5 dt solid pt 3 ps 2\nset linetype 4 lc rgb '#984EA3' lw 1.5 dt solid pt 4 ps 2\nset linetype 5 lc rgb '#FF7F00' lw 1.5 dt solid pt 5 ps 2\nset linetype cycle 5\n"
 
 dummy = terminals()
-if "sixelgd" in terminals()
-    Gnuplot.options.term = "sixelgd enhanced"
-elseif "sixel" in terminals()
-    Gnuplot.options.term = "sixel enhanced"
-elseif "dumb" in terminals()
-    Gnuplot.options.term = "dumb"
-else
-    Gnuplot.options.term = "unknown"
-end
-Gnuplot.quitall()
+# if "sixelgd" in terminals()
+#     Gnuplot.options.term = "sixelgd enhanced"
+# elseif "sixel" in terminals()
+#     Gnuplot.options.term = "sixel enhanced"
+# elseif "dumb" in terminals()
+#     Gnuplot.options.term = "dumb"
+# else
+#     Gnuplot.options.term = "unknown"
+# end
+# Gnuplot.quitall()
+
+# Force unknown on Travis CI
+Gnuplot.options.term = "unknown"
+
 @gp 1:9
 @info "using terminal: " terminal()
 
 test_terminal()
-test_terminal("dumb")
-try
-    test_terminal("sixelgd")
-catch
-end
+# test_terminal("dumb")
 
 #-----------------------------------------------------------------
 # Test wth empty dataset
