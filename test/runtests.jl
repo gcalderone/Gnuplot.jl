@@ -101,7 +101,7 @@ if "sixelgd" in terminals()
 elseif "sixel" in terminals()
     Gnuplot.options.term = "sixel enhanced"
 elseif "dumb" in terminals()
-    Gnuplot.options.term = "dumb enhanced ansi"
+    Gnuplot.options.term = "dumb"
 else
     Gnuplot.options.term = "unknown"
 end
