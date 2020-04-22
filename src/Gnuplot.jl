@@ -216,11 +216,11 @@ Base.@kwdef mutable struct Options
     default::Symbol = :default
     term::String = ""
     mime::Dict{DataType, String} = Dict(
-        MIME"image/svg+xml"   => "svg background rgb 'white' dynamic",
-        MIME"image/png"       => "pngcairo",
-        MIME"image/jpeg"      => "jpeg",
-        MIME"application/pdf" => "pdfcairo",
-        MIME"text/html"       => "canvas mousing",
+        MIME"image/svg+xml"   => "svg enhanced background rgb 'white' dynamic",
+        MIME"image/png"       => "pngcairo enhanced",
+        MIME"image/jpeg"      => "jpeg enhanced",
+        MIME"application/pdf" => "pdfcairo enhanced",
+        MIME"text/html"       => "svg enhanced dynamic",  # canvas mousing
         MIME"text/plain"      => "dumb")
     init::Vector{String} = Vector{String}()
     verbose::Bool = false
@@ -447,38 +447,38 @@ pagerTokens() = ["Press return for more:"]
 
 function GPSession(sid::Symbol)
     function readTask(sid, stream, channel)
-        function gpreadline(stream)
-            line = ""
-            while true
-                c = read(stream, Char)
-                (c == '\r')  &&  continue
-                (c == '\n')  &&  break
-                if c == Char(0x1b)  # sixel
-                    buf = Vector{UInt8}()
-                    push!(buf, UInt8(c))
-                    while true
-                        c = read(stream, Char)
-                        push!(buf, UInt8(c))
-                        (c == Char(0x1b))  &&  break
-                    end
-                    c = read(stream, Char)
-                    push!(buf, UInt8(c))
-                    write(stdout, buf)
-                    continue
-                end
-                line *= c
-                for token in pagerTokens()  # handle pager interaction
-                    if (length(line) == length(token))  &&  (line == token)
-                        return line
-                    end
-                end
-            end
-            return line
-        end
+        # function gpreadline(stream)
+        #     line = ""
+        #     while true
+        #         c = read(stream, Char)
+        #         (c == '\r')  &&  continue
+        #         (c == '\n')  &&  break
+        #         if c == Char(0x1b)  # sixel
+        #             buf = Vector{UInt8}()
+        #             push!(buf, UInt8(c))
+        #             while true
+        #                 c = read(stream, Char)
+        #                 push!(buf, UInt8(c))
+        #                 (c == Char(0x1b))  &&  break
+        #             end
+        #             c = read(stream, Char)
+        #             push!(buf, UInt8(c))
+        #             write(stdout, buf)
+        #             continue
+        #         end
+        #         line *= c
+        #         for token in pagerTokens()  # handle pager interaction
+        #             if (length(line) == length(token))  &&  (line == token)
+        #                 return line
+        #             end
+        #         end
+        #     end
+        #     return line
+        # end
 
         saveOutput = false
         while isopen(stream)
-            line = gpreadline(stream)
+            line = readline(stream)
             if line == "GNUPLOT_CAPTURE_BEGIN"
                 saveOutput = true
             elseif line == "GNUPLOT_CAPTURE_END"
@@ -512,7 +512,7 @@ function GPSession(sid::Symbol)
     pin  = Base.Pipe()
     pout = Base.Pipe()
     perr = Base.Pipe()
-    proc = run(pipeline(`$(options.cmd)`, stdin=pin, stdout=pout, stderr=perr), wait=false)
+    proc = run(pipeline(`$(options.cmd)`, stdin=pin, stdout=stdout, stderr=perr), wait=false)
     chan = Channel{String}(32)
 
     # Close unused sides of the pipes
@@ -523,7 +523,7 @@ function GPSession(sid::Symbol)
     Base.start_reading(perr.out)
 
     # Start reading tasks
-    @async readTask(sid, pout, chan)
+    #@async readTask(sid, pout, chan, :out)
     @async readTask(sid, perr, chan)
 
     out = GPSession(getfield.(Ref(session), fieldnames(DrySession))...,
@@ -934,7 +934,7 @@ function execall(gp::GPSession; term::AbstractString="", output::AbstractString=
             gpexec(gp, s)
         end
     end
-    (length(gp.plots) > 1)  &&  gpexec(gp, "unset multiplot")
+    gpexec(gp, "unset multiplot")
     (output != "")  &&  gpexec(gp, "set output")
     if term != ""
         gpexec(gp, "set term $former_term $former_opts")
