@@ -1,14 +1,13 @@
 using Test, Gnuplot
 try
-    @info "Gnuplot version: " * string(Gnuplot.gpversion())
+    @info "Gnuplot.jl version: " * string(Gnuplot.version())
+    @info "gnuplot    version: " * string(Gnuplot.gpversion())
 catch
     Gnuplot.options.dry = true
 end
-Gnuplot.options.term = "unknown"
 
 x = [1, 2, 3]
 y = [4, 5, 6]
-
 
 
 s = Gnuplot.arrays2datablock(x)
@@ -90,10 +89,32 @@ s = Gnuplot.arrays2datablock(1:3, 1:3, ["One", "Two", "Three"])
 
 
 #-----------------------------------------------------------------
+dummy = palette_names()
 pal = palette(:deepsea)
 @test pal == "set palette defined (0.0 '#2B004D', 0.25 '#4E0F99', 0.5 '#3C54D4', 0.75 '#48A9F8', 1.0 '#C5ECFF')\nset palette maxcol 5\n"
-ls = linetypes(:Set1_5)
-@test ls == "unset for [i=1:256] linetype i\nset linetype 1 lc rgb '#E41A1C' lw 1 dt solid pt 1 ps 1\nset linetype 2 lc rgb '#377EB8' lw 1 dt solid pt 2 ps 1\nset linetype 3 lc rgb '#4DAF4A' lw 1 dt solid pt 3 ps 1\nset linetype 4 lc rgb '#984EA3' lw 1 dt solid pt 4 ps 1\nset linetype 5 lc rgb '#FF7F00' lw 1 dt solid pt 5 ps 1\nset linetype cycle 5\n"
+ls = linetypes(:Set1_5, lw=1.5, ps=2)
+@test ls == "unset for [i=1:256] linetype i\nset linetype 1 lc rgb '#E41A1C' lw 1.5 dt solid pt 1 ps 2\nset linetype 2 lc rgb '#377EB8' lw 1.5 dt solid pt 2 ps 2\nset linetype 3 lc rgb '#4DAF4A' lw 1.5 dt solid pt 3 ps 2\nset linetype 4 lc rgb '#984EA3' lw 1.5 dt solid pt 4 ps 2\nset linetype 5 lc rgb '#FF7F00' lw 1.5 dt solid pt 5 ps 2\nset linetype cycle 5\n"
+
+dummy = terminals()
+if "sixelgd" in terminals()
+    Gnuplot.options.term = "sixelgd enhanced"
+elseif "sixel" in terminals()
+    Gnuplot.options.term = "sixel enhanced"
+elseif "dumb" in terminals()
+    Gnuplot.options.term = "dumb enhanced ansi"
+else
+    Gnuplot.options.term = "unknown"
+end
+Gnuplot.quitall()
+@gp 1:9
+@info "using terminal: " terminal()
+
+test_terminal()
+test_terminal("dumb")
+try
+    test_terminal("sixelgd")
+catch
+end
 
 #-----------------------------------------------------------------
 # Test wth empty dataset
@@ -247,15 +268,24 @@ Gnuplot.quitall()
 	"splot x9, v, (u<0.5) ? -1 : sinc(x9,v) notitle")
 
 
+
+x = randn(5000);
+y = randn(5000);
+h = hist(x, y, nbins1=20, nbins2=20);
+clines = contourlines(h, "levels discrete 15, 30, 45");
+@gp clines
+@gp "set size ratio -1"
+for i in 1:length(clines)
+    @gp :- clines[i].data "w l t '$(clines[i].z)' lw $i dt $i"
+end
+
+
 Gnuplot.options.verbose = true
-# Gnuplot.options.term = "sixel"  not vailable in Travis CI
 @gp randn(10^6) randn(10^6)
 @gp :- 0. 0.
 Gnuplot.quit(:default)
 
 Gnuplot.options.dry = true
 @gp hist(randn(1000))
-
-t = terminals()
 
 Gnuplot.quitall()

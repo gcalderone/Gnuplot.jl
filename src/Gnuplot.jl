@@ -184,7 +184,6 @@ mutable struct GPSession <: Session
     plots::Vector{SinglePlot}           # commands and plot commands (one entry for each plot of the multiplot)
     curmid::Int                         # current multiplot ID
     pin::Base.Pipe;
-    pout::Base.Pipe;
     perr::Base.Pipe;
     proc::Base.Process;
     channel::Channel{String};
@@ -443,60 +442,71 @@ end
 
 
 # ---------------------------------------------------------------------
-pagerTokens() = ["Press return for more:"]
 
-function GPSession(sid::Symbol)
-    function readTask(sid, stream, channel)
-        function gpreadline(stream)
-            line = ""
-            while true
-                c = read(stream, Char)
-                (c == '\r')  &&  continue
-                (c == '\n')  &&  break
-                if c == Char(0x1b)  # sixel
-                    buf = Vector{UInt8}()
-                    push!(buf, UInt8(c))
-                    while true
-                        c = read(stream, Char)
-                        push!(buf, UInt8(c))
-                        (c == Char(0x1b))  &&  break
-                    end
-                    c = read(stream, Char)
-                    push!(buf, UInt8(c))
-                    write(stdout, buf)
-                    continue
-                end
-                line *= c
-                for token in pagerTokens()  # handle pager interaction
-                    if (length(line) == length(token))  &&  (line == token)
-                        return line
-                    end
+function readTask(gp::GPSession)
+    pagerTokens() = ["Press return for more:"]
+
+    repeatID = 0
+    function gpreadline()
+        line = ""
+        while true
+            c = read(gp.perr, Char)
+            (c == '\r')  &&  continue
+            (c == '\n')  &&  break
+            line *= c
+            for token in pagerTokens()  # handle pager interaction
+                if (length(line) == length(token))  &&  (line == token)
+                    # GNUPLOT_CAPTURE_END maybe lost when pager is
+                    # running: send it again.
+                    repeatID += 1
+                    write(gp.pin, "\nprint 'GNUPLOT_CAPTURE_END $repeatID'\n")
+                    line = ""
                 end
             end
-            return line
         end
+        if line == "GNUPLOT_CAPTURE_BEGIN"
+            repeatID += 1
+            write(gp.pin, "\nprint 'GNUPLOT_CAPTURE_END $repeatID'\n")
+        end
+        return line
+    end
 
+    try
         saveOutput = false
-        while isopen(stream)
-            line = gpreadline(stream)
+        while isopen(gp.perr)
+            line = gpreadline()
             if line == "GNUPLOT_CAPTURE_BEGIN"
                 saveOutput = true
-            elseif line == "GNUPLOT_CAPTURE_END"
-                put!(channel, line)
+            elseif line == "GNUPLOT_CAPTURE_END $repeatID"
                 saveOutput = false
+                put!(gp.channel, "GNUPLOT_CAPTURE_END")
+            elseif !isnothing(findfirst("GNUPLOT_CAPTURE_END", line))
+                continue  # old GNUPLOT_CAPTURE_END, ignore it
             else
                 if line != ""
                     if options.verbose  ||  !saveOutput
-                        printstyled(color=:cyan, "GNUPLOT ($sid) -> $line\n")
+                        printstyled(color=:cyan, "GNUPLOT ($(gp.sid)) -> $line\n")
                     end
                 end
-                (saveOutput)  &&  (put!(channel, line))
+                (saveOutput)  &&  (put!(gp.channel, line))
             end
         end
-        delete!(sessions, sid)
-        return nothing
+    catch err
+        if isopen(gp.perr)
+            @error "Error occurred in readTask for session $(gp.sid)"
+            @show(err)
+        else
+            put!(gp.channel, "GNUPLOT_CAPTURE_END")
+        end
     end
+    if options.verbose
+        printstyled(color=:red, "GNUPLOT ($(gp.sid)) Process terminated\n")
+    end
+    delete!(sessions, gp.sid)
+end
 
+
+function GPSession(sid::Symbol)
     session = DrySession(sid)
     if !options.dry
         try
@@ -510,25 +520,21 @@ function GPSession(sid::Symbol)
     end
 
     pin  = Base.Pipe()
-    pout = Base.Pipe()
     perr = Base.Pipe()
-    proc = run(pipeline(`$(options.cmd)`, stdin=pin, stdout=pout, stderr=perr), wait=false)
+    proc = run(pipeline(`$(options.cmd)`, stdin=pin, stdout=stdout, stderr=perr), wait=false)
     chan = Channel{String}(32)
 
     # Close unused sides of the pipes
-    Base.close(pout.in)
     Base.close(perr.in)
     Base.close(pin.out)
-    Base.start_reading(pout.out)
     Base.start_reading(perr.out)
 
-    # Start reading tasks
-    @async readTask(sid, pout, chan)
-    @async readTask(sid, perr, chan)
-
     out = GPSession(getfield.(Ref(session), fieldnames(DrySession))...,
-                    pin, pout, perr, proc, chan)
+                    pin, perr, proc, chan)
     sessions[sid] = out
+
+    # Start reading tasks
+    @async readTask(out)
 
     return out
 end
@@ -614,33 +620,11 @@ function writeread(gp::GPSession, str::AbstractString)
     options.verbose = verbose
     write(gp, str)
 
-    options.verbose = false
-    write(gp, "print 'GNUPLOT_CAPTURE_END'")
-    options.verbose = verbose
-
     out = Vector{String}()
     while true
         l = take!(gp.channel)
-        if l in pagerTokens()
-            # Consume all data from the pager
-            while true
-                write(gp, "")
-                sleep(0.5)
-                if isready(gp.channel)
-                    while isready(gp.channel)
-                        push!(out, take!(gp.channel))
-                    end
-                else
-                    options.verbose = false
-                    write(gp, "print 'GNUPLOT_CAPTURE_END'")
-                    options.verbose = verbose
-                    break
-                end
-            end
-        else
-            l == "GNUPLOT_CAPTURE_END"  &&  break
-            push!(out, l)
-        end
+        l == "GNUPLOT_CAPTURE_END"  &&  break
+        push!(out, l)
     end
     return out
 end
@@ -867,7 +851,6 @@ end
 
 function quit(gp::GPSession)
     close(gp.pin)
-    close(gp.pout)
     close(gp.perr)
     wait( gp.proc)
     exitCode = gp.proc.exitcode
@@ -934,7 +917,7 @@ function execall(gp::GPSession; term::AbstractString="", output::AbstractString=
             gpexec(gp, s)
         end
     end
-    (length(gp.plots) > 1)  &&  gpexec(gp, "unset multiplot")
+    gpexec(gp, "unset multiplot")
     (output != "")  &&  gpexec(gp, "set output")
     if term != ""
         gpexec(gp, "set term $former_term $former_opts")
