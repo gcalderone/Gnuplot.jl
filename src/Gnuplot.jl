@@ -1940,7 +1940,7 @@ end
 
 
 """
-    contourlines(x::Vector{Float64}, y::Vector{Float64}, z::Matrix{Float64}, cntrparam="level auto 10")
+    contourlines(x::AbstractVector{Float64}, y::AbstractVector{Float64}, z::AbstractMatrix{Float64}, cntrparam="level auto 10")
     contourlines(h::Histogram2D, cntrparam="level auto 10")
 
 Compute paths of contour lines for 2D data, and return a vector of [`IsoContourLines`](@ref) object.
@@ -1971,7 +1971,7 @@ end
 ```
 """
 contourlines(h::Histogram2D, args...) = contourlines(h.bins1, h.bins2, h.counts, args...)
-function contourlines(x::Vector{Float64}, y::Vector{Float64}, z::Matrix{Float64},
+function contourlines(x::AbstractVector{Float64}, y::AbstractVector{Float64}, z::AbstractMatrix{Float64},
                       cntrparam="level auto 10")
     lines = gp_write_table("set contour base", "unset surface",
                            "set cntrparam $cntrparam", x, y, z, is3d=true)
