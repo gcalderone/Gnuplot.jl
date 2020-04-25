@@ -230,17 +230,19 @@ end
 
 
 # ╭───────────────────────────────────────────────────────────────────╮
-# │                         GLOBAL VARIABLES                          │
+# │           GLOBAL VARIABLES AND MODULE INITIALIZATION              │
 # ╰───────────────────────────────────────────────────────────────────╯
 const sessions = OrderedDict{Symbol, Session}()
 const options = Options()
 
-# Trick to check whether we are running in a IJulia or Juno
-# session.  Copied from Gaston.jl.
-options.gpviewer = !(
-    ((isdefined(Main, :IJulia)  &&  Main.IJulia.inited)  ||
-     (isdefined(Main, :Juno)    &&  Main.Juno.isactive()))
-)
+function __init__()
+    # Check whether we are running in a IJulia or Juno session.
+    # (copied from Gaston.jl).
+    options.gpviewer = !(
+        ((isdefined(Main, :IJulia)  &&  Main.IJulia.inited)  ||
+         (isdefined(Main, :Juno)    &&  Main.Juno.isactive()))
+    )
+end
 
 
 # ╭───────────────────────────────────────────────────────────────────╮
@@ -1307,8 +1309,7 @@ function driver(_args...; is3d=false)
     if options.gpviewer  &&  doDump
         execall(gp)
     end
-    out = SessionID(gp.sid, doDump)
-    return out
+    return SessionID(gp.sid, doDump)
 end
 
 
@@ -1320,7 +1321,7 @@ end
 
 Return the **Gnuplot.jl** package version.
 """
-version() = v"1.2.1-dev"
+version() = v"1.3.0-dev"
 
 # ---------------------------------------------------------------------
 """

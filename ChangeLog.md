@@ -1,3 +1,11 @@
+# Version 1.3.0 (not yet released)
+mime
+gpviewer
+term_svg, term_png
+contourlines(x::AbstractVector{Float64}, y::AbstractVector{Float64}, z::AbstractMatrix{Float64}, 
+save(mime)
+
+
 # Version 1.2.0 (released on: Apr. 20, 2020)
 
 - New features:
