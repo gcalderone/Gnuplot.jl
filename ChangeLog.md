@@ -1,9 +1,26 @@
 # Version 1.3.0 (not yet released)
-mime
-gpviewer
-term_svg, term_png
-contourlines(x::AbstractVector{Float64}, y::AbstractVector{Float64}, z::AbstractMatrix{Float64}, 
-save(mime)
+
+- New features:
+
+	* The `Options` structure features a new `mime` field: a
+      dictionary mapping a MIME type into gnuplot terminals;
+
+	* The `Options` structure features a new `gpviewer` field allowing
+      to choose the display behaviour (using either gnuplot
+      interactive terminals or anexternal viewer such as Jupyter or Juno);
+
+	* The `save()` function now accepts a `MIME` argument in place of
+      the `term=` keyword.  The actual terminal is retrieved from the
+      `Options.mime` dictionary;
+
+	* The `contourlines()` function now accepts `AbstractVector` and
+      `AbstractMatrix` as arguments, rather than `Vector` and
+      `Matrix`;
+
+- Breaking changes:
+    * The `Options` structure no longer provides the `term_svg` and
+      `term_png` fields.  They have been replaced by the `mime`
+      dictionary.
 
 
 # Version 1.2.0 (released on: Apr. 20, 2020)
