@@ -19,8 +19,7 @@ The display behaviour of **Gnuplot.jl** depends on the value of the `Gnuplot.opt
 
 The latter approach can only be used when running a Jupyter, JupyterLab or Juno session, while the former approach is appropriate in all cases (most notably, for the standard Julia REPL).  The `Gnuplot.options.gpviewer` flag is automatically set when the package is first loaded according to the runtime environment, however the user can change its value at any time to fit specific needs.
 
-Further informations and examples for both options are available in this Jupyter [notebook](https://gcalderone.github.io/Gnuplot.jl/v1.3.0/options/display.ipynb).
-
+Further informations and examples for both options are available in this Jupyter [notebook](https://github.com/gcalderone/Gnuplot.jl/blob/gh-pages/v1.3.0/options/display.ipynb).
 
 # Package options and initialization
 
@@ -31,12 +30,21 @@ The package options are stored in a global structure available in Julia as `Gnup
 
 - `cmd::String`: command to start the gnuplot process, default value is `"gnuplot"`.  Use this field to specify a custom path to the gnuplot executable;
 
+- `gpviewer::Bool`: use a gnuplot terminal as main plotting device (if `true`) or an external viewer (if `false`);
+
 - `term::String`: default terminal for interactive use (default is an empty string, i.e. use gnuplot settings).  A custom terminal can be set with, e.g.:
 ```@repl abc
 Gnuplot.options.term = "wxt size 700,400";
 ```
 
-- `mime::Dict{MIME, String}`: dictionary of MIME types and corresponding gnuplot terminals.  Used to export images with either [`save()`](@ref) or `show()` (see [Display options](@ref));
+- `mime::Dict{MIME, String}`: dictionary of MIME types and corresponding gnuplot terminals.  Used to export images with either [`save()`](@ref) or `show()` (see [Display options](@ref)).  Default values are:
+  - `MIME"application/pdf" => "pdfcairo enhanced"`
+  - `MIME"image/jpeg"      => "jpeg enhanced"`
+  - `MIME"image/png"       => "pngcairo enhanced"`
+  - `MIME"image/svg+xml"   => "svg enhanced mouse standalone dynamic background rgb 'white'"`
+  - `MIME"text/html"       => "svg enhanced mouse standalone dynamic"`
+  - `MIME"text/plain"      => "dumb enhanced ansi"`
+
 
 - `init::Vector{String}`: commands to initialize the session when it is created or reset.  It can be used to, e.g., set a custom linetypes or palette:
 ```@repl abc
