@@ -5,10 +5,10 @@ try
 catch
     Gnuplot.options.dry = true
 end
+Gnuplot.options.gpviewer = true
 
 x = [1, 2, 3]
 y = [4, 5, 6]
-
 
 s = Gnuplot.arrays2datablock(x)
 @test all(s .== [" 1"   ,

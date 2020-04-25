@@ -202,6 +202,7 @@ Structure containing the package global options, accessible through `Gnuplot.opt
 - `default::Symbol`: default session name (default: `:default`)
 - `term::String`: default terminal for interactive use (default: empty string, i.e. use gnuplot settings);
 - `mime::Dict{DataType, String}`: dictionary of MIME types and corresponding gnuplot terminals.  Used to export images with [`save()`](@ref) and [The show mechanism](@ref);
+- `gpviewer::Bool`: use a gnuplot interactive terminal as main plotting device;
 - `init::Vector{String}`: commands to initialize the session when it is created or reset (e.g., to set default palette);
 - `verbose::Bool`: verbosity flag (default: `false`)
 - `preferred_format::Symbol`: preferred format to send data to gnuplot.  Value must be one of:
@@ -221,6 +222,7 @@ Base.@kwdef mutable struct Options
         MIME"application/pdf" => "pdfcairo enhanced",
         MIME"text/html"       => "svg enhanced dynamic",  # canvas mousing
         MIME"text/plain"      => "dumb enhanced ansi")
+    gpviewer::Bool = false
     init::Vector{String} = Vector{String}()
     verbose::Bool = false
     preferred_format::Symbol = :auto
@@ -232,6 +234,13 @@ end
 # ╰───────────────────────────────────────────────────────────────────╯
 const sessions = OrderedDict{Symbol, Session}()
 const options = Options()
+
+# Trick to check whether we are running in a IJulia or Juno
+# session.  Copied from Gaston.jl.
+options.gpviewer = !(
+    ((isdefined(Main, :IJulia)  &&  Main.IJulia.inited)  ||
+     (isdefined(Main, :Juno)    &&  Main.Juno.isactive()))
+)
 
 
 # ╭───────────────────────────────────────────────────────────────────╮
@@ -534,6 +543,10 @@ function GPSession(sid::Symbol)
     # Start reading tasks
     @async readTask(out)
 
+    # Read gnuplot default terminal
+    if options.term == ""
+        options.term = terminal()
+    end
     return out
 end
 
@@ -731,14 +744,6 @@ end
 # │              PRIVATE FUNCTIONS TO MANIPULATE SESSIONS             │
 # ╰───────────────────────────────────────────────────────────────────╯
 # ---------------------------------------------------------------------
-function enableExportThroughShow()
-    # Trick to check whether we are running in a IJulia or Juno
-    # session.  Copied from Gaston.jl.
-    return ((isdefined(Main, :IJulia)  &&  Main.IJulia.inited)  ||
-            (isdefined(Main, :Juno)    &&  Main.Juno.isactive()))
-end
-
-
 function reset(gp::Session)
     delete_binaries(gp)
     gp.datas = OrderedDict{String, Dataset}()
@@ -748,11 +753,8 @@ function reset(gp::Session)
     gpexec(gp, "set output")
     gpexec(gp, "reset session")
 
-    # When the `show()` method is enabled ignore options.term and set
-    # the unknown terminal
-    if enableExportThroughShow()
-        gpexec(gp, "set term unknown")
-    else
+    if options.gpviewer
+        # Use gnuplot viewer
         (options.term != "")  &&  gpexec(gp, "set term " * options.term)
 
         # Set window title (if not already set)
@@ -763,11 +765,14 @@ function reset(gp::Session)
                 writeread(gp, "set term $term $opts title 'Gnuplot.jl: $(gp.sid)'")
             end
         end
+    else
+        # Use external viewer
+        gpexec(gp, "set term unknown")
     end
 
     # Note: the reason to keep Options.term and .init separate are:
-    # - .term can be overriden by enableExportThroughShow()
-    # - .init is dumped in scripts, while .term is not
+    # - .term can be overriden by "unknown" (if options.gpviewer is false);
+    # - .init is dumped in scripts, while .term is not;
     add_cmd.(Ref(gp), options.init)
     return nothing
 end
@@ -908,6 +913,8 @@ function execall(gp::GPSession; term::AbstractString="", output::AbstractString=
     end
     (output != "")  &&  gpexec(gp, "set output '$output'")
 
+    # printstyled("Plotting with terminal: " * terminal() * "\n", color=:blue, bold=true)
+
     for i in 1:length(gp.plots)
         d = gp.plots[i]
         for j in 1:length(d.cmds)
@@ -1028,35 +1035,49 @@ function parseArguments(_args...)
         return (isplot, is3d, string(cmd))
     end
 
-    # First pass: check for `:-` and session names
-    sid = options.default
-    doDump  = true
-    doReset = true
-    if length(_args) == 0
-        return (sid, doReset, doDump, Vector{PlotElement}())
-    end
-    for iarg in 1:length(_args)
-        arg = _args[iarg]
-
-        if typeof(arg) == Symbol
-            if arg == :-
-                if iarg == 1
-                    doReset = false
-                elseif iarg == length(_args)
-                    doDump  = false
-                else
-                    @warn "Symbol `:-` at position $iarg in argument list has no meaning."
-                end
-            else
-                @assert (sid == options.default) "Only one session at a time can be addressed"
-                sid = arg
-            end
+    # First pass: check for session names and `:-`
+    sid = nothing
+    args = Vector{Any}([_args...])
+    pos = 1
+    while pos <= length(args)
+        arg = args[pos]
+        if  (typeof(arg) == Symbol)  &&
+            (arg != :-)
+            @assert isnothing(sid) "Only one session at a time can be addressed"
+            sid = arg
+            deleteat!(args, pos)
+            continue
         end
+        pos += 1
+    end
+    isnothing(sid)  &&  (sid = options.default)
+
+    if length(args) == 0
+        doReset = false
+    else
+        doReset = true
+    end
+    doDump = true
+    pos = 1
+    while pos <= length(args)
+        arg = args[pos]
+        if typeof(arg) == Symbol
+            @assert arg == :-
+            if pos == 1
+                doReset = false
+            elseif pos == length(args)
+                doDump  = false
+            else
+                @warn "Symbol `:-` has a meaning only if it is at first or last position in argument list."
+            end
+            deleteat!(args, pos)
+            continue
+        end
+        pos += 1
     end
 
     # Second pass: check data types, run implicit recipes and splat
     # Vector{PlotElement}
-    args = Vector{Any}([_args...])
     pos = 1
     while pos <= length(args)
         arg = args[pos]
@@ -1229,12 +1250,6 @@ function driver(_args...; is3d=false)
         return source
     end
 
-    if length(_args) == 0
-        gp = getsession()
-        execall(gp)
-        return SessionID(gp.sid, true)
-    end
-
     (sid, doReset, doDump, elems) = parseArguments(_args...)
     gp = getsession(sid)
     doReset  &&  reset(gp)
@@ -1258,6 +1273,7 @@ function driver(_args...; is3d=false)
         end
     end
 
+    # Add commands and plot specifications
     for elem in elems
         (elem.mid > 0)  &&  setmulti(gp, elem.mid)
         gp.plots[gp.curmid].is3d = (is3d | elem.is3d)
@@ -1288,8 +1304,11 @@ function driver(_args...; is3d=false)
         end
     end
 
-    (doDump)  &&  (execall(gp))
-    return SessionID(gp.sid, doDump)
+    if options.gpviewer  &&  doDump
+        execall(gp)
+    end
+    out = SessionID(gp.sid, doDump)
+    return out
 end
 
 
@@ -1504,23 +1523,38 @@ end
 # │                     Interfacing Julia's show                      │
 # ╰───────────────────────────────────────────────────────────────────╯
 # --------------------------------------------------------------------
-function internal_show(io::IO, mime::Type{T}, gp::SessionID) where T <: MIME
-    if gp.dump
+
+function show(obj::SessionID)
+    gp = getsession(obj.sid)
+    @info "Gnuplot session" sid=gp.sid datasets=length(gp.datas) plots=length(gp.plots)
+    nothing
+end
+show(io::IO, gp::SessionID) = nothing
+
+
+function showable(mime::Type{T}, gp::SessionID) where T <: MIME
+    if gp.dump  &&  !options.gpviewer
         if mime in keys(options.mime)
             term = strip(options.mime[mime])
             if term != ""
-                file = tempname()
-                save(gp.sid, term=term, output=file)
-                write(io, read(file))
-                rm(file; force=true)
+                return true
             end
         end
+    end
+    return false
+end
+
+function internal_show(io::IO, mime::Type{T}, gp::SessionID) where T <: MIME
+    if showable(mime, gp)
+        term = strip(options.mime[mime])
+        file = tempname()
+        save(gp.sid, term=term, output=file)
+        write(io, read(file))
+        rm(file; force=true)
     end
     nothing
 end
 
-show(gp::SessionID) = nothing
-show(io::IO, gp::SessionID) = nothing
 show(io::IO, mime::MIME"image/svg+xml", gp::SessionID) = internal_show(io, typeof(mime), gp)
 show(io::IO, mime::MIME"image/png"    , gp::SessionID) = internal_show(io, typeof(mime), gp)
 show(io::IO, mime::MIME"text/html"    , gp::SessionID) = internal_show(io, typeof(mime), gp)
