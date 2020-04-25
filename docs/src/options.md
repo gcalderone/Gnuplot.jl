@@ -9,6 +9,19 @@ push!( Gnuplot.options.init, linetypes(:Set1_5, lw=1.5, ps=1.5))
 saveas(file) = save(term="pngcairo size 550,350 fontscale 0.8", output="assets/$(file).png")
 ```
 
+# Display options
+
+The display behaviour of **Gnuplot.jl** depends on the value of the `Gnuplot.options.gpviewer` boolean option:
+
+- if `true` the plot is displayed in a gnuplot window, using one of the interactive terminals such as `wxt`, `qt` or `aqua`.  There is exactly one window for each session, and the plots are updated by replacing the displayed image.  The preferred terminal can optionally be set using `Gnuplot.options.term`;
+
+- if `false` the plot is displayed through the Julia [multimedia interface](https://docs.julialang.org/en/v1/base/io-network/#Multimedia-I/O-1), i.e. it is exported as either a `png`, `svg` or `html` file, and displayed in an external viewer.  In this case the package is unable to replace a previous plot, hence each update results in a separate image being displayed.  The terminal options to export the images are set in `Gnuplot.options.mime`.
+
+The latter approach can only be used when running a Jupyter, JupyterLab or Juno session, while the former approach is appropriate in all cases (most notably, for the standard Julia REPL).  The `Gnuplot.options.gpviewer` flag is automatically set when the package is first loaded according to the runtime environment, however the user can change its value at any time to fit specific needs.
+
+Further informations and examples for both options are available in this Jupyter [notebook](https://gcalderone.github.io/Gnuplot.jl/v1.3.0/options/display.ipynb).
+
+
 # Package options and initialization
 
 ## Options
@@ -23,9 +36,7 @@ The package options are stored in a global structure available in Julia as `Gnup
 Gnuplot.options.term = "wxt size 700,400";
 ```
 
-- `term_svg::String`: terminal to save png files (default: `"svg background rgb 'white' dynamic"`);
-
-- `term_png::String`: terminal to save png files (default: `"pngcairo"`);
+- `mime::Dict{MIME, String}`: dictionary of MIME types and corresponding gnuplot terminals.  Used to export images with either [`save()`](@ref) or `show()` (see [Display options](@ref));
 
 - `init::Vector{String}`: commands to initialize the session when it is created or reset.  It can be used to, e.g., set a custom linetypes or palette:
 ```@repl abc
@@ -65,24 +76,38 @@ macro gnuplotrc()
     return :(
         using Gnuplot;
 
-        # Uncomment following to true if you don't have the gnuplot
+        # Uncomment the following if you don't have the gnuplot
         # executable installed on your platform:
         #Gnuplot.options.dry = true;
 
-        # Uncomment the following and set the proper path if the
-        # gnuplot executable is not available in your $PATH
+        # Set the proper path if the gnuplot executable is not
+        # available in your $PATH
         #Gnuplot.options.cmd = "/path/to/gnuplot";
+
+        # Set the display behaviour (see documentation, or let Gnuplot.jl
+        # choose the best option according to your runtime environment):
+        #Gnuplot.options.gpviewer = true/false
 
         # Set the default terminal for interacitve use
         Gnuplot.options.term = "wxt size 700,400";
+
+        # Set the terminal options for the exported MIME types:
+        #Gnuplot.options.mime[MIME"image/png"] = "";
+        #Gnuplot.options.mime[MIME"image/svg+xml"] = "svg enhanced standalone dynamic";
+        #Gnuplot.options.mime[MIME"text/html"] = "svg enhanced standalone mouse dynamic";
+
+        # Set the terminal to plot in a terminal emulator:
+        # (try `save(MIME"text/plain")`):
+        #Gnuplot.options.mime[MIME"text/plain"] = "sixelgd enhanced"; # requires vt340 emulation
 
         # Set the default linetypes
         empty!(Gnuplot.options.init);
         push!(Gnuplot.options.init, linetypes(:Set1_5, lw=1.5, ps=1.5));
 
         # Initialize the gnuplot REPL using the provided `start_key`.
-        # Comment the following to disable the REPL.
-        Gnuplot.repl_init(start_key='>');
+        if Gnuplot.options.gpviewer;
+            Gnuplot.repl_init(start_key='>');
+        end;
     )
 end
 ```

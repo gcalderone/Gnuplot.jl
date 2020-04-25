@@ -201,8 +201,8 @@ Structure containing the package global options, accessible through `Gnuplot.opt
 - `cmd::String`: command to start the Gnuplot process (default: `"gnuplot"`)
 - `default::Symbol`: default session name (default: `:default`)
 - `term::String`: default terminal for interactive use (default: empty string, i.e. use gnuplot settings);
-- `mime::Dict{DataType, String}`: dictionary of MIME types and corresponding gnuplot terminals.  Used to export images with [`save()`](@ref) and [The show mechanism](@ref);
-- `gpviewer::Bool`: use a gnuplot interactive terminal as main plotting device;
+- `mime::Dict{DataType, String}`: dictionary of MIME types and corresponding gnuplot terminals.  Used to export images with either [`save()`](@ref) or `show()` (see [Display options](@ref));
+- `gpviewer::Bool`: use a gnuplot terminal as main plotting device (if `true`) or an external viewer (if `false`);
 - `init::Vector{String}`: commands to initialize the session when it is created or reset (e.g., to set default palette);
 - `verbose::Bool`: verbosity flag (default: `false`)
 - `preferred_format::Symbol`: preferred format to send data to gnuplot.  Value must be one of:
@@ -216,11 +216,11 @@ Base.@kwdef mutable struct Options
     default::Symbol = :default
     term::String = ""
     mime::Dict{DataType, String} = Dict(
-        MIME"image/svg+xml"   => "svg enhanced background rgb 'white' dynamic",
-        MIME"image/png"       => "pngcairo enhanced",
-        MIME"image/jpeg"      => "jpeg enhanced",
         MIME"application/pdf" => "pdfcairo enhanced",
-        MIME"text/html"       => "svg enhanced dynamic",  # canvas mousing
+        MIME"image/jpeg"      => "jpeg enhanced",
+        MIME"image/png"       => "pngcairo enhanced",
+        MIME"image/svg+xml"   => "svg enhanced mouse standalone dynamic background rgb 'white'",
+        MIME"text/html"       => "svg enhanced mouse standalone dynamic",  # canvas mousing
         MIME"text/plain"      => "dumb enhanced ansi")
     gpviewer::Bool = false
     init::Vector{String} = Vector{String}()
