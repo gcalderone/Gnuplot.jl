@@ -2007,10 +2007,30 @@ end
 """
 contourlines(h::Histogram2D, args...) = contourlines(h.bins1, h.bins2, h.counts, args...)
 function contourlines(x::AbstractVector{Float64}, y::AbstractVector{Float64}, z::AbstractMatrix{Float64},
+                      fraction::Vector{Float64})
+    @assert minimum(fraction) > 0
+    @assert maximum(fraction) < 1
+    @assert length(fraction) >= 1
+
+    # The following is necessary since `countourlines` return levels
+    # sorted in increasing order, corresponding to decreasing order
+    # top fractions.
+    @assert issorted(fraction, rev=true) "`fraction` must be sorted in decreasing order"
+
+    i = sortperm(z[:], rev=true)
+    topfrac = cumsum(z[i]) ./ sum(z)
+    selection = Int[]
+    for f in fraction
+        push!(selection, minimum(findall(topfrac .>= f)))
+    end
+    levels = z[i[selection]]
+    clines = contourlines(x, y, z, "levels discrete " * join(string.(levels), ", "))
+end
+
+function contourlines(x::AbstractVector{Float64}, y::AbstractVector{Float64}, z::AbstractMatrix{Float64},
                       cntrparam="level auto 10")
     lines = gp_write_table("set contour base", "unset surface",
                            "set cntrparam $cntrparam", x, y, z, is3d=true)
-
     level = NaN
     path = Path2d()
     paths = Vector{Path2d}()
