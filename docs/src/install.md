@@ -19,11 +19,11 @@ Check **Gnuplot.jl** version with:
 ```julia-repl
 julia> ]st Gnuplot
 Status `~/.julia/environments/v1.4/Project.toml`
-  [dc211083] Gnuplot v1.2.0
+  [dc211083] Gnuplot v1.3.0
 ```
-If the displayed version is not `v1.2.0` you are probably having a dependency conflict.  In this case try forcing installation of the latest version with:
+If the displayed version is not `v1.3.0` you are probably having a dependency conflict.  In this case try forcing installation of the latest version with:
 ```julia-repl
-julia> ]add Gnuplot@1.2.0
+julia> ]add Gnuplot@1.3.0
 ```
 and check which package is causing the conflict.
 

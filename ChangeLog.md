@@ -2,12 +2,13 @@
 
 - New features:
 
-	* The `Options` structure features a new `mime` field: a
-      dictionary mapping a MIME type into gnuplot terminals;
+	* The `Options` structure features a new `mime` field containing a
+      dictionary to map a MIME type to gnuplot terminals;
 
 	* The `Options` structure features a new `gpviewer` field allowing
       to choose the display behaviour (using either gnuplot
-      interactive terminals or anexternal viewer such as Jupyter or Juno);
+      interactive terminals or anexternal viewer such as Jupyter or
+      Juno);
 
 	* The `save()` function now accepts a `MIME` argument in place of
       the `term=` keyword.  The actual terminal is retrieved from the
@@ -16,6 +17,13 @@
 	* The `contourlines()` function now accepts `AbstractVector` and
       `AbstractMatrix` as arguments, rather than `Vector` and
       `Matrix`;
+
+	* The `contourlines()` function now accepts a `fractions` input to
+      generate contours encompassing given fractions of the total
+      counts in a 2D histogram;
+
+	* The `palette()` function now accept a boolean `smooth` keyword,
+      allowing to interpolate a discrete palette into a continuous one.
 
 - Breaking changes:
     * The `Options` structure no longer provides the `term_svg` and
