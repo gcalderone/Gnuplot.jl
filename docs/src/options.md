@@ -11,15 +11,16 @@ saveas(file) = save(term="pngcairo size 550,350 fontscale 0.8", output="assets/$
 
 # Display options
 
-The display behaviour of **Gnuplot.jl** depends on the value of the `Gnuplot.options.gpviewer` boolean option:
+The display behaviour of **Gnuplot.jl** depends on the value of the `Gnuplot.options.gpviewer` flag:
 
-- if `true` the plot is displayed in a gnuplot window, using one of the interactive terminals such as `wxt`, `qt` or `aqua`.  There is exactly one window for each session, and the plots are updated by replacing the displayed image.  The preferred terminal can optionally be set using `Gnuplot.options.term`;
+- if `true` the plot is displayed in a gnuplot window, using one of the interactive terminals such as `wxt`, `qt` or `aqua`.  This is the default setting when running a Julia REPL session; The terminal options can be customized using `Gnuplot.options.term`;
 
-- if `false` the plot is displayed through the Julia [multimedia interface](https://docs.julialang.org/en/v1/base/io-network/#Multimedia-I/O-1), i.e. it is exported as either a `png`, `svg` or `html` file, and displayed in an external viewer.  In this case the package is unable to replace a previous plot, hence each update results in a separate image being displayed.  The terminal options to export the images are set in `Gnuplot.options.mime`.
+- if `false` the plot is displayed through the Julia [multimedia interface](https://docs.julialang.org/en/v1/base/io-network/#Multimedia-I/O-1), i.e. it is exported as either a `png`, `svg` or `html` file, and displayed in an external viewer.  This is the default setting when running a Jupyter, JupyterLab or Juno session.  The terminal options can be customized using the `Gnuplot.options.mime` dictionary.
 
-The latter approach can only be used when running a Jupyter, JupyterLab or Juno session, while the former approach is appropriate in all cases (most notably, for the standard Julia REPL).  The `Gnuplot.options.gpviewer` flag is automatically set when the package is first loaded according to the runtime environment, however the user can change its value at any time to fit specific needs.
+The `Gnuplot.options.gpviewer` flag is automatically set when the package is first loaded according to the runtime environment, however the user can change its value at any time to fit specific needs.  Further informations and examples for both options are available in this Jupyter [notebook](https://github.com/gcalderone/Gnuplot.jl/blob/gh-pages/v1.3.0/options/display.ipynb).
 
-Further informations and examples for both options are available in this Jupyter [notebook](https://github.com/gcalderone/Gnuplot.jl/blob/gh-pages/v1.3.0/options/display.ipynb).
+
+
 
 # Package options and initialization
 
@@ -67,18 +68,9 @@ gpexec("set term unknown");                                # hide
 Each line reports the package name (`GNUPLOT`), the session name (`default`), the command or string being sent to gnuplot process, and the returned response (line starting with `->`).  Default value is `false`;
 
 
-## Jupyter and Juno
-
-**Gnuplot.jl** can display plots in Jupyter and Juno by exporting images in the PNG and SVG formats.  To customize the terminals used to export the images set the `term_png` or `term_svg` fields of the [`Gnuplot.Options`](@ref) structure, e.g.:
-```@repl abc
-Gnuplot.options.term_png = "pngcairo size 700,400 linewidth 2";
-Gnuplot.options.term_svg = "svg dynamic";
-```
-
-
 ## Package initialization
 
-If you use **Gnuplot.jl** frequently you may find convenient to collect all the package settings ([Options](@ref)) in a single place, to quickly recall them in a Julia session.  I suggest to put the following code in the `~/.julia/config/startup.jl` initialization file (further info [here](https://docs.julialang.org/en/v1/stdlib/REPL/)):
+If you use **Gnuplot.jl** frequently you may find convenient to collect all the package settings ([Options](@ref)) in a single place, to quickly recall them in a Julia session.  A possibility is to put the following code in the `~/.julia/config/startup.jl` initialization file (further info [here](https://docs.julialang.org/en/v1/stdlib/REPL/)):
 ```julia
 macro gnuplotrc()
     return :(

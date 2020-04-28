@@ -21,7 +21,7 @@ saveas("basic000") # hide
 ```
 ![](assets/basic000.png)
 
-The plots are displayed either in an interactive window (if running in the Julia REPL), as an inline image (if running in Jupyter) or in the plot pane (if running in Juno).  See [Options](@ref) and [Jupyter and Juno](@ref) for further informations.
+The plots are displayed either in an interactive window (if running in the Julia REPL), as an inline image (if running in Jupyter) or in the plot pane (if running in Juno).  See [Display options](@ref) for further informations.
 
 
 Both the [`@gp`](@ref) and [`@gsp`](@ref) macros accept any number of arguments, whose meaning is interpreted as follows:

@@ -74,7 +74,7 @@ approx = fill(0., length(x));
 save(term="cairolatex pdf input color dashed size 5in,3.3in", output="test.tex")
 ```
 !!! warning
-    If you add a path in the `output=` keyword this will also be copied in the the `.tex` file.  I suggest to use just filenames, with no path, in order to avoid possible errors when compiling ``\LaTeX`` code.
+    If you add a path in the `output=` keyword this will also be copied in the the `.tex` file, and may generate errors when compiling ``\LaTeX`` code.  The simplest way to solve this problem is to use just filenames, with no paths.
 
 The two output files (`test.tex` and `test.pdf`) can then be included in a ``\LaTeX`` file as follows:
 ```latex
