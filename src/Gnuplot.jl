@@ -1321,7 +1321,7 @@ end
 
 Return the **Gnuplot.jl** package version.
 """
-version() = v"1.3.0-dev"
+version() = v"1.3.0"
 
 # ---------------------------------------------------------------------
 """

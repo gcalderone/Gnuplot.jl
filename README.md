@@ -3,8 +3,7 @@
 
 [![Build Status](https://travis-ci.org/gcalderone/Gnuplot.jl.svg?branch=master)](https://travis-ci.org/gcalderone/Gnuplot.jl)
 [![License](http://img.shields.io/badge/license-MIT-brightgreen.svg?style=flat)](LICENSE.md)
-[![DocumentationStatus](https://img.shields.io/badge/docs-stable-blue.svg?style=flat)](https://gcalderone.github.io/Gnuplot.jl/v1.2.0/)
-[![DocumentationStatus](https://img.shields.io/badge/docs-latest-blue.svg?style=flat)](https://gcalderone.github.io/Gnuplot.jl/v1.3.0/)
+[![DocumentationStatus](https://img.shields.io/badge/docs-stable-blue.svg?style=flat)](https://gcalderone.github.io/Gnuplot.jl/v1.3.0/)
 
 
 **Gnuplot.jl** is a simple package able to send both data and commands from Julia to an underlying [gnuplot](http://gnuplot.sourceforge.net/) process.  Its main purpose it to provide a fast and powerful data visualization framework, using an extremely concise Julia syntax.
@@ -22,9 +21,9 @@ You may check the installed **Gnuplot.jl** version with:
 ```julia
 ]st Gnuplot
 ```
-If the displayed version is not v1.2.0 you are probably having a dependency conflict. In this case try forcing installation of the latest version with:
+If the displayed version is not v1.3.0 you are probably having a dependency conflict. In this case try forcing installation of the latest version with:
 ```julia
-]add Gnuplot@1.2.0
+]add Gnuplot@1.3.0
 ```
 and check which package is causing the conflict.
 
@@ -38,7 +37,7 @@ test_terminal()
 
 
 ## Quick start
-The following examples are supposed to be self-explaining.  See [documentation](https://gcalderone.github.io/Gnuplot.jl/v1.2.0/) for further informations.
+The following examples are supposed to be self-explaining.  See [documentation](https://gcalderone.github.io/Gnuplot.jl/v1.3.0/) for further informations.
 
 ### A simple parabola
 ```julia

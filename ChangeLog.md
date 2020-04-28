@@ -1,4 +1,4 @@
-# Version 1.3.0 (not yet released)
+# Version 1.3.0 (released on: Apr. 28, 2020)
 
 - New features:
 
