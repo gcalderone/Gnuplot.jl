@@ -92,9 +92,10 @@ macro gnuplotrc()
         # available in your $PATH
         #Gnuplot.options.cmd = "/path/to/gnuplot";
 
-        # Set the display behaviour (see documentation, or let Gnuplot.jl
-        # choose the best option according to your runtime environment):
-        #Gnuplot.options.gpviewer = true/false
+        # Force a specific display behaviour (see documentation).  If
+        # not given explicit Gnuplot.jl will choose the best option
+        # according to your runtime environment.
+        #Gnuplot.options.gpviewer = true
 
         # Set the default terminal for interacitve use
         Gnuplot.options.term = "wxt size 700,400";
@@ -105,7 +106,7 @@ macro gnuplotrc()
         #Gnuplot.options.mime[MIME"text/html"] = "svg enhanced standalone mouse dynamic";
 
         # Set the terminal to plot in a terminal emulator:
-        # (try `save(MIME"text/plain")`):
+        # (try with `save(MIME"text/plain")`):
         #Gnuplot.options.mime[MIME"text/plain"] = "sixelgd enhanced"; # requires vt340 emulation
 
         # Set the default linetypes
