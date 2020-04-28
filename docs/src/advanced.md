@@ -255,6 +255,23 @@ saveas("advanced014e") # hide
 ![](assets/advanced014e.png)
 
 
+The [`contourlines()`](@ref) function also allows to calculate the contour lines encompassing a given fraction of the total counts of a 2D histogram.  E.g. to plot the contours corresponding to 1, 2, and 3 $\sigma$ of a 2D Gaussian distribution:
+```@example abc
+x = randn(10^5);
+y = randn(10^5);
+h = hist(x, y, nbins1=20, nbins2=20);
+
+# Calculate probability within 0 < r < σ
+p(σ) = round(1 - exp(-(σ^2) / 2), sigdigits=3)
+
+# Draw contour lines at 1, 2 and 3 σ
+clines = contourlines(h, p.(1:3));
+@gp palette(:beach, smooth=true, rev=true) "set grid front" "set size ratio -1" h clines
+saveas("advanced014f") # hide
+```
+![](assets/advanced014f.png)
+
+
 ## Animations
 
 The [Multiplot](@ref) capabilities can also be used to stack plots one above the other in order to create an animation, as in the following example:
