@@ -29,7 +29,12 @@ recipe(h::Histogram2D) =
 
 Implicit recipes to visualize iso-contour lines.
 """
-recipe(c::IsoContourLines) = PlotElement(data=c.data, plot="w l t '$(c.z)'")
+function recipe(c::IsoContourLines)
+    if isnan(c.prob)
+        return PlotElement(data=c.data, plot="w l t '$(c.z)'")
+    end
+    return PlotElement(data=c.data, plot="w l t '$(round(c.prob * 100, sigdigits=6))%'")
+end
 recipe(v::Vector{IsoContourLines}) = recipe.(v)
 
 

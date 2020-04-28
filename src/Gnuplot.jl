@@ -1673,17 +1673,19 @@ end
 
 
 """
-    palette(cmap::ColorScheme; rev=false)
-    palette(s::Symbol; rev=false)
+    palette(cmap::ColorScheme; rev=false, smooth=false)
+    palette(s::Symbol; rev=false, smooth=false)
 
 Convert a `ColorScheme` object into a string containing the gnuplot commands to set up the corresponding palette.
 
-If the argument is a `Symbol` it is interpreted as the name of one of the predefined schemes in [ColorSchemes](https://juliagraphics.github.io/ColorSchemes.jl/stable/basics/#Pre-defined-schemes-1). If `rev=true` the palette is reversed.
+If the argument is a `Symbol` it is interpreted as the name of one of the predefined schemes in [ColorSchemes](https://juliagraphics.github.io/ColorSchemes.jl/stable/basics/#Pre-defined-schemes-1).
+
+If `rev=true` the palette is reversed.  If `smooth=true` the palette is interpolated in 256 levels.
 """
-palette(s::Symbol; rev=false) = palette(colorschemes[s], rev=rev)
-function palette(cmap::ColorScheme; rev=false)
+palette(s::Symbol; kwargs...) = palette(colorschemes[s]; kwargs...)
+function palette(cmap::ColorScheme; rev=false, smooth=false)
     levels = Vector{String}()
-    for x in LinRange(0, 1, length(cmap.colors))
+    for x in LinRange(0, 1, (smooth  ?  256  : length(cmap.colors)))
         if rev
             color = get(cmap, 1-x)
         else
@@ -1960,23 +1962,25 @@ struct IsoContourLines
     paths::Vector{Path2d}
     data::Dataset
     z::Float64
-    function IsoContourLines(paths::Vector{Path2d}, z)
-        @assert length(z) == 1
-        # Prepare Dataset object
-        data = Vector{String}()
-        for i in 1:length(paths)
-            append!(data, arrays2datablock(paths[i].x, paths[i].y, z .* fill(1., length(paths[i].x))))
-            push!(data, "")
-            push!(data, "")
-        end
-        return new(paths, DatasetText(data), z)
+    prob::Float64
+end
+function IsoContourLines(paths::Vector{Path2d}, z)
+    @assert length(z) == 1
+    # Prepare Dataset object
+    data = Vector{String}()
+    for i in 1:length(paths)
+        append!(data, arrays2datablock(paths[i].x, paths[i].y, z .* fill(1., length(paths[i].x))))
+        push!(data, "")
+        push!(data, "")
     end
+    return IsoContourLines(paths, DatasetText(data), z, NaN)
 end
 
 
 """
-    contourlines(x::AbstractVector{Float64}, y::AbstractVector{Float64}, z::AbstractMatrix{Float64}, cntrparam="level auto 10")
-    contourlines(h::Histogram2D, cntrparam="level auto 10")
+    contourlines(x, y, z, cntrparam="level auto 4")
+    contourlines(x, y, z, fractions)
+    contourlines(h::Histogram2D, ...)
 
 Compute paths of contour lines for 2D data, and return a vector of [`IsoContourLines`](@ref) object.
 
@@ -1984,16 +1988,19 @@ Compute paths of contour lines for 2D data, and return a vector of [`IsoContourL
     This feature is not available in *dry* mode and will raise an error if used.
 
 # Arguments:
-- `x`, `y`: Coordinates;
-- `z`: the levels on which iso contour lines are to be calculated
-- `cntrparam`: settings to compute contour line paths (see gnuplot documentation for `cntrparam`).
+- `x`, `y` (as `AbstractVector{Float64}`): Coordinates;
+- `z::AbstractMatrix{Float64}`: the levels on which iso-contour lines are to be calculated;
+- `cntrparam::String`: settings to compute contour line paths (see gnuplot documentation for `cntrparam`);
+- `fractions::Vector{Float64}`: compute contour lines encompassing these fractions of total counts;
+- `h::Histogram2D`: use histogram bins and counts to compute contour lines.
+
 
 # Example
 ```julia
-x = randn(5000);
-y = randn(5000);
+x = randn(10^5);
+y = randn(10^5);
 h = hist(x, y, nbins1=20, nbins2=20);
-clines = contourlines(h, "levels discrete 15, 30, 45");
+clines = contourlines(h, "levels discrete 500, 1500, 2500");
 
 # Use implicit recipe
 @gp clines
@@ -2003,6 +2010,13 @@ clines = contourlines(h, "levels discrete 15, 30, 45");
 for i in 1:length(clines)
     @gp :- clines[i].data "w l t '\$(clines[i].z)' lw \$i dt \$i"
 end
+
+# Calculate probability within 0 < r < σ
+p(σ) = round(1 - exp(-(σ^2) / 2), sigdigits=3)
+
+# Draw contour lines at 1, 2 and 3 σ
+clines = contourlines(h, p.(1:3));
+@gp palette(:beach, smooth=true, rev=true) "set grid front" "set size ratio -1" h clines
 ```
 """
 contourlines(h::Histogram2D, args...) = contourlines(h.bins1, h.bins2, h.counts, args...)
@@ -2011,24 +2025,28 @@ function contourlines(x::AbstractVector{Float64}, y::AbstractVector{Float64}, z:
     @assert minimum(fraction) > 0
     @assert maximum(fraction) < 1
     @assert length(fraction) >= 1
-
-    # The following is necessary since `countourlines` return levels
-    # sorted in increasing order, corresponding to decreasing order
-    # top fractions.
-    @assert issorted(fraction, rev=true) "`fraction` must be sorted in decreasing order"
+    sorted_fraction = sort(fraction, rev=true)
 
     i = sortperm(z[:], rev=true)
     topfrac = cumsum(z[i]) ./ sum(z)
     selection = Int[]
-    for f in fraction
+    for f in sorted_fraction
         push!(selection, minimum(findall(topfrac .>= f)))
     end
     levels = z[i[selection]]
     clines = contourlines(x, y, z, "levels discrete " * join(string.(levels), ", "))
+    @assert issorted(getfield.(clines, :z))
+
+    if  length(clines) == length(fraction)
+        out = [IsoContourLines(clines[i].paths, clines[i].data, clines[i].z,
+                               sorted_fraction[i]) for i in 1:length(clines)]
+        return out
+    end
+    return clines
 end
 
 function contourlines(x::AbstractVector{Float64}, y::AbstractVector{Float64}, z::AbstractMatrix{Float64},
-                      cntrparam="level auto 10")
+                      cntrparam="level auto 4")
     lines = gp_write_table("set contour base", "unset surface",
                            "set cntrparam $cntrparam", x, y, z, is3d=true)
     level = NaN
