@@ -13,6 +13,7 @@ The list of **Gnuplot.jl** exported symbols is as follows:
 boxxy
 contourlines
 dataset_names
+dgrid3d
 gpexec
 gpmargins
 gpranges

@@ -21,6 +21,8 @@ The **Gnuplot.jl** package allows easy and fast use of [gnuplot](http://gnuplot.
 
 - enhanced support for contour plots;
 
+- 2D interpolation of scattered data on a regular grid;
+
 - export to a huge number of formats such as `pdf`, `png`, `gif`, ``\LaTeX``, `svg`, etc. (actually all those supported by gnuplot);
 
 - compatibility with Jupyter and Juno;

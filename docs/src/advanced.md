@@ -198,7 +198,7 @@ saveas("advanced013b") # hide
 ```
 ![](assets/advanced013b.png)
 
-The [`hist()`](@ref) function compute also 2D histograms by passing two vectors (with the same lengths), e.g.: 
+The [`hist()`](@ref) function compute also 2D histograms by passing two vectors (with the same lengths), e.g.:
 ```@example abc
 x = randn(10_000)
 y = randn(10_000)
@@ -270,6 +270,53 @@ clines = contourlines(h, p.(1:3));
 saveas("advanced014f") # hide
 ```
 ![](assets/advanced014f.png)
+
+
+## Interpolation of 2D scattered data
+The `dgrid3d()` function allows to interpolate 2D scattered data onto a 2D regular grid, e.g.:
+```@example abc
+x = (rand(200) .- 0.5) .* 3;
+y = (rand(200) .- 0.5) .* 3;
+z = exp.(-(x.^2 .+ y.^2));
+
+# Interpolate on a 20x30 regular grid with splines
+gx, gy, gz = dgrid3d(x, y, z, "20,30 splines")
+
+@gsp "set size ratio -1" "set xyplane at 0" xlab="X" ylab="Y" :-
+@gsp :-  x  y  z "w p t 'Scattered data' lc pal"
+@gsp :- gx gy gz "w l t 'Interpolation on a grid' lc pal"
+saveas("advanced015a") # hide
+```
+![](assets/advanced015a.png)
+
+
+!!! warn
+    The `splines` algorithm may be very slow on large datasets.  An alternative option is to use a smoothing kernel, such as `gauss`.
+
+
+The interpolated data in scarcely sampled regions are poorly constrained, i.e. they are actually *extrapolated values*.  By using the `extra=false` keyword all extrapolated values are set to `NaN`:
+
+```@example abc
+x = randn(2000) .* 0.5;
+y = randn(2000) .* 0.5;
+rsq = x.^2 + y.^2;
+z = exp.(-rsq) .* sin.(y) .* cos.(2 * rsq);
+
+@gsp "set size ratio -1" palette(:balance, smooth=true) "set view map" "set pm3d" :-
+@gsp :- "set multiplot layout 1,3" xr=[-2,2] yr=[-2,2] :-
+@gsp :- 1 tit="Scattered data"  x  y  z "w p notit lc pal"
+
+# Show extrapolated values
+gx, gy, gz = dgrid3d(x, y, z, "40,40 gauss 0.1,0.1")
+@gsp :- 2 tit="Interpolation on a grid\\n(extrapolated values are shown)"  gx gy gz "w l notit lc pal"
+
+# Hide exrapolated values
+gx, gy, gz = dgrid3d(x, y, z, "40,40 gauss 0.1,0.1", extra=false)
+@gsp :- 3 tit="Interpolation on a grid\\n(extrapolated values are hidden)" gx gy gz "w l notit lc pal"
+save(term="pngcairo size 1000,400 fontscale 1.0", output="assets/advanced015b.png")  # hide
+```
+![](assets/advanced015b.png)
+
 
 
 ## Animations

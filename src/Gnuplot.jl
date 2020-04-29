@@ -10,7 +10,7 @@ import Base.show
 export session_names, dataset_names, palette_names, linetypes, palette,
     terminal, terminals, test_terminal,
     stats, @gp, @gsp, save, gpexec,
-    boxxy, contourlines, hist, recipe, gpvars, gpmargins, gpranges
+    boxxy, contourlines, dgrid3d, hist, recipe, gpvars, gpmargins, gpranges
 
 
 # ╭───────────────────────────────────────────────────────────────────╮
@@ -2092,6 +2092,105 @@ function contourlines(x::AbstractVector{Float64}, y::AbstractVector{Float64}, z:
     end
     return out
 end
+
+
+# --------------------------------------------------------------------
+"""
+    dgrid3d(x, y, z, opts=""; extra=true)
+
+Interpolate non-uniformly spaced 2D data onto a regular grid.
+
+!!! note
+    This feature is not available in *dry* mode and will raise an error if used.
+
+# Arguments:
+- `x`, `y`, `z` (as `AbstractVector{Float64}`): coordinates and values of the function to interpolate;
+- `opts`: interpolation settings (see gnuplot documentation for `dgrid3d`);
+- `extra`: if `true` (default) compute inerpolated values in all regions, even those which are poorly constrained by input data (namely, extrapolated values).  If `false` set these values to `NaN`.
+
+# Return values:
+A tuple with `x` and `y` coordinates on the regular grid (as `Vector{Float64}`), and `z` containing interpolated values (as `Matrix{Float64}`).
+
+# Example
+```julia
+x = (rand(200) .- 0.5) .* 3;
+y = (rand(200) .- 0.5) .* 3;
+z = exp.(-(x.^2 .+ y.^2));
+
+# Interpolate on a 20x30 regular grid with splines
+gx, gy, gz = dgrid3d(x, y, z, "20,30 splines")
+
+@gsp "set size ratio -1" "set xyplane at 0" xlab="X" ylab="Y" :-
+@gsp :-  x  y  z "w p t 'Scattered data' lc pal"
+@gsp :- gx gy gz "w l t 'Interpolation on a grid' lc pal"
+```
+!!! warn
+    The `splines` algorithm may be very slow on large datasets.  An alternative option is to use a smoothing kernel, such as `gauss`:
+
+```julia
+x = randn(2000) .* 0.5;
+y = randn(2000) .* 0.5;
+rsq = x.^2 + y.^2;
+z = exp.(-rsq) .* sin.(y) .* cos.(2 * rsq);
+
+@gsp "set size ratio -1" palette(:balance, smooth=true) "set view map" "set pm3d" :-
+@gsp :- "set multiplot layout 1,3" xr=[-2,2] yr=[-2,2] :-
+@gsp :- 1 tit="Scattered data"  x  y  z "w p notit lc pal"
+
+# Show extrapolated values
+gx, gy, gz = dgrid3d(x, y, z, "40,40 gauss 0.1,0.1")
+@gsp :- 2 tit="Interpolation on a grid\\\\n(extrapolated values are shown)"  gx gy gz "w l notit lc pal"
+
+# Hide exrapolated values
+gx, gy, gz = dgrid3d(x, y, z, "40,40 gauss 0.1,0.1", extra=false)
+@gsp :- 3 tit="Interpolation on a grid\\\\n(extrapolated values are hidden)" gx gy gz "w l notit lc pal"
+```
+"""
+function dgrid3d(x::AbstractVector{Float64},
+                 y::AbstractVector{Float64},
+                 z::AbstractVector{Float64},
+                 opts::String="";
+                 extra=true)
+    c = Gnuplot.gp_write_table("set dgrid3d $opts", x, y, z, is3d=true)
+    gx = Vector{Float64}()
+    gy = Vector{Float64}()
+    gz = Vector{Float64}()
+    ix = 0
+    iy = 0
+    for l in c
+        l = string(strip(l))
+        if l == "# x y z type"
+            ix += 1
+            iy = 1
+        else
+            (l == "" )     &&  continue
+            (l[1] == '#')  &&  continue
+            n = Meta.parse.(split(l)[1:3])
+            (iy == 1)  &&  push!(gx, n[1])
+            (ix == 1)  &&  push!(gy, n[2])
+            if n[3] == :NaN
+                push!(gz, NaN)
+            else
+                push!(gz, n[3])
+            end
+            iy += 1
+        end
+    end
+    gz = collect(reshape(gz, length(gy), length(gx))')
+    if !extra
+        dx = abs(gx[2]-gx[1]) / 2
+        dy = abs(gy[2]-gy[1]) / 2
+        for ix in 1:length(gx)
+            for iy in 1:length(gy)
+                n = length(findall(((gx[ix] - dx) .< x .< (gx[ix] + dx))  .&
+                                   ((gy[iy] - dy) .< y .< (gy[iy] + dy))))
+                (n == 0)  &&  (gz[ix, iy] = NaN)
+            end
+        end
+    end
+    return (gx, gy, gz)
+end
+
 
 
 # ╭───────────────────────────────────────────────────────────────────╮
