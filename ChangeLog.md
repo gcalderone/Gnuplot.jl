@@ -1,28 +1,30 @@
-# Version 1.3.0 (released on: Apr. 28, 2020)
+# Version 1.3.0 (released on: Apr. 29, 2020)
 
 - New features:
+    * The new `dgrid3d()` allows to interpolate scattered 2D data on a
+       2D regular grid;
 
-	* The `Options` structure features a new `mime` field containing a
+    * The `Options` structure features a new `mime` field containing a
       dictionary to map a MIME type to gnuplot terminals;
 
-	* The `Options` structure features a new `gpviewer` field allowing
+    * The `Options` structure features a new `gpviewer` field allowing
       to choose the display behaviour (using either gnuplot
       interactive terminals or anexternal viewer such as Jupyter or
       Juno);
 
-	* The `save()` function now accepts a `MIME` argument in place of
+    * The `save()` function now accepts a `MIME` argument in place of
       the `term=` keyword.  The actual terminal is retrieved from the
       `Options.mime` dictionary;
 
-	* The `contourlines()` function now accepts `AbstractVector` and
+    * The `contourlines()` function now accepts `AbstractVector` and
       `AbstractMatrix` as arguments, rather than `Vector` and
       `Matrix`;
 
-	* The `contourlines()` function now accepts a `fractions` input to
+    * The `contourlines()` function now accepts a `fractions` input to
       generate contours encompassing given fractions of the total
       counts in a 2D histogram;
 
-	* The `palette()` function now accept a boolean `smooth` keyword,
+    * The `palette()` function now accept a boolean `smooth` keyword,
       allowing to interpolate a discrete palette into a continuous one.
 
 - Breaking changes:
@@ -63,7 +65,7 @@
       returned by `hist()`), contour lines (as returned by
       `contourlines()`) and images;
 
-	* Implemented automatic display of plots in both Jupyter and Juno;
+    * Implemented automatic display of plots in both Jupyter and Juno;
 
     * Documentation updated;
 
