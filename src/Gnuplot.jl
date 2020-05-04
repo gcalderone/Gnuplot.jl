@@ -2254,7 +2254,7 @@ function gpvars(sid::Symbol)
         if length(s) == 2
             key = Symbol(s[1])
             if s[2][1] == '"'
-                out[key] = s[2][2:end-1]
+                out[key] = s[2][2:prevind(s[2], end, 1)]
             else
                 try
                     out[key] = Meta.parse(s[2])
