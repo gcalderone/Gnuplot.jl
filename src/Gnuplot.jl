@@ -911,6 +911,7 @@ function execall(gp::GPSession; term::AbstractString="", output::AbstractString=
     if term != ""
         former_term = writeread(gp, "print GPVAL_TERM")[1]
         former_opts = writeread(gp, "print GPVAL_TERMOPTIONS")[1]
+        gpexec(gp, "unset multiplot")
         gpexec(gp, "set term $term")
     end
     (output != "")  &&  gpexec(gp, "set output '$output'")
