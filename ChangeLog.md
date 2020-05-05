@@ -1,3 +1,11 @@
+# Version 1.3.1 (not yet released)
+- Bugfix:
+	* Multiplot were not displayed in Jupyter (#25);
+
+	* `gpvars()` fails if gnuplot character encoding is utf8
+      (#24);
+
+
 # Version 1.3.0 (released on: Apr. 29, 2020)
 
 - New features:

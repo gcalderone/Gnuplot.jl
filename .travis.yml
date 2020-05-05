@@ -7,14 +7,14 @@ os:
 
 julia:
   - 1.2
-  - nightly
+#  - nightly
 
 notifications:
   email: false
 
-matrix:
-  allow_failures:
-    - julia: nightly
+#matrix:
+#  allow_failures:
+#    - julia: nightly
 
 addons:
   apt:

@@ -549,6 +549,11 @@ function GPSession(sid::Symbol)
     if options.term == ""
         options.term = terminal()
     end
+
+    # The stderr of the gnuplot process goes to Julia which can parse
+    # UTF8 characters (regardless of the terminal).
+    gpexec("set encoding utf8")
+
     return out
 end
 
