@@ -1,5 +1,9 @@
 module Gnuplot
 
+if isdefined(Base, :Experimental) && isdefined(Base.Experimental, Symbol("@optlevel"))
+    @eval Base.Experimental.@optlevel 1
+end
+
 using StatsBase, ColorSchemes, ColorTypes, Colors, StructC14N, DataStructures
 using REPL, ReplMaker
 
