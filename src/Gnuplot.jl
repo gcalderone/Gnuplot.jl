@@ -704,7 +704,7 @@ end
 function DatasetBin(cols::Vararg{AbstractVector, N}) where N
     source = "binary record=$(length(cols[1])) format='"
     types = Vector{DataType}()
-    (length(cols) == 1)  &&  (source *= "%int")
+    #(length(cols) == 1)  &&  (source *= "%int")
     for i in 1:length(cols)
         @assert length(cols[1]) == length(cols[i])
         if     isa(cols[i][1], Int32);   push!(types, Int32);   source *= "%int"
@@ -721,7 +721,7 @@ function DatasetBin(cols::Vararg{AbstractVector, N}) where N
     (path, io) = mktemp()
     source = " '$path' $source"
     for row in 1:length(cols[1])
-        (length(cols) == 1)  &&  (write(io, convert(Int32, row)))
+        #(length(cols) == 1)  &&  (write(io, convert(Int32, row)))
         for col in 1:length(cols)
             write(io, convert(types[col], cols[col][row]))
         end
@@ -809,7 +809,7 @@ function useBinaryMethod(args...)
     elseif options.preferred_format == :auto
         if (length(args) == 1)  &&  isa(args[1], AbstractMatrix)
             binary = true
-        elseif all(ndims.(args) .== 1)
+        elseif all(ndims.(args) .== 1)  &&  all(eltype.(args) .<: Real)
             s = sum(length.(args))
             if s > 1e4
                 binary = true
