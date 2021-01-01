@@ -1114,6 +1114,9 @@ function parseArguments(_args...)
         elseif isa(arg, AbstractArray) &&            # ==> a dataset column
             ((valtype(arg) <: Real)    ||
              (valtype(arg) <: AbstractString))  ;
+        elseif isa(arg, AbstractArray) &&            # ==> a dataset column (to be `convert`ed)
+            ((typeof(arg[1]) <: Real)    ||
+             (typeof(arg[1]) <: AbstractString))
         elseif isa(arg, Real)                        # ==> a dataset column with only one row
             args[pos] = [arg]
         elseif isa(arg, Dataset)                ;    # ==> a Dataset object
@@ -1139,6 +1142,21 @@ function parseArguments(_args...)
     pos = 1
     while pos <= length(args)
         arg = args[pos]
+
+        if isa(arg, AbstractArray)   &&
+            !(valtype(arg) <: Real) &&
+            !(valtype(arg) <: AbstractString)
+
+            # Try with `convert`
+            if typeof(arg[1]) <: Integer
+                arg = convert(Array{Int}, arg)
+            elseif typeof(arg[1]) <: Real
+                arg = convert(Array{Float64}, arg)
+            elseif typeof(arg[1]) <: AbstractString
+                arg = convert(Array{String}, arg)
+            end
+        end
+
         if isa(arg, AbstractArray)   &&      # ==> beginning of a dataset
             ((valtype(arg) <: Real)  ||
              (valtype(arg) <: AbstractString))
