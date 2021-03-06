@@ -1,6 +1,7 @@
 module Gnuplot
 
-using StatsBase, ColorSchemes, ColorTypes, Colors, StructC14N, DataStructures
+using StatsBase, ColorSchemes, ColorTypes, Colors, StructC14N
+using OrderedCollections: OrderedDict
 using REPL, ReplMaker
 
 import Base.reset
