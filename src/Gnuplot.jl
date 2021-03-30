@@ -244,6 +244,10 @@ function __init__()
          (isdefined(Main, :VSCodeServer)) ||
          (isdefined(Main, :PlutoRunner)) )
     )
+    if isdefined(Main, :VSCodeServer)
+        # VS Code shows "dynamic" plots with fixed and small size :-(
+        options.mime[MIME"image/svg+xml"] = replace(options.mime[MIME"image/svg+xml"], "dynamic" => "")
+    end
 end
 
 
