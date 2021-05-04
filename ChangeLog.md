@@ -1,4 +1,8 @@
 # Version 1.3.1 (not yet released)
+- New features:
+    * Missing values are accepted if the input arrays have `eltype <:
+      AbstractFloat`;
+
 - Bugfix:
 	* Multiplot were not displayed in Jupyter (#25);
 
