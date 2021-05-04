@@ -236,13 +236,18 @@ const sessions = OrderedDict{Symbol, Session}()
 const options = Options()
 
 function __init__()
-    # Check whether we are running in an IJulia, Juno or Pluto session.
+    # Check whether we are running in an IJulia, Juno, VSCode or Pluto session.
     # (copied from Gaston.jl).
     options.gpviewer = !(
         ((isdefined(Main, :IJulia)  &&  Main.IJulia.inited)  ||
          (isdefined(Main, :Juno)    &&  Main.Juno.isactive()) ||
+         (isdefined(Main, :VSCodeServer)) ||
          (isdefined(Main, :PlutoRunner)) )
     )
+    if isdefined(Main, :VSCodeServer)
+        # VS Code shows "dynamic" plots with fixed and small size :-(
+        options.mime[MIME"image/svg+xml"] = replace(options.mime[MIME"image/svg+xml"], "dynamic" => "")
+    end
 end
 
 
