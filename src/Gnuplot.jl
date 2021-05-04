@@ -1112,11 +1112,8 @@ function parseArguments(_args...)
             end
             insert!(args, pos, string(strip(arg[1])) => nothing)
         elseif isa(arg, AbstractArray) &&            # ==> a dataset column
-            ((valtype(arg) <: Real)    ||
-             (valtype(arg) <: AbstractString))  ;
-        elseif isa(arg, AbstractArray) &&            # ==> a dataset column (to be `convert`ed)
-            ((typeof(arg[1]) <: Real)    ||
-             (typeof(arg[1]) <: AbstractString))
+            ((nonmissingtype(eltype(arg)) <: Real)    ||
+             (nonmissingtype(eltype(arg)) <: AbstractString))  ;
         elseif isa(arg, Real)                        # ==> a dataset column with only one row
             args[pos] = [arg]
         elseif isa(arg, Dataset)                ;    # ==> a Dataset object
@@ -1138,54 +1135,54 @@ function parseArguments(_args...)
         pos += 1
     end
 
-    # Third pass: convert data into Dataset objetcs
+    # Third pass: convert data into Dataset objects
     pos = 1
+    accum = Vector{AbstractArray}()
     while pos <= length(args)
         arg = args[pos]
+        taken = false
 
-        if isa(arg, AbstractArray)   &&
-            !(valtype(arg) <: Real) &&
-            !(valtype(arg) <: AbstractString)
+        if isa(arg, AbstractArray)
+            if nonmissingtype(eltype(arg)) != eltype(arg)
+                @assert nonmissingtype(eltype(arg)) <: AbstractFloat "Missing values are supported only on arrays of floats"
+                arg[ismissing.(arg)] .= NaN
+                arg = convert(Array{nonmissingtype(eltype(arg))}, arg)
+            end
+            tt = eltype(arg)
 
-            # Try with `convert`
-            if typeof(arg[1]) <: Integer
+            # Try to convert into Int, Float64 and String
+            if (tt  <: Integer)  &&  !(tt <: Int)
                 arg = convert(Array{Int}, arg)
-            elseif typeof(arg[1]) <: Real
+            elseif (tt  <: Real)  &&  !(tt <: Float64)
                 arg = convert(Array{Float64}, arg)
-            elseif typeof(arg[1]) <: AbstractString
+            elseif (tt  <: AbstractString)  &&  !(tt <: String)
                 arg = convert(Array{String}, arg)
             end
-        end
 
-        if isa(arg, AbstractArray)   &&      # ==> beginning of a dataset
-            ((valtype(arg) <: Real)  ||
-             (valtype(arg) <: AbstractString))
-
-            # Collect all data
-            accum = Vector{AbstractArray}()
-            while isa(arg, AbstractArray)  &&
-                ((valtype(arg) <: Real)    ||
-                 (valtype(arg) <: AbstractString))
+            tt = eltype(arg)
+            if  (tt <: Real)  ||
+                (tt <: AbstractString)
                 push!(accum, arg)
                 deleteat!(args, pos)
-                if pos <= length(args)
-                    arg = args[pos]
+                taken = true
+            end
+        end
+
+        if !taken  ||  (pos > length(args))
+            if length(accum) > 0
+                mm = extrema(length.(accum))
+                if mm[1] == 0   # empty Dataset
+                    @assert mm[1] == mm[2] "At least one input array is empty, while other(s) are not"
+                    d = DatasetEmpty()
                 else
-                    break
+                    d = Dataset(accum)
                 end
+                insert!(args, pos, d)
+                empty!(accum)
             end
 
-            mm = extrema(length.(accum))
-            if mm[1] == 0
-                # empty Dataset
-                @assert mm[1] == mm[2] "At least one input array is empty, while other(s) are not"
-                d = DatasetEmpty()
-            else
-                d = Dataset(accum)
-            end
-            insert!(args, pos, d)
+            pos += 1
         end
-        pos += 1
     end
 
     # Fourth pass: collect PlotElement objects
