@@ -1,4 +1,4 @@
-# Version 1.3.1 (released on: May 5, 2021)
+# Version 1.4.0 (released on: May 5, 2021)
 - New features:
     * Missing values are accepted if the input arrays have `eltype <:
       AbstractFloat`;
