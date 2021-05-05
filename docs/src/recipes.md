@@ -125,7 +125,7 @@ end
 with only one mandatory argument.  In order to exploit the optional keyword we can explicitly invoke the recipe as follows:
 ```@example abc
 img = testimage("walkbridge");
-@gp palette(:gray) recipe(img, "flipy rot=15deg")
+@gp palette(:gray1) recipe(img, "flipy rot=15deg")
 saveas("recipes007c") # hide
 ```
 ![](assets/recipes007c.png)

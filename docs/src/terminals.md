@@ -4,11 +4,7 @@ Gnuplot provides dozens of terminals to display plots or export them into files 
 
 To use a specific terminal for interactive use you may either set it as initialization command for all new session with (see [Options](@ref)):
 ```julia
-Gnuplot.options.term = "wxt")
-```
-or directly send the command to a specific session (see [Direct command execution](@ref))
-```julia
-gpexec("set term wxt")
+Gnuplot.options.term = "wxt"
 ```
 See official [gnuplot documentation](http://gnuplot.sourceforge.net/documentation.html) for further info on terminals and their options.
 
@@ -16,13 +12,13 @@ See official [gnuplot documentation](http://gnuplot.sourceforge.net/documentatio
 ## Interactive terminals (`wxt` and `qt`)
 The multiplatform `wxt` and `qt` terminals are among the most widely used ones for their nicely looking outputs on display and for their interactive capabilities.
 
-You may set them as terminal with:
+You may use such terminals with:
 ```
-"set term wxt size 800,600"
+Gnuplot.options.term = "wxt size 800,600"
 ```
 or
 ```
-"set term qt  size 800,600"
+Gnuplot.options.term = "qt  size 800,600"
 ```
 (the `size 800,600` is optional and can be omitted).
 
@@ -58,7 +54,7 @@ Gnuplot is also able to export vector (i.e. non-raster) plots through the `svg` 
 The `cairolatex` terminal allows to produce high quality plots by splitting the output into a PDF file (containing a rasterized image of a plot) and a `.tex` file (containing all the text as ``\LaTeX`` code).  The following example shows how to write plot tics and an equation in ``\LaTeX``:
 ```julia
 x = LinRange(-2pi, 2pi, 1000)
-@gp t="Polynomial approximation of sin(x)"  "set style fill transparent solid 0.6 noborder"
+@gp tit="Polynomial approximation of sin(x)"  "set style fill transparent solid 0.6 noborder"
 @gp :- raw"""set xtics ('$-\pi$' -pi, '$-\pi/2$' -pi/2, 0, '$\pi/2$' pi/2, '$\pi$' pi)"""
 @gp :- xr=3.8.*[-1, 1] yr=[-1.5,1.5] key="box opaque left horiz" linetypes(:Blues_3) "set grid front"
 latex = raw"""\begin{minipage}[c]{\textwidth}\begin{equation*}""" *

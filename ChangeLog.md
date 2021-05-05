@@ -1,7 +1,11 @@
-# Version 1.3.1 (not yet released)
+# Version 1.3.1 (released on: May 5, 2021)
 - New features:
     * Missing values are accepted if the input arrays have `eltype <:
       AbstractFloat`;
+
+    * Missing values are also accepted in calls to `hist`;
+
+	* VSCode and Pluto sessions are now properly handled (#35 and #43);
 
 - Bugfix:
 	* Multiplot were not displayed in Jupyter (#25);

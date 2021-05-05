@@ -1,6 +1,6 @@
 # Style Guide
 
-The **Gnuplot.jl** loose syntax allows to create a plot using very different approaches.  While this was one of the initial purposes for the package, it may lead to decreased code readability if not used judiciously.
+The **Gnuplot.jl** loose syntax allows to create a plot using very different approaches.  While this was one of the initial purposes for the package, it may lead to a reduced code readability if not used judiciously.
 
 Here I will summarize a few, non-mandatory, guidelines which allows to maintain a neat syntax and a high readability:
 
