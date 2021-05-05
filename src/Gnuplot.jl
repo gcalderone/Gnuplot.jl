@@ -1150,15 +1150,14 @@ function parseArguments(_args...)
         if isa(arg, AbstractArray)
             if nonmissingtype(eltype(arg)) != eltype(arg)
                 @assert nonmissingtype(eltype(arg)) <: AbstractFloat "Missing values are supported only on arrays of floats"
-                arg[ismissing.(arg)] .= NaN
-                arg = convert(Array{nonmissingtype(eltype(arg))}, arg)
+                arg = replace(arg, missing => NaN)
             end
             tt = eltype(arg)
 
             # Try to convert into Int, Float64 and String
             if (tt  <: Integer)  &&  !(tt <: Int)
                 arg = convert(Array{Int}, arg)
-            elseif (tt  <: Real)  &&  !(tt <: Float64)
+            elseif (tt  <: AbstractFloat)  &&  !(tt <: Float64)
                 arg = convert(Array{Float64}, arg)
             elseif (tt  <: AbstractString)  &&  !(tt <: String)
                 arg = convert(Array{String}, arg)
@@ -1348,7 +1347,7 @@ end
 
 Return the **Gnuplot.jl** package version.
 """
-version() = v"1.3.0"
+version() = v"1.3.1"
 
 # ---------------------------------------------------------------------
 """
@@ -1919,6 +1918,35 @@ function hist(v1::Vector{T1}, v2::Vector{T2};
     binsize2 = x2[2] - x2[1]
     return Histogram2D(x1, x2, hh.weights, binsize1, binsize2)
 end
+
+# Allow missing values in input
+function hist(v::Vector{Union{Missing,T}}; kw...) where T <: Real
+    ii = findall(.!ismissing.(v))
+    @info "Neglecting missing values ($(length(v) - length(ii)))"
+    hist(convert(Vector{T}, v[ii]); kw...)
+end
+
+function hist(v1::Vector{Union{Missing,T1}}, v2::Vector{T2}; kw...) where {T1 <: Real, T2 <: Real}
+    ii = findall(.!ismissing.(v1)  .&
+                 .!ismissing.(v2)  )
+    @info "Neglecting missing values ($(length(v1) - length(ii)))"
+    hist(convert(Vector{T1}, v1[ii]), convert(Vector{T2}, v2[ii]), kw...)
+end
+
+function hist(v1::Vector{T1}, v2::Vector{Union{Missing, T2}}; kw...) where {T1 <: Real, T2 <: Real}
+    ii = findall(.!ismissing.(v1)  .&
+                 .!ismissing.(v2)  )
+    @info "Neglecting missing values ($(length(v1) - length(ii)))"
+    hist(convert(Vector{T1}, v1[ii]), convert(Vector{T2}, v2[ii]), kw...)
+end
+
+function hist(v1::Vector{Union{Missing,T1}}, v2::Vector{Union{Missing,T2}}; kw...) where {T1 <: Real, T2 <: Real}
+    ii = findall(.!ismissing.(v1)  .&
+                 .!ismissing.(v2)  )
+    @info "Neglecting missing values ($(length(v1) - length(ii)))"
+    hist(convert(Vector{T1}, v1[ii]), convert(Vector{T2}, v2[ii]), kw...)
+end
+
 
 
 # --------------------------------------------------------------------
