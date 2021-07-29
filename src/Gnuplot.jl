@@ -241,7 +241,7 @@ function __init__()
     options.gpviewer = !(
         ((isdefined(Main, :IJulia)  &&  Main.IJulia.inited)  ||
          (isdefined(Main, :Juno)    &&  Main.Juno.isactive()) ||
-         (isdefined(Main, :VSCodeServer)) ||
+         (isdefined(Main, :VSCodeServer) && Main.VSCodeServer.PLOT_PANE_ENABLED[]) ||
          (isdefined(Main, :PlutoRunner)) )
     )
     if isdefined(Main, :VSCodeServer)
