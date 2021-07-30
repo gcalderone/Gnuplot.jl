@@ -202,7 +202,7 @@ Structure containing the package global options, accessible through `Gnuplot.opt
 - `default::Symbol`: default session name (default: `:default`)
 - `term::String`: default terminal for interactive use (default: empty string, i.e. use gnuplot settings);
 - `mime::Dict{DataType, String}`: dictionary of MIME types and corresponding gnuplot terminals.  Used to export images with either [`save()`](@ref) or `show()` (see [Display options](@ref));
-- `gpviewer::Bool`: use a gnuplot terminal as main plotting device (if `true`) or an external viewer (if `false`);
+- `gpviewer::Bool`: force using a gnuplot terminal as main plotting device (if `true`) or use Julia multimedia I/O, which automatically selects between the gnuplot terminal and external viewers (if `false`);
 - `init::Vector{String}`: commands to initialize the session when it is created or reset (e.g., to set default palette);
 - `verbose::Bool`: verbosity flag (default: `false`)
 - `preferred_format::Symbol`: preferred format to send data to gnuplot.  Value must be one of:
@@ -236,14 +236,15 @@ const sessions = OrderedDict{Symbol, Session}()
 const options = Options()
 
 function __init__()
-    # Check whether we are running in an IJulia, Juno, VSCode or Pluto session.
-    # (copied from Gaston.jl).
-    options.gpviewer = !(
-        ((isdefined(Main, :IJulia)  &&  Main.IJulia.inited)  ||
-         (isdefined(Main, :Juno)    &&  Main.Juno.isactive()) ||
-         (isdefined(Main, :VSCodeServer)) ||
-         (isdefined(Main, :PlutoRunner)) )
-    )
+    # Copied from Plots - insert GnuplotDisplay before text displays,
+    # but after graphic displays such as IJulia.
+    insert!(Base.Multimedia.displays, findlast(x -> x isa Base.TextDisplay || x isa REPL.REPLDisplay, Base.Multimedia.displays) + 1, GnuplotDisplay())
+    atreplinit(i -> begin
+        while GnuplotDisplay() in Base.Multimedia.displays
+            popdisplay(GnuplotDisplay())
+        end
+        insert!(Base.Multimedia.displays, findlast(x -> x isa REPL.REPLDisplay, Base.Multimedia.displays) + 1, GnuplotDisplay())
+    end)
     if isdefined(Main, :VSCodeServer)
         # VS Code shows "dynamic" plots with fixed and small size :-(
         options.mime[MIME"image/svg+xml"] = replace(options.mime[MIME"image/svg+xml"], "dynamic" => "")
@@ -585,6 +586,10 @@ function gp_write_table(args...; kw...)
     reset(gp)
     gpexec(sid, "set term unknown")
     driver(sid, "set table '$tmpfile'", args...; kw...)
+    if !Gnuplot.options.gpviewer
+        # driver() did not send plots to the gnuplot process - do it now
+        execall(gp, term="unknown")
+    end
     gpexec(sid, "unset table")
     quit(sid)
     out = readlines(tmpfile)
@@ -766,21 +771,20 @@ function reset(gp::Session)
     gpexec(gp, "set output")
     gpexec(gp, "reset session")
 
-    if options.gpviewer
-        # Use gnuplot viewer
-        (options.term != "")  &&  gpexec(gp, "set term " * options.term)
+    # Configure the gnuplot viewer. If options.gpviewer is false, it would be more
+    # appropriate to do this in display(), but doing so leads to hang of the gnuplot
+    # process in some situations (after manual close of the Qt window, gnuplot
+    # receives the CAPTURE_END marker, but does not print it back). Therefore, we do
+    # in here unconditionally.
+    (options.term != "")  &&  gpexec(gp, "set term " * options.term)
 
-        # Set window title (if not already set)
-        term = writeread(gp, "print GPVAL_TERM")[1]
-        if term in ("aqua", "x11", "qt", "wxt")
-            opts = writeread(gp, "print GPVAL_TERMOPTIONS")[1]
-            if findfirst("title", opts) == nothing
-                writeread(gp, "set term $term $opts title 'Gnuplot.jl: $(gp.sid)'")
-            end
+    # Set window title (if not already set)
+    term = writeread(gp, "print GPVAL_TERM")[1]
+    if term in ("aqua", "x11", "qt", "wxt")
+        opts = writeread(gp, "print GPVAL_TERMOPTIONS")[1]
+        if findfirst("title", opts) == nothing
+            writeread(gp, "set term $term $opts title 'Gnuplot.jl: $(gp.sid)'")
         end
-    else
-        # Use external viewer
-        gpexec(gp, "set term unknown")
     end
 
     # Note: the reason to keep Options.term and .init separate are:
@@ -1547,9 +1551,20 @@ end
 
 
 # ╭───────────────────────────────────────────────────────────────────╮
-# │                     Interfacing Julia's show                      │
+# │              Interfacing Julia's Multimedia I/O                   │
 # ╰───────────────────────────────────────────────────────────────────╯
 # --------------------------------------------------------------------
+
+struct GnuplotDisplay <: AbstractDisplay end
+
+function Base.display(d::GnuplotDisplay, obj::SessionID)
+    if !options.gpviewer && obj.dump
+        gp = getsession(obj.sid)
+        execall(gp)
+    else
+        throw(MethodError(display, (d, obj)))
+    end
+end
 
 function show(obj::SessionID)
     gp = getsession(obj.sid)
