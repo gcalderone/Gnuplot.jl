@@ -288,5 +288,6 @@ Gnuplot.options.dry = true
 
 # Various hist() corner cases
 @gp hist([1,2,3], bs=2)
+@gp hist([1,1,1], bs=1)
 
 Gnuplot.quitall()
