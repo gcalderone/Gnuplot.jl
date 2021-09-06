@@ -286,4 +286,7 @@ Gnuplot.quit(:default)
 Gnuplot.options.dry = true
 @gp hist(randn(1000))
 
+# Various hist() corner cases
+@gp hist([1,2,3], bs=2)
+
 Gnuplot.quitall()

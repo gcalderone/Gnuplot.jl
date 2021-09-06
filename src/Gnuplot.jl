@@ -1853,9 +1853,9 @@ function hist(v::Vector{T}; range=[NaN,NaN], bs=NaN, nbins=0, pad=true) where T 
     end
     @assert sum(hh.weights) == length(i)
     x = collect(hh.edges[1])
+    binsize = x[2] - x[1]
     x = (x[1:end-1] .+ x[2:end]) ./ 2
     h = hh.weights
-    binsize = x[2] - x[1]
     if pad
         x = [x[1]-binsize, x..., x[end]+binsize]
         h = [0, h..., 0]
