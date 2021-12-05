@@ -1125,7 +1125,16 @@ function parseArguments(_args...)
         elseif hasmethod(recipe, tuple(typeof(arg))) # ==> implicit recipe
             # @info which(recipe, tuple(typeof(arg)))  # debug
             deleteat!(args, pos)
-            insert!(args, pos, recipe(arg))
+            pe = recipe(arg)
+            if isa(pe, PlotElement)
+                insert!(args, pos, pe)
+            elseif isa(pe, Vector{PlotElement})
+                for i in 1:length(pe)
+                    insert!(args, pos, pe[i])
+                end
+            else
+                error("Recipe must return a PlotElement or Vector{PlotElement}")
+            end
             continue
         elseif isa(arg, Vector{PlotElement})         # ==> explicit recipe (vector)
             deleteat!(args, pos)
