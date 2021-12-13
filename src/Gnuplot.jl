@@ -925,7 +925,7 @@ function execall(gp::GPSession; term::AbstractString="", output::AbstractString=
         gpexec(gp, "unset multiplot")
         gpexec(gp, "set term $term")
     end
-    (output != "")  &&  gpexec(gp, "set output '$output'")
+    (output != "")  &&  gpexec(gp, "set output '$(replace(output, "'" => "''"))'")
 
     # printstyled("Plotting with terminal: " * terminal() * "\n", color=:blue, bold=true)
 
