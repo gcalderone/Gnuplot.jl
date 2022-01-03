@@ -1846,16 +1846,20 @@ function hist(v::Vector{T}; range=[NaN,NaN], bs=NaN, nbins=0, pad=true) where T 
         if sum(hh.weights) < length(i)
             j = findall(v[i] .== range[2])
             @assert length(j) == (length(i) - sum(hh.weights))
-            hh.weights[end] += length(j)
+            if length(hh.weights) > 0
+                hh.weights[end] += length(j)
+            else
+                push!(hh.weights, length(j))
+            end
         end
     else
         hh = fit(Histogram, v[i], closed=:left)
     end
     @assert sum(hh.weights) == length(i)
     x = collect(hh.edges[1])
-    x = (x[1:end-1] .+ x[2:end]) ./ 2
+    binsize = isfinite(bs) ? bs : x[2] - x[1]
+    length(x) > 1 && (x = (x[1:end-1] .+ x[2:end]) ./ 2)
     h = hh.weights
-    binsize = x[2] - x[1]
     if pad
         x = [x[1]-binsize, x..., x[end]+binsize]
         h = [0, h..., 0]
