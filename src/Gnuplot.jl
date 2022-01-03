@@ -520,6 +520,18 @@ function readTask(gp::GPSession)
     delete!(sessions, gp.sid)
 end
 
+# Read data from `from` and forward them to `stdout`.
+#
+# This is similar to `Base.write(to::IO, from::IO)` when called as
+# write(stdout, from), but the difference is in situation when
+# `stdout` changes. This function writes data to the changed `stdout`,
+# whereas the call to `Base.write` writes to the original `stdout`
+# forever.
+function writeToStdout(from::IO)
+    while !eof(from)
+        write(stdout, readavailable(from))
+    end
+end
 
 function GPSession(sid::Symbol)
     session = DrySession(sid)
@@ -535,13 +547,16 @@ function GPSession(sid::Symbol)
     end
 
     pin  = Base.Pipe()
+    pout = Base.Pipe()
     perr = Base.Pipe()
-    proc = run(pipeline(`$(options.cmd)`, stdin=pin, stdout=stdout, stderr=perr), wait=false)
+    proc = run(pipeline(`$(options.cmd)`, stdin=pin, stdout=pout, stderr=perr), wait=false)
     chan = Channel{String}(32)
 
     # Close unused sides of the pipes
+    Base.close(pout.in)
     Base.close(perr.in)
     Base.close(pin.out)
+    Base.start_reading(pout.out)
     Base.start_reading(perr.out)
 
     out = GPSession(getfield.(Ref(session), fieldnames(DrySession))...,
@@ -550,6 +565,7 @@ function GPSession(sid::Symbol)
 
     # Start reading tasks
     @async readTask(out)
+    @async writeToStdout(pout)
 
     # Read gnuplot default terminal
     if options.term == ""
