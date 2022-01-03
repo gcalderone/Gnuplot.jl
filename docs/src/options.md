@@ -70,12 +70,11 @@ Each line reports the package name (`GNUPLOT`), the session name (`default`), th
 
 ## Package initialization
 
-If you use **Gnuplot.jl** frequently you may find convenient to collect all the package settings ([Options](@ref)) in a single place, to quickly recall them in a Julia session.  A possibility is to put the following code in the `~/.julia/config/startup.jl` initialization file (further info [here](https://docs.julialang.org/en/v1/stdlib/REPL/)):
+If you use **Gnuplot.jl** frequently you may find convenient to automatically apply the package settings ([Options](@ref)) whenever the package is loaded.  A possibility is to use [Requires.jl](https://github.com/JuliaPackaging/Requires.jl) and put the following code in the `~/.julia/config/startup.jl` initialization file (further info [here](https://docs.julialang.org/en/v1/stdlib/REPL/)):
 ```julia
-macro gnuplotrc()
-    return :(
-        using Gnuplot;
-
+using Requires
+@require Gnuplot="dc211083-a33a-5b79-959f-2ff34033469d" begin
+        @info "Custom Gnuplot initialization"
         # Uncomment the following if you don't have the gnuplot
         # executable installed on your platform:
         #Gnuplot.options.dry = true;
@@ -103,13 +102,12 @@ macro gnuplotrc()
 
         # Set the default linetypes
         empty!(Gnuplot.options.init);
-        push!(Gnuplot.options.init, linetypes(:Set1_5, lw=1.5, ps=1.5));
+        push!(Gnuplot.options.init, Gnuplot.linetypes(:Set1_5, lw=1.5, ps=1.5));
 
         # Initialize the gnuplot REPL using the provided `start_key`.
         if Gnuplot.options.gpviewer;
             Gnuplot.repl_init(start_key='>');
         end;
-    )
 end
 ```
 At the Julia prompt you may load the package and the associated settings by typing:
