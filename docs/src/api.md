@@ -21,6 +21,7 @@ gpvars
 hist
 linetypes
 palette
+palette_levels
 palette_names
 recipe
 save

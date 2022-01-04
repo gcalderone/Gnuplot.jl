@@ -7,7 +7,7 @@ import Base.reset
 import Base.write
 import Base.show
 
-export session_names, dataset_names, palette_names, linetypes, palette,
+export session_names, dataset_names, palette_names, linetypes, palette_levels, palette,
     terminal, terminals, test_terminal,
     stats, @gp, @gsp, save, gpexec,
     boxxy, contourlines, dgrid3d, hist, recipe, gpvars, gpmargins, gpranges
@@ -520,19 +520,6 @@ function readTask(gp::GPSession)
     delete!(sessions, gp.sid)
 end
 
-# Read data from `from` and forward them to `stdout`.
-#
-# This is similar to `Base.write(to::IO, from::IO)` when called as
-# write(stdout, from), but the difference is in situation when
-# `stdout` changes. This function writes data to the changed `stdout`,
-# whereas the call to `Base.write` writes to the original `stdout`
-# forever.
-function writeToStdout(from::IO)
-    while !eof(from)
-        write(stdout, readavailable(from))
-    end
-end
-
 function GPSession(sid::Symbol)
     session = DrySession(sid)
     if !options.dry
@@ -565,7 +552,9 @@ function GPSession(sid::Symbol)
 
     # Start reading tasks
     @async readTask(out)
-    @async writeToStdout(pout)
+    @async while !eof(pout) # see PR #51
+        write(stdout, readavailable(pout))
+    end
 
     # Read gnuplot default terminal
     if options.term == ""
@@ -1372,7 +1361,7 @@ end
 
 Return the **Gnuplot.jl** package version.
 """
-version() = v"1.4.0"
+version() = v"1.4.1"
 
 # ---------------------------------------------------------------------
 """
@@ -1724,6 +1713,34 @@ end
 
 
 """
+    palette_levels(cmap::ColorScheme; rev=false, smooth=false)
+    palette_levels(s::Symbol; rev=false, smooth=false)
+
+Convert a `ColorScheme` object into a `Tuple{Vector{Float64}, Vector{String}, Int}` containing:
+- the numeric levels (between 0 and 1 included) corresponding to colors in the palette;
+- the corresponding colors (as hex strings);
+- the total number of different colors in the palette.
+
+If the argument is a `Symbol` it is interpreted as the name of one of the predefined schemes in [ColorSchemes](https://juliagraphics.github.io/ColorSchemes.jl/stable/basics/#Pre-defined-schemes-1).
+
+If `rev=true` the palette is reversed.  If `smooth=true` the palette is interpolated in 256 levels.
+"""
+palette_levels(s::Symbol; kwargs...) = palette_levels(colorschemes[s]; kwargs...)
+function palette_levels(cmap::ColorScheme; rev=false, smooth=false)
+    levels = OrderedDict{Float64, String}()
+    for x in LinRange(0, 1, (smooth  ?  256  : length(cmap.colors)))
+        if rev
+            color = get(cmap, 1-x)
+        else
+            color = get(cmap, x)
+        end
+        levels[x] = "#" * Colors.hex(color)
+    end
+    return (collect(keys(levels)), collect(values(levels)), length(cmap.colors))
+end
+
+
+"""
     palette(cmap::ColorScheme; rev=false, smooth=false)
     palette(s::Symbol; rev=false, smooth=false)
 
@@ -1733,19 +1750,13 @@ If the argument is a `Symbol` it is interpreted as the name of one of the predef
 
 If `rev=true` the palette is reversed.  If `smooth=true` the palette is interpolated in 256 levels.
 """
-palette(s::Symbol; kwargs...) = palette(colorschemes[s]; kwargs...)
-function palette(cmap::ColorScheme; rev=false, smooth=false)
-    levels = Vector{String}()
-    for x in LinRange(0, 1, (smooth  ?  256  : length(cmap.colors)))
-        if rev
-            color = get(cmap, 1-x)
-        else
-            color = get(cmap, x)
-        end
-        push!(levels, "$x '#" * Colors.hex(color) * "'")
-    end
-    return "set palette defined (" * join(levels, ", ") * ")\nset palette maxcol $(length(cmap.colors))\n"
+function palette(values::Vector{Float64}, levels::Vector{String}, ncolors::Int)
+    str = string.(values) .* " '" .* levels .* "'"
+    return "set palette defined (" * join(str, ", ") * ")\nset palette maxcol $(ncolors)\n"
 end
+palette(s::Symbol; kwargs...) = palette(colorschemes[s]; kwargs...)
+palette(cmap::ColorScheme; kwargs...) =
+    palette(palette_levels(cmap; kwargs...)...)
 
 
 # --------------------------------------------------------------------

@@ -210,6 +210,16 @@ saveas("basic008a") # hide
 ```
 ![](assets/basic008a.png)
 
+The palette levels may be easily stretched by using the [`palette_levels()`](@ref) and modifying the numeric levels, e.g.:
+```@example abc
+x = 0:0.1:10pi
+v, l, n = palette_levels(:viridis)
+@gsp palette(v.^0.25, l, n) cbr=[-1,1].*30 :-
+@gsp :-  x  x.*sin.(x)  x.*cos.(x)  x./20  "w p pt 7 ps var lc pal"
+saveas("basic008b") # hide
+```
+![](assets/basic008b.png)
+
 The list of all available palette can be retrieved with [`palette_names()`](@ref):
 ```@repl abc
 palette_names()

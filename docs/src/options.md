@@ -110,8 +110,5 @@ using Requires
         end;
 end
 ```
-At the Julia prompt you may load the package and the associated settings by typing:
-```julia
-julia> @gnuplotrc
-```
-and you're ready to go.
+
+The above code will be automatically when you first load the package with `using Gnuplot`.

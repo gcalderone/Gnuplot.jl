@@ -26,11 +26,13 @@ Press the `h` key on the window to display an help message with all available ke
 
 
 ## Plot in a terminal application (`dumb`, `sixel` and `sixelgd`)
-Gnuplot supports plotting in a terminal application, with no need for X11 or other GUI support, via the `dumb`, `sixel` and `sixelgd` terminals.  These are extremely useful when you run Julia on a remote shell through `ssh`, with no X11 forwarding.
+Gnuplot supports plotting in a terminal application, with no need for X11 or other GUI support, via the `dumb`, `sixel` and `sixelgd` terminals.  These are extremely useful when you run Julia on a remote shell through `ssh`, with no X11 forwarding. The `dumb` terminal uses ASCII characters to draw a plot, while `sixel` and `sixelgd` actually use bitmaps (but require Sixel support to be enabled in the terminal, e.g. `xterm -ti vt340`).
 
-The `dumb` terminal uses ASCII characters to draw a plot, while `sixel` and `sixelgd` actually use bitmaps (but require Sixel support to be enabled in the terminal, e.g. `xterm -ti vt340`).  Dumb terminal can be used as follows:
+Dumb terminal can be used as follows:
 
-```jldoctest; setup = :(using Gnuplot; origterm = Gnuplot.options.term)
+```jldoctest; setup = :(using Gnuplot)
+julia> origterm = Gnuplot.options.term;
+
 julia> Gnuplot.options.term = "dumb size 60,15";
 
 julia> @gp "plot sin(x)"

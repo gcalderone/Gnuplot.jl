@@ -1,3 +1,17 @@
+# Version 1.4.1 (released on: )
+- New features:
+	* Implicit recipes can now returns a `Vector{PlotElement}`;
+
+	* Allow using single quotes in output file names (#52);
+
+	* New function: `palette_levels()` can be used to modify palette levels before passing them to gnuplot;
+
+- Bugfix:
+	* Fixed `BoundsErrors` in `hist()` (#49);
+
+	* Fixed problem when generating documentation (#51);
+
+
 # Version 1.4.0 (released on: May 5, 2021)
 - New features:
     * Missing values are accepted if the input arrays have `eltype <:
