@@ -111,4 +111,4 @@ using Requires
 end
 ```
 
-The above code will be automatically when you first load the package with `using Gnuplot`.
+The above code will be automatically executed when you first load the package with `using Gnuplot`.
