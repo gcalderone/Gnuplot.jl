@@ -24,6 +24,8 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - run: sudo apt install gnuplot
+      # Check whether gnuplot is correctly installed and print version.
+      - run: gnuplot --version
       - uses: julia-actions/setup-julia@v1
         with:
           version: ${{ matrix.version }}
