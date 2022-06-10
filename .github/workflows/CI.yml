@@ -1,0 +1,34 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  Test:
+    name: Test
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        version:
+          - '1.5' # Oldest supported version in Project.toml
+          - '1' # Latest stable release
+        os:
+          - ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+      - run: sudo apt install gnuplot
+      # Check whether gnuplot is correctly installed and print version.
+      - run: gnuplot --version
+      - uses: julia-actions/setup-julia@v1
+        with:
+          version: ${{ matrix.version }}
+      - uses: julia-actions/cache@v1
+      - uses: julia-actions/julia-buildpkg@latest
+      - uses: julia-actions/julia-runtest@v1
