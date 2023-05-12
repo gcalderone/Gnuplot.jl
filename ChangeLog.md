@@ -1,4 +1,10 @@
-# Version 1.4.1 (released on: )
+# Version 1.5.0
+- New features:
+	* using PrecompileTools to reduce time-to-first-plot in Julia v1.9;
+
+Note: Julia version >= 1.8 is now required!
+
+# Version 1.4.1
 - New features:
 	* Implicit recipes can now returns a `Vector{PlotElement}`;
 

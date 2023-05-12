@@ -2398,4 +2398,20 @@ end
 
 include("recipes.jl")
 
+
+
+using PrecompileTools
+@compile_workload begin
+    _orig_term = options.term
+    _orig_dry  = options.dry
+    options.term = "unknown"
+    options.dry = true
+    @gp 1:9
+    @gp tit="test" [0., 1.] [0., 1.] "w l"
+    @gsp hist(rand(10^6), rand(10^6))
+    quitall()
+    options.term = _orig_term
+    options.dry  = _orig_dry
+end
+
 end #module
