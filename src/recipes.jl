@@ -12,7 +12,7 @@ Implicit recipes to visualize 1D and 2D histograms.
 recipe(h::StatsBase.Histogram{T, 1, R}) where {T, R} =
     PlotElement(cmds="set grid",
                 data=DatasetText(hist_bins(h), hist_weights(h)),
-                plot="w histep notit lw 2 lc rgb 'black'")
+                plot="w step notit lw 2 lc rgb 'black'")
 
 recipe(h::StatsBase.Histogram{T, 2, R}) where {T, R} =
     PlotElement(cmds=["set autoscale fix"], # , "set size ratio -1"]

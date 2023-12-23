@@ -1836,18 +1836,14 @@ end
 """
     hist_bins(h::StatsBase.Histogram, axis=1)
 
-Returns the central coordinates of each bin along the specified axis.
+Returns the coordinates of each bin along the specified axis.
+Note: the returned coordinate location depends on the dimensionality of the histogram:
+- 1D: coordinates are on the left side of the bins;
+- 2D: coordinates are on the center of the bins;
 """
-function hist_bins(h::StatsBase.Histogram{T, 1, R}; pad=true) where {T, R}
-    @assert isa(h.edges[1], AbstractRange)
-    bs = h.edges[1][2] - h.edges[1][1]
-    out = collect(h.edges[1][1:end-1] .+ h.edges[1][2:end]) ./ 2
-    return [out[1] - bs/2; out; out[end] + bs/2]
-end
-function hist_bins(h::StatsBase.Histogram{T, 2, R}, axis::Int) where {T, R}
-    @assert isa(h.edges[axis], AbstractRange)
-    return collect(h.edges[axis][1:end-1] .+ h.edges[axis][2:end]) ./ 2
-end
+hist_bins(h::StatsBase.Histogram{T, 1, R}) where {T, R} = [h.edges[1][1]; h.edges[1]]
+hist_bins(h::StatsBase.Histogram{T, 2, R}, axis::Int) where {T, R} =
+    collect(h.edges[axis][1:end-1] .+ h.edges[axis][2:end]) ./ 2
 
 """
     hist_weights(h::StatsBase.Histogram)
@@ -1888,9 +1884,13 @@ julia> @assert length(v) == sum(h2.weights)  # this is fine!
 # Example
 ```julia
 v = randn(1000)
-h = hist(v, bs=0.5)
+h = hist(v, range=[-3.5, 3.5], bs=0.5)
 @gp h  # preview
-@gp hist_bins(h) hist_weights(h) "w histeps notit"
+
+# Custom appearence
+@gp    hist_bins(h) hist_weights(h) "w steps lw 3"
+@gp :- hist_bins(h) hist_weights(h) "w fillsteps" "set style fill transparent solid 0.5"
+@gp :- hist_bins(h) hist_weights(h) "w lp lw 3"
 ```
 """
 function hist(v::Vector{T}; w=Vector{T}(), kws...) where T <: Real
