@@ -64,7 +64,7 @@ saveas("recipes001") # hide
 
 
 ## Histogram recipes
-The object returned by the [`hist()`](@ref) function can be readily visualized by means of implicit recipes defined on the `Gnuplot.Histogram1D` and `Gnuplot.Histogram2D` types:
+The object returned by the [`hist()`](@ref) function can be readily visualized by means of implicit recipes defined on the `StatsBase.Histogram` type (in both 1D and 2D) types:
 
 ```@example abc
 x = randn(1000);

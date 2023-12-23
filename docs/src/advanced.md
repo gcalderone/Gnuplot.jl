@@ -108,22 +108,24 @@ gap  = 0.015
 @gp "set multiplot"
 @gp :- 1 ma=margins rma=right tma=top :-
 @gp :-   x y "w p notit" xlab="X" ylab="Y"
-xr = gpranges().x  # save current X range
-yr = gpranges().y  # save current Y range
 
-# Histogram on X
-h = hist(x, nbins=10)
+# Histogram
+binsize = 0.5
+h = hist(x, y, bs1=binsize, bs2=binsize, range1=gpranges().x, range2=gpranges().y)
+
+# Project histogram on X
+b = hist_bins(h, 1)
+c = sum(hist_weights(h), dims=2) ./ 2
 @gp :- 2 ma=margins bma=top+gap rma=right :-
 @gp :-   "set xtics format ''" "set ytics format ''"  xlab="" ylab="" :-
-bs = fill(h.binsize, length(h.bins));
-@gp :-   xr=xr h.bins h.counts./2 bs./2 h.counts./2 "w boxxy notit fs solid 0.4" :-
+@gp :-    b c fill(binsize/2, length(b)) c "w boxxy notit fs solid 0.4" :-
 
-# Histogram on Y
-h = hist(y, nbins=10)
+# Project histogram on Y
+b = hist_bins(h, 2)
+c = sum(hist_weights(h), dims=1) ./ 2
 @gp :- 3 ma=margins lma=right+gap tma=top :-
 @gp :-     "unset xrange" :-
-bs = fill(h.binsize, length(h.bins));
-@gp :-   yr=yr h.counts./2 h.bins h.counts./2 bs./2 "w boxxy notit fs solid 0.4" :-
+@gp :-   c b c fill(binsize/2, length(b)) "w boxxy notit fs solid 0.4" :-
 @gp
 saveas("advanced011b") # hide
 ```
@@ -189,11 +191,11 @@ saveas("advanced013a") # hide
 ```
 ![](assets/advanced013a.png)
 
-The [`hist()`](@ref) function also accept keywords to set the range to consider (`range=` keyword) and either the bin size (`bs=`) or the total number of bins (`nbins=`) in the histogram.  A finer control on the output is achieved by exploiting the fields of the returned ([`Gnuplot.Histogram1D`](@ref)) structure, e.g.:
+The [`hist()`](@ref) function also accept keywords to set the range to consider (`range=` keyword) and either the bin size (`bs=`) or the total number of bins (`nbins=`) in the histogram.  A finer control on the output is achieved by exploiting the ([`hist_bins`](@ref)) and ([`hist_weights`](@ref)) functions, e.g.:
 ```@example abc
 x = randn(1000);
 h = hist(x, range=3 .* [-1,1], bs=0.5)
-@gp h.bins h.counts "w histep t 'Data' lc rgb 'red'"
+@gp hist_bins(h) hist_weights(h) "w step t 'Data' lc rgb 'red'"
 saveas("advanced013b") # hide
 ```
 ![](assets/advanced013b.png)
@@ -208,12 +210,12 @@ saveas("advanced014a") # hide
 ```
 ![](assets/advanced014a.png)
 
-Again, a finer control can be achieved by specifying ranges, bin size or number of bins (along both dimensions) and by explicitly using the content of the returned [`Gnuplot.Histogram2D`](@ref) structure:
+Again, a finer control can be achieved by specifying ranges, bin size or number of bins (along both dimensions) and by explicitly using the the ([`hist_bins`](@ref)) and ([`hist_weights`](@ref)) functions:
 ```@example abc
 x = randn(10_000)
 y = randn(10_000)
 h = hist(x, y, bs1=0.25, nbins2=20, range1=[-3,3], range2=[-3,3])
-@gp "set size ratio -1" h.bins1 h.bins2 h.counts "w image notit"
+@gp "set size ratio -1" hist_bins(h, 1) hist_bins(h, 2) hist_weights(h) "w image notit"
 saveas("advanced014b") # hide
 ```
 ![](assets/advanced014b.png)

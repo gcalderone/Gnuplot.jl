@@ -18,12 +18,11 @@ The `]` character starts the Julia [package manager](https://julialang.github.io
 Check **Gnuplot.jl** version with:
 ```julia-repl
 julia> ]st Gnuplot
-Status `~/.julia/environments/v1.4/Project.toml`
-  [dc211083] Gnuplot v1.4.1
+  [dc211083] Gnuplot v1.5.0
 ```
-If the displayed version is not `v1.4.1` you are probably having a dependency conflict.  In this case try forcing installation of the latest version with:
+If the displayed version is not `v1.5.0` you are probably having a dependency conflict.  In this case try forcing installation of the latest version with:
 ```julia-repl
-julia> ]add Gnuplot@1.4.1
+julia> ]add Gnuplot@1.5.0
 ```
 and check which package is causing the conflict.
 

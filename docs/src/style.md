@@ -87,7 +87,7 @@ even if the output is exactly the same.
 
 ### 5 - Join multiple command strings:
 
-Instead of specifying several commands as strings
+Rather than specifying several commands as strings
 ```julia
 @gp :- "set key off"  "set auto fix"  "set size square"
 @gp :- "set offsets graph .05, graph .05, graph .05, graph .05"

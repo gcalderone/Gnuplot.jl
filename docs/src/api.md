@@ -19,6 +19,8 @@ gpmargins
 gpranges
 gpvars
 hist
+hist_bins
+hist_weights
 linetypes
 palette
 palette_levels
@@ -43,8 +45,6 @@ Gnuplot.Dataset
 Gnuplot.DatasetEmpty
 Gnuplot.DatasetText
 Gnuplot.DatasetBin
-Gnuplot.Histogram1D
-Gnuplot.Histogram2D
 Gnuplot.IsoContourLines
 Gnuplot.Options
 Gnuplot.Path2d
