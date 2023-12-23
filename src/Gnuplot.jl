@@ -1839,11 +1839,15 @@ end
 Returns the central coordinates of each bin along the specified axis.
 """
 function hist_bins(h::StatsBase.Histogram{T, 1, R}; pad=true) where {T, R}
+    @assert isa(h.edges[1], AbstractRange)
     bs = h.edges[1][2] - h.edges[1][1]
     out = collect(h.edges[1][1:end-1] .+ h.edges[1][2:end]) ./ 2
     return [out[1] - bs/2; out; out[end] + bs/2]
 end
-hist_bins(h::StatsBase.Histogram{T, 2, R}, axis::Int) where {T, R} = collect(h.edges[axis][1:end-1] .+ h.edges[axis][2:end]) ./ 2
+function hist_bins(h::StatsBase.Histogram{T, 2, R}, axis::Int) where {T, R}
+    @assert isa(h.edges[axis], AbstractRange)
+    return collect(h.edges[axis][1:end-1] .+ h.edges[axis][2:end]) ./ 2
+end
 
 """
     hist_weights(h::StatsBase.Histogram)
