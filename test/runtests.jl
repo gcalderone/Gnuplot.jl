@@ -150,7 +150,7 @@ err = 0.1 * maximum(abs.(y)) .* fill(1, size(x));
 noise = err .* randn(length(x));
 
 h = hist(noise, nbins=10)
-@gp h.bins h.counts "w histeps"
+@gp hist_bins(h) hist_weights(h) "w histeps notit"
 @gp h
 
 @gp x y

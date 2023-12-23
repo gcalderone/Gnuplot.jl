@@ -5,20 +5,20 @@
 # --------------------------------------------------------------------
 # Histograms
 """
-    recipe(h::Histogram1D)
-    recipe(h::Histogram2D)
+    recipe(h::StatsBase.Histogram)
 
 Implicit recipes to visualize 1D and 2D histograms.
 """
-recipe(h::Histogram1D) =
+recipe(h::StatsBase.Histogram{T, 1, R}) where {T, R} =
     PlotElement(cmds="set grid",
-                data=DatasetText(h.bins, h.counts),
+                data=DatasetText(hist_bins(h), hist_weights(h)),
                 plot="w histep notit lw 2 lc rgb 'black'")
 
-recipe(h::Histogram2D) =
-    PlotElement(cmds=["set autoscale fix"],
-                data=DatasetText(h.bins1, h.bins2, h.counts),
+recipe(h::StatsBase.Histogram{T, 2, R}) where {T, R} =
+    PlotElement(cmds=["set autoscale fix"], # , "set size ratio -1"]
+                data=DatasetText(hist_bins(h, 1), hist_bins(h, 2), hist_weights(h)),
                 plot="w image notit")
+
 
 
 # --------------------------------------------------------------------

@@ -2,7 +2,13 @@
 - New features:
 	* using PrecompileTools to reduce time-to-first-plot in Julia v1.9;
 
-Note: Julia version >= 1.8 is now required!
+	* The `hist` function is now a simple wrapper to
+      `StatsBase.fit(Histogram...)`;
+	  
+	* The output of `hist` can be passed to `hist_bins` and
+      `hist_weights` functions to obtain ready-to-plot arrays;
+		
+Note: Julia version >= 1.9 is now required!
 
 # Version 1.4.1
 - New features:

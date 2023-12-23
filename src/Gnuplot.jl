@@ -10,6 +10,7 @@ import Base.show
 export session_names, dataset_names, palette_names, linetypes, palette_levels, palette,
     terminal, terminals, test_terminal,
     stats, @gp, @gsp, save, gpexec,
+    hist_bins, hist_weights,
     boxxy, contourlines, dgrid3d, hist, recipe, gpvars, gpmargins, gpranges
 
 
@@ -1361,7 +1362,7 @@ end
 
 Return the **Gnuplot.jl** package version.
 """
-version() = v"1.4.1"
+version() = v"1.5.0"
 
 # ---------------------------------------------------------------------
 """
@@ -1807,107 +1808,113 @@ end
 
 
 # --------------------------------------------------------------------
-"""
-    Histogram1D
-
-A 1D histogram data.
-
-# Fields
-- `bins::Vector{Float64}`: bin center values;
-- `counts::Vector{Float64}`: counts in the bins;
-- `binsize::Float64`: size of each bin;
-"""
-mutable struct Histogram1D
-    bins::Vector{Float64}
-    counts::Vector{Float64}
-    binsize::Float64
-end
-
-"""
-    Histogram2D
-
-A 2D histogram data.
-
-# Fields
-- `bins1::Vector{Float64}`: bin center values along first dimension;
-- `bins2::Vector{Float64}`: bin center values along second dimension;
-- `counts::Vector{Float64}`: counts in the bins;
-- `binsize1::Float64`: size of each bin along first dimension;
-- `binsize2::Float64`: size of each bin along second dimension;
-"""
-mutable struct Histogram2D
-    bins1::Vector{Float64}
-    bins2::Vector{Float64}
-    counts::Matrix{Float64}
-    binsize1::Float64
-    binsize2::Float64
+function hist_range(v::Vector{T}; range=[NaN,NaN], bs=NaN, nbins=0) where T <: Real
+    ivalid = findall(isfinite.(v))
+    if nbins > 0
+        isnan(range[1])  &&  (range[1] = minimum(v[ivalid]))
+        isnan(range[2])  &&  (range[2] = maximum(v[ivalid]))
+        rr = Base.range(range[1], range[2], nbins+1)
+        @assert length(rr)  == nbins+1
+        @assert minimum(rr) == range[1]
+        @assert maximum(rr) == range[2]
+    elseif isfinite(bs)
+        isnan(range[1])  &&  (range[1] = minimum(v[ivalid]) - bs/2)
+        isnan(range[2])  &&  (range[2] = maximum(v[ivalid]) + bs/2)
+        rr = range[1]:bs:range[2]
+        if maximum(rr) < range[2]
+            rr = range[1]:bs:(range[2] + bs)
+        end
+        @assert minimum(rr) <= range[1]
+        @assert maximum(rr) >= range[2]
+    else
+        rr = hist_range(v, range=range, nbins=Int(ceil(log2(length(v)))) + 1)  # Sturges's formula
+    end
+    return rr
 end
 
 
-# --------------------------------------------------------------------
 """
-    hist(v::Vector{T}; range=extrema(v), bs=NaN, nbins=0, pad=true) where T <: Real
+    hist_bins(h::StatsBase.Histogram, axis=1)
 
-Calculates the histogram of the values in `v` and returns a [`Histogram1D`](@ref) structure.
+Returns the central coordinates of each bin along the specified axis.
+"""
+function hist_bins(h::StatsBase.Histogram{T, 1, R}; pad=true) where {T, R}
+    bs = h.edges[1][2] - h.edges[1][1]
+    out = collect(h.edges[1][1:end-1] .+ h.edges[1][2:end]) ./ 2
+    return [out[1] - bs/2; out; out[end] + bs/2]
+end
+hist_bins(h::StatsBase.Histogram{T, 2, R}, axis::Int) where {T, R} = collect(h.edges[axis][1:end-1] .+ h.edges[axis][2:end]) ./ 2
+
+"""
+    hist_weights(h::StatsBase.Histogram)
+
+Returns the weights of each bin in a histogram.
+"""
+hist_weights(h::StatsBase.Histogram{T, 1, R}) where {T, R} = [zero(T); h.weights; zero(T)]
+hist_weights(h::StatsBase.Histogram{T, 2, R}) where {T, R} = h.weights
+
+
+
+"""
+    hist(v::Vector{T}; range=extrema(v), bs=NaN, nbins=0) where T <: Real
+
+Calculates the histogram of the values in `v`.
 
 # Arguments
 - `v`: a vector of values to compute the histogra;
 - `range`: values of the left edge of the first bin and of the right edge of the last bin;
 - `bs`: size of histogram bins;
 - `nbins`: number of bins in the histogram;
-- `pad`: if true add one dummy bins with zero counts before the first bin and after the last.
 
-If `bs` is given `nbins` is ignored.
+If `nbins` is given `bs` is ignored.
+Internally, `hist` invokes `StatsBase.fit(Histogram...)` and returns the same data type (see [here](https://juliastats.org/StatsBase.jl/stable/empirical/#Histograms)).  The only difference is that `hist` also accounts for entries on outer edges so that the sum of histogram counts is equal to the length of input vector.  As a consequence, the `closed=` keyword is no longer meaningful. Consider the following example:
+```
+julia> using StatsBase
+julia> v = collect(1:5);
+julia> h1 = fit(Histogram, v, 1:5, closed=:left)
+julia> h2 = hist(v, range=[1,5], bs=1)
+julia> print(h1.weights)
+[1, 1, 1, 1]
+julia> print(h2.weights)
+[1, 1, 1, 2]
+julia> @assert length(v) == sum(h1.weights)  # this raises an error!
+julia> @assert length(v) == sum(h2.weights)  # this is fine!
+```
 
 # Example
 ```julia
 v = randn(1000)
 h = hist(v, bs=0.5)
 @gp h  # preview
-@gp h.bins h.counts "w histep notit"
+@gp hist_bins(h) hist_weights(h) "w histeps notit"
 ```
 """
-function hist(v::Vector{T}; range=[NaN,NaN], bs=NaN, nbins=0, pad=true) where T <: Real
-    i = findall(isfinite.(v))
-    isnan(range[1])  &&  (range[1] = minimum(v[i]))
-    isnan(range[2])  &&  (range[2] = maximum(v[i]))
-    i = findall(isfinite.(v)  .&  (v.>= range[1])  .&  (v.<= range[2]))
-    (nbins > 0)  &&  (bs = (range[2] - range[1]) / nbins)
-    if isfinite(bs)
-        rr = range[1]:bs:range[2]
-        if maximum(rr) < range[2]
-            rr = range[1]:bs:(range[2]+bs)
-        end
-        hh = fit(Histogram, v[i], rr, closed=:left)
-        if sum(hh.weights) < length(i)
-            j = findall(v[i] .== range[2])
-            @assert length(j) == (length(i) - sum(hh.weights))
-            if length(hh.weights) > 0
-                hh.weights[end] += length(j)
-            else
-                push!(hh.weights, length(j))
-            end
-        end
+function hist(v::Vector{T}; w=Vector{T}(), kws...) where T <: Real
+    rr = hist_range(v; kws...)
+    if length(w) == 0
+        hh = fit(Histogram, v,             rr, closed=:left)
     else
-        hh = fit(Histogram, v[i], closed=:left)
+        @assert length(w) == length(v)
+        hh = fit(Histogram, v, weights(w), rr, closed=:left)
     end
-    @assert sum(hh.weights) == length(i)
-    x = collect(hh.edges[1])
-    binsize = isfinite(bs) ? bs : x[2] - x[1]
-    length(x) > 1 && (x = (x[1:end-1] .+ x[2:end]) ./ 2)
-    h = hh.weights
-    if pad
-        x = [x[1]-binsize, x..., x[end]+binsize]
-        h = [0, h..., 0]
+
+    # Ensure entries equal to range[2] are accounted for (i.e., ignore the closed= specification)
+    i = findall(v .== maximum(hh.edges[1]))
+    if length(i) > 0
+        if length(w) == 0
+            hh.weights[end] += length(i)
+        else
+            hh.weights[end] += sum(w[i])
+        end
     end
-    return Histogram1D(x, h, binsize)
+    return hh
 end
 
 
 """
     hist(v1::Vector{T1 <: Real}, v2::Vector{T2 <: Real}; range1=[NaN,NaN], bs1=NaN, nbins1=0, range2=[NaN,NaN], bs2=NaN, nbins2=0)
 
-Calculates the 2D histogram of the values in `v1` and `v2` and returns a [`Histogram2D`](@ref) structure.
+Calculates the 2D histogram of the values in `v1` and `v2`.
 
 # Arguments
 - `v1`: a vector of values along the first dimension;
@@ -1919,7 +1926,8 @@ Calculates the 2D histogram of the values in `v1` and `v2` and returns a [`Histo
 - `nbins1`: number of bins along the first dimension;
 - `nbins2`: number of bins along the second dimension;
 
-If `bs1` (`bs2`) is given `nbins1` (`nbins2`) is ignored.
+If `nbins1` (`nbins2`) is given `bs1` (`bs2`) is ignored.
+Internally, `hist` invokes `StatsBase.fit(Histogram...)` and returns the same data type (see [here](https://juliastats.org/StatsBase.jl/stable/empirical/#Histograms)).  See help for `hist` in 1D for a discussion on the differences.
 
 # Example
 ```julia
@@ -1927,36 +1935,39 @@ v1 = randn(1000)
 v2 = randn(1000)
 h = hist(v1, v2, bs1=0.5, bs2=0.5)
 @gp h  # preview
-@gp "set size ratio -1" "set auto fix" h.bins1 h.bins2 h.counts "w image notit"
+@gp "set size ratio -1" "set autoscale fix" hist_bins(h, 1) hist_bins(h, 2) hist_weights(h) "w image notit"
 ```
 """
-function hist(v1::Vector{T1}, v2::Vector{T2};
+function hist(v1::Vector{T}, v2::Vector{T};
+              w=Vector{T}(),
               range1=[NaN,NaN], bs1=NaN, nbins1=0,
-              range2=[NaN,NaN], bs2=NaN, nbins2=0) where {T1 <: Real, T2 <: Real}
-    @assert length(v1) == length(v2)
-    i = findall(isfinite.(v1)  .&  isfinite.(v2))
-    isnan(range1[1])  &&  (range1[1] = minimum(v1[i]))
-    isnan(range1[2])  &&  (range1[2] = maximum(v1[i]))
-    isnan(range2[1])  &&  (range2[1] = minimum(v2[i]))
-    isnan(range2[2])  &&  (range2[2] = maximum(v2[i]))
-
-    i = findall(isfinite.(v1)  .&  (v1.>= range1[1])  .&  (v1.<= range1[2])  .&
-                 isfinite.(v2)  .&  (v2.>= range2[1])  .&  (v2.<= range2[2]))
-    (nbins1 > 0)  &&  (bs1 = (range1[2] - range1[1]) / nbins1)
-    (nbins2 > 0)  &&  (bs2 = (range2[2] - range2[1]) / nbins2)
-    if isfinite(bs1) &&  isfinite(bs2)
-        hh = fit(Histogram, (v1[i], v2[i]), (range1[1]:bs1:range1[2], range2[1]:bs2:range2[2]), closed=:left)
+              range2=[NaN,NaN], bs2=NaN, nbins2=0) where {T <: Real}
+    rr1 = hist_range(v1; range=range1, bs=bs1, nbins=nbins1)
+    rr2 = hist_range(v2; range=range2, bs=bs2, nbins=nbins2)
+    if length(w) == 0
+        hh = fit(Histogram, (v1, v2),             (rr1, rr2), closed=:left)
     else
-        hh = fit(Histogram, (v1[i], v2[i]), closed=:left)
+        @assert length(v1) == length(v2) == length(w)
+        hh = fit(Histogram, (v1, v2), weights(w), (rr1, rr2), closed=:left)
     end
-    x1 = collect(hh.edges[1])
-    x1 = (x1[1:end-1] .+ x1[2:end]) ./ 2
-    x2 = collect(hh.edges[2])
-    x2 = (x2[1:end-1] .+ x2[2:end]) ./ 2
 
-    binsize1 = x1[2] - x1[1]
-    binsize2 = x2[2] - x2[1]
-    return Histogram2D(x1, x2, hh.weights, binsize1, binsize2)
+    # Ensure entries equal to range[2] are accounted for (i.e., ignore the closed= specification)
+    ii = findall((v1 .== maximum(hh.edges[1]))  .|
+                 (v2 .== maximum(hh.edges[2])))
+    for i1 in 1:(length(hh.edges[1])-1)
+        for i2 in 1:(length(hh.edges[2])-1)
+            j = ii[findall((hh.edges[1][i1] .<= v1[ii] .<= hh.edges[1][i1+1])  .&
+                           (hh.edges[2][i2] .<= v2[ii] .<= hh.edges[2][i2+1]))]
+            if length(j) > 0
+                if length(w) == 0
+                    hh.weights[end, i2] += length(j)
+                else
+                    hh.weights[end, i2] += sum(w[j])
+                end
+            end
+        end
+    end
+    return hh
 end
 
 # Allow missing values in input
@@ -1992,10 +2003,9 @@ end
 # --------------------------------------------------------------------
 """
     boxxy(x, y; xmin=NaN, ymin=NaN, xmax=NaN, ymax=NaN, cartesian=false)
-    boxxy(h::Histogram2D)
-
+    boxxy(h::StatsBase.Histogram)
 """
-boxxy(h::Histogram2D) = boxxy(h.bins1, h.bins2, h.counts, cartesian=true)
+boxxy(h::StatsBase.Histogram{T, 2, R}) where {T, R} = boxxy(hist_bins(h, 1), hist_bins(h, 2), hist_weights(h), cartesian=true)
 function boxxy(x, y, aux...; xmin=NaN, ymin=NaN, xmax=NaN, ymax=NaN, cartesian=false)
     function box(v; vmin=NaN, vmax=NaN)
         vlow  = Vector{Float64}(undef, length(v))
@@ -2075,7 +2085,7 @@ end
 """
     contourlines(x, y, z, cntrparam="level auto 4")
     contourlines(x, y, z, fractions)
-    contourlines(h::Histogram2D, ...)
+    contourlines(h::StatsBase.Histogram, ...)
 
 Compute paths of contour lines for 2D data, and return a vector of [`IsoContourLines`](@ref) object.
 
@@ -2087,7 +2097,7 @@ Compute paths of contour lines for 2D data, and return a vector of [`IsoContourL
 - `z::AbstractMatrix{Float64}`: the levels on which iso-contour lines are to be calculated;
 - `cntrparam::String`: settings to compute contour line paths (see gnuplot documentation for `cntrparam`);
 - `fractions::Vector{Float64}`: compute contour lines encompassing these fractions of total counts;
-- `h::Histogram2D`: use histogram bins and counts to compute contour lines.
+- `h::StatsBase.Histogram`: use 2D histogram bins and counts to compute contour lines.
 
 
 # Example
@@ -2114,7 +2124,7 @@ clines = contourlines(h, p.(1:3));
 @gp palette(:beach, smooth=true, rev=true) "set grid front" "set size ratio -1" h clines
 ```
 """
-contourlines(h::Histogram2D, args...) = contourlines(h.bins1, h.bins2, h.counts, args...)
+contourlines(h::StatsBase.Histogram{T, 2, R}, args...) where {T, R} = contourlines(hist_bins(h, 1), hist_bins(h, 2), hist_weights(h) .* 1., args...)
 function contourlines(x::AbstractVector{Float64}, y::AbstractVector{Float64}, z::AbstractMatrix{Float64},
                       fraction::Vector{Float64})
     @assert minimum(fraction) > 0
@@ -2408,6 +2418,7 @@ using PrecompileTools
     options.dry = true
     @gp 1:9
     @gp tit="test" [0., 1.] [0., 1.] "w l"
+    @gp  hist(rand(10^6))
     @gsp hist(rand(10^6), rand(10^6))
     quitall()
     options.term = _orig_term
