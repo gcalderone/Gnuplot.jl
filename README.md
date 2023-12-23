@@ -66,7 +66,7 @@ clines = contourlines(h, "levels discrete 10, 30, 60, 90");
 for i in 1:length(clines)
     @gp :- clines[i].data "w l t '$(clines[i].z)' lw $i lc rgb 'gray'" :-
 end
-@gsp :- 2 h.bins1 h.bins2 h.counts "w pm3d notit"
+@gsp :- 2 hist_bins(h, 1) hist_bins(h, 2) hist_weights(h) "w pm3d notit"
 save(term="pngcairo size 660,350 fontscale 0.8", output="examples/ex3.png")
 ```
 ![ex3.png](examples/ex3.png)
