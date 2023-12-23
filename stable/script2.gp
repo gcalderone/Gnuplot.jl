@@ -10,5 +10,5 @@ set linetype cycle 5
 set size ratio -1
 set autoscale fix
 plot  \
-   './script2_data/jl_Pa8rnM' binary array=(300, 100) flipy with image notit
+   './script2_data/jl_rWX4se' binary array=(300, 100) flipy with image notit
 set output

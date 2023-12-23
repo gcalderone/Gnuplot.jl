@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Advanced usage · Gnuplot.jl</title><meta name="title" content="Advanced usage · Gnuplot.jl"/><meta property="og:title" content="Advanced usage · Gnuplot.jl"/><meta property="twitter:title" content="Advanced usage · Gnuplot.jl"/><meta name="description" content="Documentation for Gnuplot.jl."/><meta property="og:description" content="Documentation for Gnuplot.jl."/><meta property="twitter:description" content="Documentation for Gnuplot.jl."/><script data-outdated-warner src="../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL=".."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../assets/documenter.js"></script><script src="../search_index.js"></script><script src="../siteinfo.js"></script><script src="../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><a class="docs-logo" href="../"><img src="../assets/logo.png" alt="Gnuplot.jl logo"/></a><div class="docs-package-name"><span class="docs-autofit"><a href="../">Gnuplot.jl</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="../">Home</a></li><li><a class="tocitem" href="../install/">Installation</a></li><li><a class="tocitem" href="../basic/">Basic usage</a></li><li class="is-active"><a class="tocitem" href>Advanced usage</a><ul class="internal"><li><a class="tocitem" href="#Named-datasets"><span>Named datasets</span></a></li><li><a class="tocitem" href="#Multiplot"><span>Multiplot</span></a></li><li><a class="tocitem" href="#Customized-layout"><span>Customized layout</span></a></li><li><a class="tocitem" href="#Multiple-sessions"><span>Multiple sessions</span></a></li><li><a class="tocitem" href="#Histograms"><span>Histograms</span></a></li><li><a class="tocitem" href="#Contour-lines"><span>Contour lines</span></a></li><li><a class="tocitem" href="#Interpolation-of-2D-scattered-data"><span>Interpolation of 2D scattered data</span></a></li><li><a class="tocitem" href="#Animations"><span>Animations</span></a></li><li><a class="tocitem" href="#Direct-command-execution"><span>Direct command execution</span></a></li><li><a class="tocitem" href="#The-gnuplot-REPL"><span>The gnuplot REPL</span></a></li><li><a class="tocitem" href="#Dry-sessions"><span>Dry sessions</span></a></li></ul></li><li><a class="tocitem" href="../options/">Package options</a></li><li><a class="tocitem" href="../style/">Style guide</a></li><li><a class="tocitem" href="../terminals/">Gnuplot terminals</a></li><li><a class="tocitem" href="../recipes/">Plot recipes</a></li><li><a class="tocitem" href="../examples/">Examples</a></li><li><a class="tocitem" href="../api/">API</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li class="is-active"><a href>Advanced usage</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Advanced usage</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/gcalderone/Gnuplot.jl" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/gcalderone/Gnuplot.jl/blob/master/docs/src/advanced.md" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h1 id="Advanced-usage"><a class="docs-heading-anchor" href="#Advanced-usage">Advanced usage</a><a id="Advanced-usage-1"></a><a class="docs-heading-anchor-permalink" href="#Advanced-usage" title="Permalink"></a></h1><p>Here we will show a few advanced techniques for data visualization using <strong>Gnuplot.jl</strong>.</p><h2 id="Named-datasets"><a class="docs-heading-anchor" href="#Named-datasets">Named datasets</a><a id="Named-datasets-1"></a><a class="docs-heading-anchor-permalink" href="#Named-datasets" title="Permalink"></a></h2><p>A dataset may have an associated name whose purpose is to use it multiple times for plotting, while sending it only once to gnuplot. A dataset name must begin with a <code>$</code>.</p><p>A named dataset is defined as a <code>Pair{String, Tuple}</code>, e.g.:</p><pre><code class="language-julia hljs">&quot;\$name&quot; =&gt; (1:10,)</code></pre><p>and can be used as an argument to both <code>@gp</code> and <code>gsp</code>, e.g.:</p><pre><code class="language-julia hljs">x = range(-2pi, stop=2pi, length=100);
+y = sin.(x)
+name = &quot;\$MyDataSet1&quot;
+@gp name=&gt;(x, y) &quot;plot $name w l lc rgb &#39;black&#39;&quot; &quot;pl $name u 1:(1.5*\$2) w l lc rgb &#39;red&#39;&quot;</code></pre><p><img src="../assets/advanced010.png" alt/></p><p>Both curves use the same input data, but the red curve has the second column (<code>\$2</code>, corresponding to the <em>y</em> value) multiplied by a factor 1.5.</p><p>A named dataset comes in hand also when using gnuplot to fit experimental data to a model, e.g.:</p><pre><code class="language-julia hljs"># Generate data and some noise to simulate measurements
+x = range(-2pi, stop=2pi, length=20);
+y = 1.5 * sin.(0.3 .+ 0.7x);
+err = 0.1 * maximum(abs.(y)) .* fill(1, size(x));
+y += err .* randn(length(x));
+name = &quot;\$MyDataSet1&quot;
+
+@gp    &quot;f(x) = a * sin(b + c*x)&quot;     :- # define an analytical model
+@gp :- &quot;a=1&quot; &quot;b=1&quot; &quot;c=1&quot;             :- # set parameter initial values
+@gp :- name=&gt;(x, y, err)             :- # define a named dataset
+@gp :- &quot;fit f(x) $name via a, b, c;&quot;    # fit the data</code></pre><p>The parameter best fit values can be retrieved as follows:</p><pre><code class="language-julia hljs">vars = gpvars();
+@info(&quot;Best fit values:&quot;,
+  a = vars.a,
+  b = vars.b,
+  c = vars.c)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi"><span class="sgr36"><span class="sgr1">┌ Info: </span></span>Best fit values:
+<span class="sgr36"><span class="sgr1">│ </span></span>  a = 1.54103667937582
+<span class="sgr36"><span class="sgr1">│ </span></span>  b = 0.290129453516865
+<span class="sgr36"><span class="sgr1">└ </span></span>  c = 0.702080320340783</code></pre><h2 id="Multiplot"><a class="docs-heading-anchor" href="#Multiplot">Multiplot</a><a id="Multiplot-1"></a><a class="docs-heading-anchor-permalink" href="#Multiplot" title="Permalink"></a></h2><p><strong>Gnuplot.jl</strong> can draw multiple plots in the same figure by exploiting the <code>multiplot</code> command.  Each plot is identified by a positive integer number, which can be used as argument to <code>@gp</code> to redirect commands to the appropriate plot.</p><p>Recycling data from the previous example we can plot both data and best fit model (in plot <code>1</code>) and residuals (in plot <code>2</code>):</p><pre><code class="language-julia hljs">@gp    &quot;f(x) = a * sin(b + c*x)&quot;
+@gp :- &quot;a=$(vars.a)&quot; &quot;b=$(vars.b)&quot; &quot;c=$(vars.c)&quot;
+@gp :- name=&gt;(x, y, err)
+@gp :- &quot;set multiplot layout 2,1&quot;
+@gp :- 1 &quot;p $name w errorbars t &#39;Data&#39;&quot;
+@gp :-   &quot;p $name u 1:(f(\$1)) w l t &#39;Best fit model&#39;&quot;
+@gp :- 2 &quot;p $name u 1:((f(\$1)-\$2) / \$3):(1) w errorbars t &#39;Resid. [{/Symbol s}]&#39;&quot;
+@gp :-   [extrema(x)...] [0,0] &quot;w l notit dt 2 lc rgb &#39;black&#39;&quot; # reference line</code></pre><p><img src="../assets/advanced011.png" alt/></p><p>Note that the order of the plots is not relevant, i.e. we would get the same results with:</p><pre><code class="language-julia hljs">@gp    &quot;f(x) = a * sin(b + c*x)&quot;
+@gp :- &quot;a=$(vars.a)&quot; &quot;b=$(vars.b)&quot; &quot;c=$(vars.c)&quot;
+@gp :- name=&gt;(x, y, err)
+@gp :- &quot;set multiplot layout 2,1&quot;
+@gp :- 2 &quot;p $name u 1:((f(\$1)-\$2) / \$3):(1) w errorbars t &#39;Resid. [{/Symbol s}]&#39;&quot;
+@gp :-   [extrema(x)...] [0,0] &quot;w l notit dt 2 lc rgb &#39;black&#39;&quot; # reference line
+@gp :- 1 &quot;p $name w errorbars t &#39;Data&#39;&quot;
+@gp :-   &quot;p $name u 1:(f(\$1)) w l t &#39;Best fit model&#39;&quot;</code></pre><h2 id="Customized-layout"><a class="docs-heading-anchor" href="#Customized-layout">Customized layout</a><a id="Customized-layout-1"></a><a class="docs-heading-anchor-permalink" href="#Customized-layout" title="Permalink"></a></h2><p>It is also possible to customize the plot layout using the margin keywords (see <a href="#Histograms">Histograms</a> for further info on how to generate andi display histograms):</p><pre><code class="language-julia hljs"># Generate random numbers
+x = randn(1000);
+y = randn(1000);
+
+# Overall plot margins (normalized in the range 0:1)
+margins = (l=0.08, r=0.98, b=0.13, t=0.98)
+
+# Right and top margins of main plot
+right, top = 0.8, 0.75
+
+# Gap between main plot and histograms
+gap  = 0.015
+
+# Main plot
+@gp &quot;set multiplot&quot;
+@gp :- 1 ma=margins rma=right tma=top :-
+@gp :-   x y &quot;w p notit&quot; xlab=&quot;X&quot; ylab=&quot;Y&quot;
+
+# Histogram
+binsize = 0.5
+h = hist(x, y, bs1=binsize, bs2=binsize, range1=gpranges().x, range2=gpranges().y)
+
+# Project histogram on X
+b = hist_bins(h, 1)
+c = sum(hist_weights(h), dims=2) ./ 2
+@gp :- 2 ma=margins bma=top+gap rma=right :-
+@gp :-   &quot;set xtics format &#39;&#39;&quot; &quot;set ytics format &#39;&#39;&quot;  xlab=&quot;&quot; ylab=&quot;&quot; :-
+@gp :-    b c fill(binsize/2, length(b)) c &quot;w boxxy notit fs solid 0.4&quot; :-
+
+# Project histogram on Y
+b = hist_bins(h, 2)
+c = sum(hist_weights(h), dims=1) ./ 2
+@gp :- 3 ma=margins lma=right+gap tma=top :-
+@gp :-     &quot;unset xrange&quot; :-
+@gp :-   c b c fill(binsize/2, length(b)) &quot;w boxxy notit fs solid 0.4&quot; :-
+@gp</code></pre><p><img src="../assets/advanced011b.png" alt/></p><h3 id="Mixing-2D-and-3D-plots"><a class="docs-heading-anchor" href="#Mixing-2D-and-3D-plots">Mixing 2D and 3D plots</a><a id="Mixing-2D-and-3D-plots-1"></a><a class="docs-heading-anchor-permalink" href="#Mixing-2D-and-3D-plots" title="Permalink"></a></h3><p>A multiplot can also mix 2D and 3D plots:</p><pre><code class="language-julia hljs">x = y = -10:0.33:10
+@gp &quot;set multiplot layout 1,2&quot;
+
+# 2D
+@gp :- 1 x sin.(x) ./ x &quot;w l notit&quot;
+
+# 3D
+sinc2d(x,y) = sin.(sqrt.(x.^2 + y.^2))./sqrt.(x.^2+y.^2)
+fxy = [sinc2d(x,y) for x in x, y in y]
+@gsp :- 2 x y fxy &quot;w pm3d notit&quot;</code></pre><p><img src="../assets/advanced012.png" alt/></p><h2 id="Multiple-sessions"><a class="docs-heading-anchor" href="#Multiple-sessions">Multiple sessions</a><a id="Multiple-sessions-1"></a><a class="docs-heading-anchor-permalink" href="#Multiple-sessions" title="Permalink"></a></h2><p><strong>Gnuplot.jl</strong> can handle multiple sessions, i.e. multiple gnuplot processes running simultaneously.  Each session is identified by an ID (<code>sid::Symbol</code>, in the documentation).</p><p>In order to redirect commands to a specific session simply insert a symbol into your <code>@gp</code> or <code>@gsp</code> call, e.g.:</p><pre><code class="language-julia hljs">@gp :GP1 &quot;plot sin(x)&quot;    # opens first window
+@gp :GP2 &quot;plot sin(x)&quot;    # opens secondo window
+@gp :- :GP1 &quot;plot cos(x)&quot; # add a plot on first window</code></pre><p>The session ID can appear in every position in the argument list, but only one ID can be present in each call.  If the session ID is not specified the <code>:default</code> session is used.</p><p>The names of all current sessions can be retrieved with <a href="../api/#Gnuplot.session_names"><code>session_names()</code></a>:</p><pre><code class="language-julia-repl hljs" style="display:block;">julia&gt; println(session_names())</code><code class="nohighlight hljs ansi" style="display:block;">[:default, :GP1, :GP2]</code></pre><p>To quit a specific session use <a href="../api/#Gnuplot.quit"><code>Gnuplot.quit()</code></a>:</p><pre><code class="language-julia-repl hljs" style="display:block;">julia&gt; Gnuplot.quit(:GP1)</code><code class="nohighlight hljs ansi" style="display:block;">0</code></pre><p>The output value is the exit status of the underlying gnuplot process.</p><p>You may also quit all active sessions at once with <a href="../api/#Gnuplot.quitall"><code>Gnuplot.quitall()</code></a>:</p><pre><code class="language-julia-repl hljs" style="display:block;">julia&gt; Gnuplot.quitall()</code><code class="nohighlight hljs ansi" style="display:block;"></code></pre><h2 id="Histograms"><a class="docs-heading-anchor" href="#Histograms">Histograms</a><a id="Histograms-1"></a><a class="docs-heading-anchor-permalink" href="#Histograms" title="Permalink"></a></h2><p><strong>Gnuplot.jl</strong> provides facilities to compute and display histograms, e.g.:</p><pre><code class="language-julia hljs">x = randn(1000);
+@gp hist(x)</code></pre><p><img src="../assets/advanced013a.png" alt/></p><p>The <a href="../api/#Gnuplot.hist"><code>hist()</code></a> function also accept keywords to set the range to consider (<code>range=</code> keyword) and either the bin size (<code>bs=</code>) or the total number of bins (<code>nbins=</code>) in the histogram.  A finer control on the output is achieved by exploiting the (<a href="../api/#Gnuplot.hist_bins"><code>hist_bins</code></a>) and (<a href="../api/#Gnuplot.hist_weights"><code>hist_weights</code></a>) functions, e.g.:</p><pre><code class="language-julia hljs">x = randn(1000);
+h = hist(x, range=3 .* [-1,1], bs=0.5)
+@gp hist_bins(h) hist_weights(h) &quot;w step t &#39;Data&#39; lc rgb &#39;red&#39;&quot;</code></pre><p><img src="../assets/advanced013b.png" alt/></p><p>The <a href="../api/#Gnuplot.hist"><code>hist()</code></a> function compute also 2D histograms by passing two vectors (with the same lengths), e.g.:</p><pre><code class="language-julia hljs">x = randn(10_000)
+y = randn(10_000)
+h = hist(x, y)
+@gp h</code></pre><p><img src="../assets/advanced014a.png" alt/></p><p>Again, a finer control can be achieved by specifying ranges, bin size or number of bins (along both dimensions) and by explicitly using the the (<a href="../api/#Gnuplot.hist_bins"><code>hist_bins</code></a>) and (<a href="../api/#Gnuplot.hist_weights"><code>hist_weights</code></a>) functions:</p><pre><code class="language-julia hljs">x = randn(10_000)
+y = randn(10_000)
+h = hist(x, y, bs1=0.25, nbins2=20, range1=[-3,3], range2=[-3,3])
+@gp &quot;set size ratio -1&quot; hist_bins(h, 1) hist_bins(h, 2) hist_weights(h) &quot;w image notit&quot;</code></pre><p><img src="../assets/advanced014b.png" alt/></p><p>Alternatively, 2D histograms may be displayed using the <code>boxxyerror</code> plot style which allows more flexibility in, e.g., handling transparencies and drawing the histogram grid.  In this case the data can be prepared using the <a href="../api/#Gnuplot.boxxy"><code>boxxy()</code></a> function, as follows:</p><pre><code class="language-julia hljs">@gp &quot;set size ratio -1&quot; &quot;set style fill solid 0.5 border lc rgb &#39;gray&#39;&quot; :-
+@gp :- boxxy(h) &quot;w boxxy notit lc pal&quot;</code></pre><p><img src="../assets/advanced014c.png" alt/></p><h2 id="Contour-lines"><a class="docs-heading-anchor" href="#Contour-lines">Contour lines</a><a id="Contour-lines-1"></a><a class="docs-heading-anchor-permalink" href="#Contour-lines" title="Permalink"></a></h2><p>Although gnuplot already handles contours by itself (with the <code>set contour</code> command), <strong>Gnuplot.jl</strong> provides a way to calculate contour lines paths before displaying them, using the <a href="../api/#Gnuplot.contourlines"><code>contourlines()</code></a> function.  We may preview such lines with:</p><pre><code class="language-julia hljs">x = randn(10_000)
+y = randn(10_000)
+h = hist(x, y)
+clines = contourlines(h, &quot;levels discrete 10, 30, 60, 90&quot;);
+@gp clines</code></pre><p><img src="../assets/advanced014d.png" alt/></p><p>By exploiting the fields of the <a href="../api/#Gnuplot.IsoContourLines"><code>Gnuplot.IsoContourLines</code></a> structure we may also customize line widths, colors and dashed pattern according to their z level, and plot them on top of the 2D histogram:</p><pre><code class="language-julia hljs">@gp &quot;set size ratio -1&quot; &quot;set style fill solid 0.5 border lc rgb &#39;gray&#39;&quot; :-
+@gp :- boxxy(h) &quot;w boxxy notit lc pal&quot;
+for i in 1:length(clines)
+    @gp :- clines[i].data &quot;w l t &#39;$(clines[i].z)&#39; lw $i dt $i lc pal&quot; :-
+end
+@gp :- key=&quot;outside top center box horizontal&quot;</code></pre><p><img src="../assets/advanced014e.png" alt/></p><p>The <a href="../api/#Gnuplot.contourlines"><code>contourlines()</code></a> function also allows to calculate the contour lines encompassing a given fraction of the total counts of a 2D histogram.  E.g. to plot the contours corresponding to 1, 2, and 3 <span>$\sigma$</span> of a 2D Gaussian distribution:</p><pre><code class="language-julia hljs">x = randn(10^5);
+y = randn(10^5);
+h = hist(x, y, nbins1=20, nbins2=20);
+
+# Calculate probability within 0 &lt; r &lt; σ
+p(σ) = round(1 - exp(-(σ^2) / 2), sigdigits=3)
+
+# Draw contour lines at 1, 2 and 3 σ
+clines = contourlines(h, p.(1:3));
+@gp palette(:beach, smooth=true, rev=true) &quot;set grid front&quot; &quot;set size ratio -1&quot; h clines</code></pre><p><img src="../assets/advanced014f.png" alt/></p><h2 id="Interpolation-of-2D-scattered-data"><a class="docs-heading-anchor" href="#Interpolation-of-2D-scattered-data">Interpolation of 2D scattered data</a><a id="Interpolation-of-2D-scattered-data-1"></a><a class="docs-heading-anchor-permalink" href="#Interpolation-of-2D-scattered-data" title="Permalink"></a></h2><p>The <code>dgrid3d()</code> function allows to interpolate 2D scattered data onto a 2D regular grid, e.g.:</p><pre><code class="language-julia hljs">x = (rand(200) .- 0.5) .* 3;
+y = (rand(200) .- 0.5) .* 3;
+z = exp.(-(x.^2 .+ y.^2));
+
+# Interpolate on a 20x30 regular grid with splines
+gx, gy, gz = dgrid3d(x, y, z, &quot;20,30 splines&quot;)
+
+@gsp &quot;set size ratio -1&quot; &quot;set xyplane at 0&quot; xlab=&quot;X&quot; ylab=&quot;Y&quot; :-
+@gsp :-  x  y  z &quot;w p t &#39;Scattered data&#39; lc pal&quot;
+@gsp :- gx gy gz &quot;w l t &#39;Interpolation on a grid&#39; lc pal&quot;</code></pre><p><img src="../assets/advanced015a.png" alt/></p><div class="admonition is-category-warn"><header class="admonition-header">Warn</header><div class="admonition-body"><p>The <code>splines</code> algorithm may be very slow on large datasets.  An alternative option is to use a smoothing kernel, such as <code>gauss</code>.</p></div></div><p>The interpolated data in scarcely sampled regions are poorly constrained, i.e. they are actually <em>extrapolated values</em>.  By using the <code>extra=false</code> keyword all extrapolated values are set to <code>NaN</code>:</p><pre><code class="language-julia hljs">x = randn(2000) .* 0.5;
+y = randn(2000) .* 0.5;
+rsq = x.^2 + y.^2;
+z = exp.(-rsq) .* sin.(y) .* cos.(2 * rsq);
+
+@gsp &quot;set size ratio -1&quot; palette(:balance, smooth=true) &quot;set view map&quot; &quot;set pm3d&quot; :-
+@gsp :- &quot;set multiplot layout 1,3&quot; xr=[-2,2] yr=[-2,2] :-
+@gsp :- 1 tit=&quot;Scattered data&quot;  x  y  z &quot;w p notit lc pal&quot;
+
+# Show extrapolated values
+gx, gy, gz = dgrid3d(x, y, z, &quot;40,40 gauss 0.1,0.1&quot;)
+@gsp :- 2 tit=&quot;Interpolation on a grid\\n(extrapolated values are shown)&quot;  gx gy gz &quot;w l notit lc pal&quot;
+
+# Hide exrapolated values
+gx, gy, gz = dgrid3d(x, y, z, &quot;40,40 gauss 0.1,0.1&quot;, extra=false)
+@gsp :- 3 tit=&quot;Interpolation on a grid\\n(extrapolated values are hidden)&quot; gx gy gz &quot;w l notit lc pal&quot;</code></pre><p><img src="../assets/advanced015b.png" alt/></p><h2 id="Animations"><a class="docs-heading-anchor" href="#Animations">Animations</a><a id="Animations-1"></a><a class="docs-heading-anchor-permalink" href="#Animations" title="Permalink"></a></h2><p>The <a href="#Multiplot">Multiplot</a> capabilities can also be used to stack plots one above the other in order to create an animation, as in the following example:</p><pre><code class="language-julia hljs">x = y = -10:0.33:10
+fz(x,y) = sin.(sqrt.(x.^2 + y.^2))./sqrt.(x.^2+y.^2)
+fxy = [fz(x,y) for x in x, y in y]
+@gsp &quot;set xyplane at 0&quot; &quot;unset colorbox&quot; cbr=[-1,1] zr=[-1,1]
+frame = 0
+for direction in [-1,1]
+    for factor in -1:0.1:1
+        global frame += 1
+        @gsp :- frame x y direction * factor .* fxy &quot;w pm3d notit&quot; :-
+    end
+end
+@gsp</code></pre><p>Here the <code>frame</code> variable is used as multiplot index. The animation can be saved in a GIF file with:</p><pre><code class="language-julia hljs">save(term=&quot;gif animate size 480,360 delay 5&quot;, output=&quot;assets/animation.gif&quot;)</code></pre><p><img src="../assets/animation.gif" alt/></p><h2 id="Direct-command-execution"><a class="docs-heading-anchor" href="#Direct-command-execution">Direct command execution</a><a id="Direct-command-execution-1"></a><a class="docs-heading-anchor-permalink" href="#Direct-command-execution" title="Permalink"></a></h2><p>When gnuplot commands are passed to <code>@gp</code> or <code>@gsp</code> they are stored in a session for future use, or to be saved in <a href="../basic/#Gnuplot-scripts">Gnuplot scripts</a>.  If you simply wish to execute a command without storing it in the session, and possibly retrieve a value, use <a href="../api/#Gnuplot.gpexec"><code>gpexec</code></a>.  E.g., to retrieve the value of a gnuplot variable:</p><pre><code class="language-julia-repl hljs" style="display:block;">julia&gt; gpexec(&quot;print GPVAL_TERM&quot;)</code><code class="nohighlight hljs ansi" style="display:block;">&quot;unknown&quot;</code></pre><p>You may also provide a session ID as first argument (see <a href="#Multiple-sessions">Multiple sessions</a>) to redirect the command to a specific session.</p><p>Alternatively you may start the <a href="#The-gnuplot-REPL">The gnuplot REPL</a> to type commands directly from the Julia prompt.</p><h2 id="The-gnuplot-REPL"><a class="docs-heading-anchor" href="#The-gnuplot-REPL">The gnuplot REPL</a><a id="The-gnuplot-REPL-1"></a><a class="docs-heading-anchor-permalink" href="#The-gnuplot-REPL" title="Permalink"></a></h2><p>The <strong>Gnuplot.jl</strong> package comes with a built-in REPL mode to directly send commands to the underlying gnuplot process.  Since the REPL is a global resource, the gnuplot mode is not enabled by default.  You can start it with:</p><pre><code class="language-julia hljs">Gnuplot.repl_init(start_key=&#39;&gt;&#39;)</code></pre><p>The customizable <code>start_key</code> character is the key which triggers activation of the REPL mode. To quit the gnuplot REPL mode hit the <code>backspace</code> key.</p><h2 id="Dry-sessions"><a class="docs-heading-anchor" href="#Dry-sessions">Dry sessions</a><a id="Dry-sessions-1"></a><a class="docs-heading-anchor-permalink" href="#Dry-sessions" title="Permalink"></a></h2><p>A &quot;<em>dry session</em>&quot; is a session with no underlying gnuplot process.  To enable dry sessions type:</p><pre><code class="language-julia hljs">Gnuplot.options.dry = true;</code></pre><p>before starting a session (see also <a href="../options/#Options">Options</a>).  Note that the <code>dry</code> option is a global one, i.e. it affects all sessions started after setting the option.</p><p>Clearly, no plot can be generated in dry sessions. Still, they are useful to run <strong>Gnuplot.jl</strong> code without raising errors (no attempt will be made to communicate with the underlying process).  Moreover, <a href="../basic/#Gnuplot-scripts">Gnuplot scripts</a> can also be generated in a dry session, without the additional overhead of sending data to the gnuplot process.</p><p>If a gnuplot process can not be started the package will print a warning, and automatically enable dry sessions.</p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../basic/">« Basic usage</a><a class="docs-footer-nextpage" href="../options/">Package options »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="auto">Automatic (OS)</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.2.1 on <span class="colophon-date" title="Sunday 24 December 2023 00:16">Sunday 24 December 2023</span>. Using Julia version 1.9.2.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
