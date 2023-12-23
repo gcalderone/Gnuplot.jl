@@ -16,7 +16,7 @@ A plot *recipe* is a quicklook visualization procedure aimed at reducing the amo
 
 There are two kinds of recipes:
 
-- *explicit* recipe: a function which is explicitly invoked by the user.  It can have any name and accept any number of arguments and keywords.  It is typically used when the visualization of a data type requires some extra information, beside data itself (e.g. to plot data from a `DataFrame` object, see [Explicit recipe (example)](@ref));
+- *explicit* recipe: a function which is explicitly invoked by the user.  It can have any name and accept any number of arguments and keywords.  It is typically used when the visualization of a data type requires some extra information, beside data itself (e.g. to plot data from a `DataFrame` object, see [Simple explicit recipe](@ref));
 
 - *implicit* recipe: a function which is automatically called by **Gnuplot.jl**.  It must extend the [`recipe()`](@ref) function, and accept exactly one mandatory argument.  It is typically used when the visualization is completely determined by the data type itself (e.g. the visualization of a `Matrix{ColorTypes.RGB}` object as an image, see [Image recipes](@ref));
 
@@ -28,7 +28,7 @@ Currently, the **Gnuplot.jl** package provides no built-in explicit recipe.  The
 
 
 
-## Explicit recipe (example)
+## Simple explicit recipe
 
 To generate a plot using the data contained in a `DataFrame` object we need, beside the data itself, the name of the columns to use for the X and Y coordinates.  The following example shows how to implement an explicit recipe to plot a `DataFrame` object:
 ```@example abc
@@ -61,6 +61,48 @@ saveas("recipes001") # hide
 ```
 ![](assets/recipes001.png)
 
+
+## Corner plot recipe
+
+The following is a slightly more complex example illustrating how to generate a corner plot:
+```@example abc
+using RDatasets, DataFrames, Gnuplot
+import Gnuplot: PlotElement, DatasetBin
+
+function cornerplot(df::DataFrame; nbins=5, margins="0.1, 0.9, 0.15, 0.9", spacing=0.01, ticscale=1)
+    numeric_cols = findall([eltype(df[:, i]) <: Real for i in 1:ncol(df)])
+    out = Vector{PlotElement}()
+    push!(out, PlotElement(cmds="set multiplot layout $(length(numeric_cols)), $(length(numeric_cols)) margins $margins spacing $spacing columnsfirst downward"))
+    push!(out, PlotElement(name="\$null", data=DatasetText([10,10])))
+    id = 1
+    for ix in numeric_cols
+        for iy in numeric_cols
+            push!(out, PlotElement(mid=id, xlab="", ylab="", cmds=["set xtics format ''", "set ytics format ''", "set tics scale $ticscale"]))
+            (iy == maximum(numeric_cols))  &&  push!(out, PlotElement(mid=id, xlab=names(df)[ix], cmds="set xtics format '% h'"))
+            (ix == minimum(numeric_cols))  &&  push!(out, PlotElement(mid=id, ylab=names(df)[iy]))
+
+            xr = [extrema(df[:, ix])...]
+            yr = [extrema(df[:, iy])...]
+            if ix == iy
+                h = hist(df[:, ix], range=xr, nbins=nbins)
+                push!(out, PlotElement(mid=id, cmds="unset ytics", xr=xr, yr=[NaN,NaN], data=DatasetBin(hist_bins(h), hist_weights(h)), plot="w steps notit lc rgb 'black'"))
+            elseif ix < iy
+                push!(out, PlotElement(mid=id,                     xr=xr, yr=yr       , data=DatasetBin(df[:, ix], df[:, iy]), plot="w p notit"))
+            else
+                push!(out, PlotElement(mid=id, cmds="set multiplot next"))
+            end
+            id += 1
+        end
+    end
+    return out
+end
+
+# Load a DataFrame and generate a cornerplot
+iris = dataset("datasets", "iris")
+@gp cornerplot(iris)
+saveas("recipes001_1") # hide
+```
+![](assets/recipes001_1.png)
 
 
 ## Histogram recipes

@@ -73,36 +73,4 @@ recipe(M::Matrix{ColorTypes.GrayA{T}}, opt="flipy") where T =
                 plot="$opt with image notit")
 
 
-# --------------------------------------------------------------------
-#=
-export cornerplot
 
-function cornerplot(df::DataFrame; nbins=5, margins="0.1, 0.9, 0.15, 0.9", spacing=0.01)
-    numeric_cols = findall([eltype(df[:, i]) <: Real for i in 1:ncol(df)])
-    out = Vector{Gnuplot.PlotElement}()
-    push!(out, Gnuplot.PlotElement(cmds="set multiplot layout $(length(numeric_cols)), $(length(numeric_cols)) margins $margins spacing $spacing columnsfirst downward"))
-    push!(out, Gnuplot.PlotElement(name="\$null", data=Gnuplot.DatasetText([10,10])))
-    id = 1
-    for ix in numeric_cols
-        for iy in numeric_cols
-            push!(out, Gnuplot.PlotElement(mid=id, xlab="", ylab="", cmds=["set xtics format ''","set ytics format ''", "set border"]))
-            (iy == maximum(numeric_cols))  &&  push!(out, Gnuplot.PlotElement(mid=id, xlab=names(df)[ix], cmds="set xtics format '% h'"))
-            (ix == minimum(numeric_cols))  &&  push!(out, Gnuplot.PlotElement(mid=id, ylab=names(df)[iy]))
-
-            xr = [extrema(df[:, ix])...]
-            yr = [extrema(df[:, iy])...]
-            if ix == iy
-                h = hist(df[:, ix], range=xr, nbins=nbins)
-                push!(out, Gnuplot.PlotElement(mid=id, cmds="unset ytics", xr=xr, yr=[NaN,NaN], data=Gnuplot.DatasetBin(hist_bins(h), hist_weights(h)), plot="w steps notit lc rgb 'black'"))
-            elseif ix < iy
-                push!(out, Gnuplot.PlotElement(mid=id,                     xr=xr, yr=yr       , data=Gnuplot.DatasetBin(df[:, ix], df[:, iy]), plot="w p notit"))
-            else
-                push!(out, Gnuplot.PlotElement(mid=id, xr=[0,1], yr=[0,1], cmds=["unset border", "unset tics", "plot \$null w d notit"]))
-            end
-            id += 1
-        end
-    end
-    return out
-end
-
-=#
