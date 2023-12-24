@@ -55,7 +55,7 @@ Transmission to gnuplot may be slow for large datasets, but no temporary file is
 Constructors are defined as follows:
 ```julia
 DatasetText(data::Vector{String})
-DatasetText(data::Vararg{AbstractArray, N}) where N =
+DatasetText(data::Vararg{AbstractArray, N}) where N
 ```
 In the second form the type of elements of each array must be one of `Real`, `AbstractString` and `Missing`.
 """
@@ -70,7 +70,7 @@ end
 
 A dataset whose data are stored as a binary file.
 
-Ensure best performances for large datasets, but involve use of a temporary files.  When saving a script the file is stored in a directory with the same name as the main script file.
+Ensure best performances for large datasets, but involve use of a temporary file.  When saving a script the file is stored in a directory with the same name as the main script file.
 
 Constructors are defined as follows:
 ```julia
