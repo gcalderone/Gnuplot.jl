@@ -2,9 +2,8 @@ module Gnuplot
 
 using StatsBase, ColorSchemes, ColorTypes, Colors, StructC14N, DataStructures
 using REPL, ReplMaker
+using .GnuplotDriver
 
-import Base.reset
-import Base.write
 import Base.show
 
 export session_names, dataset_names, palette_names, linetypes, palette_levels, palette,
@@ -84,6 +83,7 @@ mutable struct DatasetBin <: Dataset
     source::String
     DatasetBin(::Val{:inner}, file, source) = new(file, source)
 end
+
 
 # ---------------------------------------------------------------------
 """
@@ -168,26 +168,12 @@ end
 
 
 # ---------------------------------------------------------------------
-abstract type Session end
-
-mutable struct DrySession <: Session
+mutable struct GPSession{T}
     sid::Symbol                         # session ID
     datas::OrderedDict{String, Dataset} # data sets
     plots::Vector{SinglePlot}           # commands and plot commands (one entry for each plot of the multiplot)
     curmid::Int                         # current multiplot ID
-end
-
-
-# ---------------------------------------------------------------------
-mutable struct GPSession <: Session
-    sid::Symbol                         # session ID
-    datas::OrderedDict{String, Dataset} # data sets
-    plots::Vector{SinglePlot}           # commands and plot commands (one entry for each plot of the multiplot)
-    curmid::Int                         # current multiplot ID
-    pin::Base.Pipe;
-    perr::Base.Pipe;
-    proc::Base.Process;
-    channel::Channel{String};
+    process::T
 end
 
 

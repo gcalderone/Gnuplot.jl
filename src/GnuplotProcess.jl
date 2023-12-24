@@ -2,7 +2,7 @@ module GnuplotDriver
 
 import Base.reset
 
-export GnuplotProcess, gpexec, quit, terminal, terminals, gpvars
+export GPProcess, gpexec, quit, terminal, terminals, gpvars
 
 # ---------------------------------------------------------------------
 function gpversion(cmd)
@@ -35,7 +35,7 @@ end
 
 
 # ---------------------------------------------------------------------
-struct GnuplotProcess
+struct GPProcess
     sid::Symbol
     options::Options
     pin::Base.Pipe;
@@ -43,7 +43,7 @@ struct GnuplotProcess
     proc::Base.Process;
     channel::Channel{String};
 
-    function GnuplotProcess(sid::Symbol, options=Options())
+    function GPProcess(sid::Symbol, options=Options())
         ver = gpversion(options.cmd)
         @assert ver >= v"5.0" "gnuplot ver. >= 5.0 is required, but " * string(ver) * " was found."
     
@@ -77,7 +77,7 @@ end
 
 
 # ---------------------------------------------------------------------
-function readTask(gp::GnuplotProcess)
+function readTask(gp::GPProcess)
     pagerTokens() = ["Press return for more:"]
 
     captureID = 0
@@ -138,7 +138,7 @@ end
 
 
 # ---------------------------------------------------------------------
-function sendcmd(gp::GnuplotProcess, str::AbstractString)
+function sendcmd(gp::GPProcess, str::AbstractString)
     if gp.options.verbose
         printstyled(color=:light_yellow, "GNUPLOT ($(gp.sid)) $str\n")
     end
@@ -150,7 +150,7 @@ end
 
 
 # ---------------------------------------------------------------------
-function sendcmd_capture_reply(gp::GnuplotProcess, str::AbstractString)
+function sendcmd_capture_reply(gp::GPProcess, str::AbstractString)
     verbose = gp.options.verbose
 
     sendcmd(gp, "print 'GNUPLOT_CAPTURE_BEGIN'")
@@ -168,7 +168,7 @@ end
 
 
 # ---------------------------------------------------------------------
-function gpexec(gp::GnuplotProcess, str::AbstractString)
+function gpexec(gp::GPProcess, str::AbstractString)
     out = sendcmd_capture_reply(gp, str)
     errno = sendcmd_capture_reply(gp, "print GPVAL_ERRNO")
     if errno != "0"
@@ -181,7 +181,7 @@ end
 
 
 # ---------------------------------------------------------------------
-function reset(gp::GnuplotProcess)
+function reset(gp::GPProcess)
     gpexec(gp, "unset multiplot")
     gpexec(gp, "set output")
     gpexec(gp, "reset session")
@@ -208,9 +208,9 @@ end
 
 
 # ---------------------------------------------------------------------
-callback_exit(gp::GnuplotProcess, exitcode::Int) = nothing
+callback_exit(gp::GPProcess, exitcode::Int) = nothing
 
-function quit(gp::GnuplotProcess)
+function quit(gp::GPProcess)
     close(gp.pin)
     close(gp.perr)
     wait( gp.proc)
@@ -221,12 +221,12 @@ end
 
 
 # --------------------------------------------------------------------
-terminal(gp::GnuplotProcess) = gpexec(gp, "print GPVAL_TERM") * " " * gpexec(gp, "print GPVAL_TERMOPTIONS")
-terminals(gp::GnuplotProcess) = string.(split(strip(gpexec(gp, "print GPVAL_TERMINALS")), " "))
+terminal(gp::GPProcess) = gpexec(gp, "print GPVAL_TERM") * " " * gpexec(gp, "print GPVAL_TERMOPTIONS")
+terminals(gp::GPProcess) = string.(split(strip(gpexec(gp, "print GPVAL_TERMINALS")), " "))
 
 
 # --------------------------------------------------------------------
-function gpvars(gp::GnuplotProcess)
+function gpvars(gp::GPProcess)
     vars = string.(strip.(split(gpexec(gp, "show var all"), '\n')))
 
     out = Dict{Symbol, Union{String, Real}}()
