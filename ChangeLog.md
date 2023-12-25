@@ -1,3 +1,9 @@
+# Version 2.0.0
+- Breaking changes:
+  * dataset_names is no longer available
+ 
+
+
 # Version 1.5.0
 - New features:
 	* using PrecompileTools to reduce time-to-first-plot in Julia v1.9;

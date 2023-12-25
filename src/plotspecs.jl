@@ -32,7 +32,7 @@ mutable struct PlotSpecs
     data::Dataset
     plot::Vector{String}
 
-    function PlotSpecs(;mid::Int=0, is3d::Bool=false,
+    function PlotSpecs(;mid::Int=1, is3d::Bool=false,
                        cmds::Union{String, Vector{String}}=Vector{String}(),
                        name::String="",
                        data::Dataset=DatasetEmpty(),
@@ -45,9 +45,6 @@ mutable struct PlotSpecs
         new(mid, is3d, cmds, name, data,
             isa(plot, String)  ? [plot] : plot)
     end
-
-    PlotSpecs(p::PlotSpecs) = # deepcopy everything except data
-        new(p.mid, p.is3d, deepcopy(p.cmds), p.name, p.data, deepcopy(p.plot))
 end
 
 
@@ -272,7 +269,7 @@ function parseArguments(_args...)
     end
 
     # Fourth pass: collect PlotSpecs objects
-    mid = 0
+    mid = 1
     name = ""
     cmds = Vector{String}()
     elems = Vector{PlotSpecs}()

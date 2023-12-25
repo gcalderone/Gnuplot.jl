@@ -86,8 +86,9 @@ end
 struct GPSession{T}
     process::T
     specs::Vector{PlotSpecs}
-    GPSession()             = new{Nothing}(  nothing, Vector{PlotSpecs}())
-    GPSession(p::GPProcess) = new{GPProcess}(p      , Vector{PlotSpecs}())
+    datasent::Vector{Bool}
+    GPSession()             = new{Nothing}(  nothing, Vector{Bool}(), Vector{PlotSpecs}())
+    GPSession(p::GPProcess) = new{GPProcess}(p      , Vector{Bool}(), Vector{PlotSpecs}())
 end
 const sessions = OrderedDict{Symbol, GPSession}()
 
@@ -117,55 +118,9 @@ end
 
 
 # ---------------------------------------------------------------------
-function add_spec!(gp::GPSession{GPProcess}, _spec::PlotSpecs)
-    spec = PlotSpecs(_spec)  # make a local copy since we are going to modify it (TODO: think about this)
-    function dropDuplicatedUsing(source, spec)
-        # Ensure there is no duplicated `using` clause
-        m0 = match(r"(.*) using 1", source)
-        if !isnothing(m0)
-            for r in [r"u +[\d,\(]",
-                      r"us +[\d,\(]",
-                      r"usi +[\d,\(]",
-                      r"usin +[\d,\(]",
-                      r"using +[\d,\(]"]
-                m = match(r, spec)
-                if !isnothing(m)
-                    source = string(m0.captures[1])
-                    break
-                end
-            end
-        end
-        return source
-    end
-
-    if isa(spec.data, DatasetText)
-        if spec.name == ""
-            spec.name = string("\$data", length(gp.specs)+1)
-        end
-        if gp.process.options.verbose
-            printstyled(color=:light_black,      "GNUPLOT ($(gp.process.sid)) "  , spec.name, " << EOD\n")
-            printstyled(color=:light_black, join("GNUPLOT ($(gp.process.sid)) " .* spec.data.preview, "\n") * "\n")
-            printstyled(color=:light_black,      "GNUPLOT ($(gp.process.sid)) ", "EOD\n")
-        end
-        out =  write(gp.process.pin, spec.name * " << EOD\n")
-        out += write(gp.process.pin, spec.data.data)
-        out += write(gp.process.pin, "\nEOD\n")
-        flush(gp.process.pin)
-
-        for i in 1:length(spec.plot)
-            spec.plot[i] = spec.name * " " * spec.plot[i]
-        end
-    elseif isa(spec.data, DatasetBin)
-        for i in 1:length(spec.plot)
-            source = dropDuplicatedUsing(spec.data.source, spec.plot[i])
-            spec.plot[i] = source * " " * spec.plot[i]
-        end
-    else
-        @assert isa(spec.data, DatasetEmpty)
-        #TODO
-    end
+function add_spec!(gp::GPSession{GPProcess}, spec::PlotSpecs)
     push!(gp.specs, spec)
-    sort!(gp.specs, by=x -> getfield(x, :mid))
+    push!(gp.datasent, false)
     nothing
 end
 
@@ -247,6 +202,25 @@ gpexec(s::String) = gpexec(getsession().process, s)
 # ---------------------------------------------------------------------
 execall(gp::GPSession{Nothing}; term::AbstractString="", output::AbstractString="") = nothing
 function execall(gp::GPSession; term::AbstractString="", output::AbstractString="")
+    function dropDuplicatedUsing(source, spec)
+        # Ensure there is no duplicated `using` clause
+        m0 = match(r"(.*) using 1", source)
+        if !isnothing(m0)
+            for r in [r"u +[\d,\(]",
+                      r"us +[\d,\(]",
+                      r"usi +[\d,\(]",
+                      r"usin +[\d,\(]",
+                      r"using +[\d,\(]"]
+                m = match(r, spec)
+                if !isnothing(m)
+                    source = string(m0.captures[1])
+                    break
+                end
+            end
+        end
+        return source
+    end
+
     gpexec(gp, "reset")
     if term != ""
         former_term = terminal(gp)
@@ -255,16 +229,65 @@ function execall(gp::GPSession; term::AbstractString="", output::AbstractString=
     end
     (output != "")  &&  gpexec(gp, "set output '$(replace(output, "'" => "''"))'")
 
-    for spec in gp.specs
-        for s in spec.cmds
-            gpexec(gp, s)
+    mids = getfield.(gp.specs, :mid)
+    @info(mids)
+    @assert all(1 .<= mids)
+
+    cmds = Vector{String}()
+    for mid in 1:maximum(mids)
+        if count(mids .== mid) == 0
+            # TODO: set multi next
+        else
+            # Add commands
+            for i in findall(mids .== mid)
+                spec = gp.specs[i]
+                append!(cmds, spec.cmds)
+            end
+
+            for i in findall(mids .== mid)
+                spec = gp.specs[i]
+                # Send data
+                name = ""
+                if isa(spec.data, DatasetText)
+                    name = (spec.name == ""  ?  "\$data$(i)"  :  spec.name)
+                    if !gp.datasent[i]
+                        if gp.process.options.verbose
+                            printstyled(color=:light_black,      "GNUPLOT ($(gp.process.sid)) "  , name, " << EOD\n")
+                            printstyled(color=:light_black, join("GNUPLOT ($(gp.process.sid)) " .* spec.data.preview, "\n") * "\n")
+                            printstyled(color=:light_black,      "GNUPLOT ($(gp.process.sid)) ", "EOD\n")
+                        end
+                        out =  write(gp.process.pin, name * " << EOD\n")
+                        out += write(gp.process.pin, spec.data.data)
+                        out += write(gp.process.pin, "\nEOD\n")
+                        flush(gp.process.pin)
+                        gp.datasent[i] = true
+                    end
+
+                    # Add plot commands
+                    if length(spec.plot) > 0
+                        push!(cmds, (spec.is3d  ?  "splot "  :  "plot ") * " \\\n  " *
+                            join(name .* " " .* spec.plot, ", \\\n  "))
+                    end
+                elseif isa(spec.data, DatasetBin)
+                    if length(spec.plot) > 0
+                        name = dropDuplicatedUsing.(Ref(spec.data.source), spec.plot)
+                        push!(cmds, (spec.is3d  ?  "splot "  :  "plot ") * " \\\n  " *
+                            join(name .* " " .* spec.plot, ", \\\n  "))
+                    end
+                else
+                    @assert isa(spec.data, DatasetEmpty)
+                    # TODO: Should I add something here?
+                    if length(spec.plot) > 0
+                        push!(cmds, (spec.is3d  ?  "splot "  :  "plot ") * " \\\n  " *
+                            join(spec.plot, ", \\\n  "))
+                    end
+                end
+            end
         end
-        if length(spec.plot) > 0
-            s = (spec.is3d  ?  "splot "  :  "plot ") * " \\\n  " *
-                join(spec.plot, ", \\\n  ")
-            @info s
-            gpexec(gp, s)
-        end
+    end
+
+    for cmd in cmds
+        gpexec(gp, cmd)
     end
     gpexec(gp, "unset multiplot")
     (output != "")  &&  gpexec(gp, "set output")
@@ -275,8 +298,8 @@ function execall(gp::GPSession; term::AbstractString="", output::AbstractString=
 end
 
 
-# # ---------------------------------------------------------------------
-function driver(_args...; is3d=false)
+# ---------------------------------------------------------------------
+function dispatch(_args...; is3d=false)
     (sid, doReset, doDump, specs) = parseArguments(_args...)
     gp = getsession(sid)
     doReset  &&  reset(gp)
@@ -342,7 +365,7 @@ All Keyword names can be abbreviated as long as the resulting name is unambiguou
 """
 macro gp(args...)
     out = Expr(:call)
-    push!(out.args, :(Gnuplot.driver))
+    push!(out.args, :(Gnuplot.dispatch))
     for iarg in 1:length(args)
         arg = args[iarg]
         if (isa(arg, Expr)  &&  (arg.head == :(=)))
