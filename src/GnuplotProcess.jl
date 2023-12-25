@@ -1,4 +1,4 @@
-module GnuplotDriver
+module GnuplotProcess
 
 import Base.reset
 
@@ -46,25 +46,30 @@ struct GPProcess
     function GPProcess(sid::Symbol, options=Options())
         ver = gpversion(options.cmd)
         @assert ver >= v"5.0" "gnuplot ver. >= 5.0 is required, but " * string(ver) * " was found."
-    
+
         pin  = Base.Pipe()
         pout = Base.Pipe()
         perr = Base.Pipe()
         proc = run(pipeline(`$(options.cmd)`, stdin=pin, stdout=pout, stderr=perr), wait=false)
-    
+
         # Close unused sides of the pipes
         Base.close(pout.in)
         Base.close(perr.in)
         Base.close(pin.out)
         Base.start_reading(pout.out)
         Base.start_reading(perr.out)
-    
-        out = new(sid, options, pin, perr, proc, Channel{String}(10000))
+
+        out = new(sid, deepcopy(options), pin, perr, proc, Channel{String}(10000))
 
         # Start reading tasks
         @async readTask(out)
         @async while !eof(pout) # see PR #51
             write(stdout, readavailable(pout))
+        end
+
+        # Read gnuplot default terminal
+        if options.term == ""
+            options.term = terminal(out)
         end
 
         # The stderr of the gnuplot process goes to Julia which can parse
@@ -139,7 +144,7 @@ end
 
 # ---------------------------------------------------------------------
 function sendcmd(gp::GPProcess, str::AbstractString)
-    if gp.options.verbose
+    if gp.options.verbose  &&  isnothing(findfirst("GNUPLOT_CAPTURE_", str))
         printstyled(color=:light_yellow, "GNUPLOT ($(gp.sid)) $str\n")
     end
     w = write(gp.pin, strip(str) * "\n")
@@ -150,9 +155,7 @@ end
 
 
 # ---------------------------------------------------------------------
-function sendcmd_capture_reply(gp::GPProcess, str::AbstractString)
-    verbose = gp.options.verbose
-
+function sendcmd_capture_reply(gp::GPProcess, str::AbstractString)    
     sendcmd(gp, "print 'GNUPLOT_CAPTURE_BEGIN'")
     sendcmd(gp, str)
     sendcmd(gp, "print 'GNUPLOT_CAPTURE_END 0'")
@@ -170,18 +173,25 @@ end
 # ---------------------------------------------------------------------
 function gpexec(gp::GPProcess, str::AbstractString)
     out = sendcmd_capture_reply(gp, str)
+    verbose = gp.options.verbose
+    gp.options.verbose = false
     errno = sendcmd_capture_reply(gp, "print GPVAL_ERRNO")
     if errno != "0"
         errmsg = sendcmd_capture_reply(gp, "print GPVAL_ERRMSG")
+        gp.options.verbose = verbose
         write(gp.pin, "reset error\n")
         error("Gnuplot error: $errmsg")
     end
+    gp.options.verbose = verbose
     return out
 end
 
 
 # ---------------------------------------------------------------------
 function reset(gp::GPProcess)
+    if gp.options.verbose
+        printstyled(color=:light_black, "GNUPLOT ($(gp.sid)) -------------------------------------------\n")
+    end
     gpexec(gp, "unset multiplot")
     gpexec(gp, "set output")
     gpexec(gp, "reset session")
@@ -221,7 +231,7 @@ end
 
 
 # --------------------------------------------------------------------
-terminal(gp::GPProcess) = gpexec(gp, "print GPVAL_TERM") * " " * gpexec(gp, "print GPVAL_TERMOPTIONS")
+terminal(gp::GPProcess) = gpexec(gp, "print GPVAL_TERM, GPVAL_TERMOPTIONS")
 terminals(gp::GPProcess) = string.(split(strip(gpexec(gp, "print GPVAL_TERMINALS")), " "))
 
 
