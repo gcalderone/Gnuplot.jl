@@ -28,22 +28,21 @@ mutable struct PlotSpecs
     mid::Int
     is3d::Bool
     cmds::Vector{String}
-    name::String  # TODO: Should I move this to DatasetText?
+    name::String
     data::Dataset
-    plot::Vector{String}
+    plot::String
 
     function PlotSpecs(;mid::Int=1, is3d::Bool=false,
                        cmds::Union{String, Vector{String}}=Vector{String}(),
                        name::String="",
                        data::Dataset=DatasetEmpty(),
-                       plot::Union{String, Vector{String}}=Vector{String}())
+                       plot::String="")
         if isa(cmds, String)
             if cmds != ""
                 cmds = [cmds]
             end
         end        
-        new(mid, is3d, cmds, name, data,
-            isa(plot, String)  ? [plot] : plot)
+        new(mid, is3d, cmds, name, data, plot)
     end
 end
 
