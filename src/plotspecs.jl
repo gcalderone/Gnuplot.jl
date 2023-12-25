@@ -41,8 +41,8 @@ mutable struct PlotSpecs
             if cmds != ""
                 cmds = [cmds]
             end
-        end        
-        new(mid, is3d, cmds, name, data, plot)
+        end
+        new(mid, is3d, deepcopy(cmds), name, data, plot)
     end
 end
 
