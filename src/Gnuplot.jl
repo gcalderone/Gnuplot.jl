@@ -6,7 +6,7 @@ export session_names, palette_names, linetypes, palette_levels, palette,
     terminal, terminals, test_terminal,
     stats, @gp, @gsp, save, gpexec,
     hist_bins, hist_weights,
-    boxxy, contourlines, dgrid3d, hist, recipe, gpvars, gpmargins, gpranges
+    boxxy, contourlines, dgrid3d, hist, gpvars, gpmargins, gpranges
 
 """
     Gnuplot.version()
@@ -552,9 +552,27 @@ function save(sid::Symbol, mime::Type{T}; kw...) where T <: MIME
 end
 
 
+# --------------------------------------------------------------------
+import Base.show, Base.display
 
-include("utils.jl")
+display(gp::SessionHandle) = nothing
+
+function show(io::IO, mime, gp::SessionHandle)
+    if gp.readyToShow  &&  !options.gpviewer  &&  (mime in keys(options.mime))
+        term = string(strip(options.mime[mime]))
+        if term != ""
+            file = tempname()
+            save(gp.sid, term=term, output=file)
+            write(io, read(file))
+            rm(file; force=true)
+        end
+    end
+    nothing
+end
+
+
 include("histogram.jl")
+include("utils.jl")
 # include("recipes.jl")
 include("repl.jl")
 
