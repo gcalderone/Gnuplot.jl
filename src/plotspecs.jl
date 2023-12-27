@@ -24,11 +24,12 @@ end
 
 struct GPPlotDataCommand <: AbstractGPCommand
     mid::Int
+    is3d::Bool
     data::Dataset
     cmd::String
 
-    GPPlotDataCommand(data::Dataset, cmd::AbstractString; mid::Int=1) =
-        new(mid, data, string(cmd))
+    GPPlotDataCommand(data::Dataset, cmd::AbstractString; mid::Int=1, is3d::Bool=false) =
+        new(mid, is3d, data, string(cmd))
 end
 
 
@@ -104,7 +105,7 @@ end
 
 # ---------------------------------------------------------------------
 parseArguments() = (options.default, false, true, Vector{AbstractGPCommand}())
-function parseArguments(_args...)
+function parseArguments(_args...; is3d=false)
     args = Vector{Any}([_args...])
 
     # First pass: check for session names and `:-`
@@ -134,8 +135,7 @@ function parseArguments(_args...)
     end
     isnothing(out_sid)  &&  (out_sid = options.default)
 
-    # Second pass: check data types, run implicit recipes and splat
-    # Vector{GPPlotDataCommands}
+    # Second pass: check data types, run implicit recipes and splat Vector{GPPlotDataCommands}
     pos = 1
     while pos <= length(args)
         arg = args[pos]
@@ -262,7 +262,7 @@ function parseArguments(_args...)
                     cmd = args[pos+1]
                     deleteat!(args, pos+1)
                 end
-                push!(out_specs, GPPlotDataCommand(arg, cmd, mid=mid))
+                push!(out_specs, GPPlotDataCommand(arg, cmd, mid=mid, is3d=is3d))
             end
         else
             error("Unexpected argument with type " * string(typeof(arg)))

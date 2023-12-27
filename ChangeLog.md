@@ -3,6 +3,7 @@
   * dataset_names is no longer available
   * mid must be specified at each invocation of `@gp` (it used to be remembered across invocations);
   * Real numbers in @gp and @gsp are no longer interpreted as vectors with one element.  Use, e.g., `[0.]`;
+  * Mixing plot and splot commands is no longer allowed
 
 # Version 1.5.0
 - New features:
@@ -10,10 +11,10 @@
 
 	* The `hist` function is now a simple wrapper to
       `StatsBase.fit(Histogram...)`;
-	  
+
 	* The output of `hist` can be passed to `hist_bins` and
       `hist_weights` functions to obtain ready-to-plot arrays;
-		
+
 Note: Julia version >= 1.9 is now required!
 
 # Version 1.4.1

@@ -269,7 +269,7 @@ end
 
 
 # ---------------------------------------------------------------------
-function collect_commands(gp::GPSession; term::AbstractString="", output::AbstractString="", force3d=false, redirect_path=nothing)
+function collect_commands(gp::GPSession; term::AbstractString="", output::AbstractString="", redirect_path=nothing)
     function dropDuplicatedUsing(source, spec)
         # Ensure there is no duplicated `using` clause
         m0 = match(r"(.*) using 1", source)
@@ -308,7 +308,7 @@ function collect_commands(gp::GPSession; term::AbstractString="", output::Abstra
         end
 
         plotcmd = Vector{String}()
-        is3d = force3d
+        is3d = nothing
         for i in 1:length(gp.specs)
             spec = gp.specs[i]
             if !isa(spec, GPNamedDataset)
@@ -320,10 +320,11 @@ function collect_commands(gp::GPSession; term::AbstractString="", output::Abstra
             elseif isa(spec, GPNamedDataset)
                 ; # nothing to do
             elseif isa(spec, GPPlotCommand)
-                is3d = force3d | spec.is3d
+                isnothing(is3d)  ?  (is3d = spec.is3d)  :  @assert(is3d == spec.is3d, "Mixing plot and splot commands is not allowed")
                 push!(plotcmd, spec.cmd)
             else
                 @assert isa(spec, GPPlotDataCommand)
+                isnothing(is3d)  ?  (is3d = spec.is3d)  :  @assert(is3d == spec.is3d, "Mixing plot and splot commands is not allowed")
                 if isa(spec.data, DatasetText)
                     push!(plotcmd, "\$data$(i) " * spec.cmd)
                 else
@@ -358,12 +359,12 @@ end
 
 
 # ---------------------------------------------------------------------
-function dispatch_gpviewer(sid, doReset, doDump, specs, force3d)
+function dispatch_gpviewer(sid, doReset, doDump, specs)
     gp = Gnuplot.getsession(sid)
     doReset  &&  reset(gp)
     Gnuplot.add_spec!.(Ref(gp), specs)
     if doDump
-        gpexec.(Ref(gp), Gnuplot.collect_commands(gp, force3d=force3d))
+        gpexec.(Ref(gp), Gnuplot.collect_commands(gp))
     end
     return nothing
 end
@@ -376,14 +377,13 @@ A structure identifying a specific session.  Used in the `show` interface.
 """
 struct SessionID
     sid::Symbol
-    force3d::Bool
     dump::Bool
 end
-function dispatch_extviewer(sid, doReset, doDump, specs, force3d)
+function dispatch_extviewer(sid, doReset, doDump, specs)
     gp = Gnuplot.getsession(sid)
     doReset  &&  reset(gp)
     Gnuplot.add_spec!.(Ref(gp), specs)
-    return Gnuplot.SessionID(sid, force3d, doDump)
+    return Gnuplot.SessionID(sid, doDump)
 end
 
 
@@ -443,6 +443,7 @@ macro gp(args...)
         first = 1
     end
 
+    # Prepare parseArguments() call
     parseargs = Expr(:call)
     push!(parseargs.args, :(Gnuplot.parseArguments))
     for iarg in first:length(args)
@@ -455,11 +456,12 @@ macro gp(args...)
             push!(parseargs.args, arg)
         end
     end
+    push!(parseargs.args, Expr(:kw, :is3d, force3d))
 
     if options.gpviewer
-        return esc(:(Gnuplot.dispatch_gpviewer($parseargs..., $force3d)))
+        return esc(:(Gnuplot.dispatch_gpviewer($parseargs...)))
     end
-    return esc(:(Gnuplot.dispatch_extviewer($parseargs..., $force3d)))
+    return esc(:(Gnuplot.dispatch_extviewer($parseargs...)))
 end
 
 
