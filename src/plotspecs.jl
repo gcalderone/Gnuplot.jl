@@ -106,6 +106,7 @@ end
 
 
 # ---------------------------------------------------------------------
+parseArguments() = (options.default, false, true, Vector{AbstractGPCommand}())
 function parseArguments(_args...)
     args = Vector{Any}([_args...])
 

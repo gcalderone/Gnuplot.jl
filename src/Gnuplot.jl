@@ -166,18 +166,15 @@ end
 
 Quit the session identified by `sid` and the associated gnuplot process (if any).
 """
-function quit(GP::GPSession{Nothing})
+quit(gp::GPSession{Nothing}) = 0
+quit(gp::GPSession{GPProcess}) = quit(gp.process)
+function quit(sid::Symbol=options.default)
+    gp = getsession(sid)
     delete_binaries(gp)
-    delete!(sessions, sid)
-    return 0
-end    
-function quit(GP::GPSession{GPProcess})
-    delete_binaries(gp)
-    exitcode = quit(gp.process)
+    exitcode = quit(gp)
     delete!(sessions, sid)
     return exitcode
 end
-quit(sid::Symbol=options.default) = quit(getsession(sid))
 
 
 """
@@ -282,10 +279,11 @@ function collect_commands(gp::GPSession; term::AbstractString="", output::Abstra
     (output != "")  &&  push!(out, "set output '$(replace(output, "'" => "''"))'")
 
     mids = getfield.(filter(x -> (:mid in fieldnames(typeof(x))), gp.specs), :mid)
+    (length(mids) == 0)  &&  (mids = [1])
     @assert all(1 .<= mids)
 
     for mid in 1:maximum(mids)
-        if !(mid in mids)
+        if !(mid in mids)  &&  (maximum(mids) > 1)
             push!(out, "set multiplot next")
         end
 
@@ -316,7 +314,9 @@ function collect_commands(gp::GPSession; term::AbstractString="", output::Abstra
         end
 
         if length(plotcmd) == 0
-            push!(out, "set multiplot next")
+            if  maximum(mids) > 1
+                push!(out, "set multiplot next")
+            end
         else
             push!(out, (is3d  ?  "splot "  :  "plot ") * " \\\n" *
                 join(plotcmd, ", \\\n  "))
@@ -409,7 +409,7 @@ All Keyword names can be abbreviated as long as the resulting name is unambiguou
 - any other data type is processed through an implicit recipe. If a suitable recipe do not exists an error is raised.
 """
 macro gp(args...)
-    if isa(args[1], Bool)
+    if (length(args) >= 1)  &&  isa(args[1], Bool)
         force3d = args[1]
         first = 2
     else
