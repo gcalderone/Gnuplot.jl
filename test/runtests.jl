@@ -142,7 +142,7 @@ Gnuplot.quitall()
 @gp :- mar=gpmargins() "plot cos(x)"
 @gp :- [0.] [0.]
 
-@gp "plot sin(x)" 2 xr=(-2pi,2pi) "pause 2" "plot cos(4*x)"
+@gp "plot sin(x)" xr=(-2pi,2pi) "pause 2" "plot cos(4*x)"
 
 x = range(-2pi, stop=2pi, length=100);
 y = 1.5 * sin.(0.3 .+ 0.7x);
@@ -150,7 +150,7 @@ err = 0.1 * maximum(abs.(y)) .* fill(1, size(x));
 noise = err .* randn(length(x));
 
 h = hist(noise, nbins=10)
-@gp hist_bins(h) hist_weights(h) "w histeps notit"
+@gp hist_bins(h) hist_weights(h) "w steps notit"
 @gp h
 
 @gp x y
@@ -174,8 +174,8 @@ name = "\$MyDataSet1"
 @gp :- "set multiplot layout 2,1"                     :-
 @gp :- "plot $name w points" ylab="Data and model"    :-
 @gp :- "plot $name u 1:(f(\$1)) w lines"              :-
-@gp :- 2 xlab="X label" ylab="Residuals"              :-
-@gp :- 2 "plot $name u 1:((f(\$1)-\$2) / \$3):(1) w errorbars notit"
+@gp :- mid=2 xlab="X label" ylab="Residuals"              :-
+@gp :- mid=2 "plot $name u 1:((f(\$1)-\$2) / \$3):(1) w errorbars notit"
 
 # Retrieve values for a, b and c
 if Gnuplot.options.dry

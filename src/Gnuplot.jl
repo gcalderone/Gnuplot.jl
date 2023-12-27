@@ -77,6 +77,7 @@ include("GnuplotProcess.jl")
 using .GnuplotProcess
 gpversion() = Gnuplot.GnuplotProcess.gpversion(options.cmd)
 include("dataset.jl")
+recipe() = error("No recipe defined")
 include("plotspecs.jl")
 
 struct GPSession{T}
@@ -155,7 +156,7 @@ function reset(gp::GPSession)
 
     # Note: the reason to keep Options.term and .init separate are:
     # - .term can be overriden by "unknown" (if options.gpviewer is false);
-    # - .init is dumped in scripts, while .term is not;
+    # - .init is saved in scripts, while .term is not;
     add_spec!(gp, GPCommand(options.init))
     return nothing
 end
@@ -303,10 +304,6 @@ function collect_commands(gp::GPSession; term::AbstractString="", output::Abstra
     @assert all(1 .<= mids)
 
     for mid in 1:maximum(mids)
-        if !(mid in mids)  &&  (maximum(mids) > 1)
-            push!(out, "set multiplot next")
-        end
-
         plotcmd = Vector{String}()
         is3d = nothing
         for i in 1:length(gp.specs)
@@ -341,7 +338,7 @@ function collect_commands(gp::GPSession; term::AbstractString="", output::Abstra
         end
 
         if length(plotcmd) == 0
-            if  maximum(mids) > 1
+            if maximum(mids) > 1
                 push!(out, "set multiplot next")
             end
         else
@@ -364,24 +361,56 @@ end
 
 A structure identifying a specific session.  Used in the `show` interface.
 """
-struct SessionID
+struct SessionHandle
     sid::Symbol
-    dump::Bool
-end
-
-function dispatch(sid, doReset, doDump, specs)
-    gp = Gnuplot.getsession(sid)
-    doReset  &&  reset(gp)
-    Gnuplot.add_spec!.(Ref(gp), specs)
-    if options.gpviewer  &&  doDump
-        gpexec.(Ref(gp), Gnuplot.collect_commands(gp))
-        return nothing
-    end
-    return Gnuplot.SessionID(sid, doDump)
+    readyToShow::Bool
 end
 
 
 # --------------------------------------------------------------------
+function driver(_args...; kws...)
+    args = Vector{Any}([_args...])
+
+    # First pass: check for session name, `:-` and multiplot index
+    sid = nothing
+    doReset = true
+    isReady = true
+    pos = 1
+    while pos <= length(args)
+        arg = args[pos]
+        if typeof(arg) == Symbol
+            if arg == :-
+                if pos == 1
+                    doReset = false
+                elseif pos == length(args)
+                    isReady  = false
+                else
+                    error("Symbol `:-` has a meaning only if it is at first or last position in argument list.")
+                end
+            else
+                @assert isnothing(sid) "Only one session at a time can be addressed"
+                @assert pos == 1 "Session ID should be specified before plot specs"
+                sid = arg
+            end
+            deleteat!(args, pos)
+        else
+            pos += 1
+        end
+    end
+    isnothing(sid)  &&  (sid = options.default)
+
+    gp = getsession(sid)
+    doReset && reset(gp)
+    specs = parseArguments(args...; kws...)
+    add_spec!.(Ref(gp), specs)
+    if options.gpviewer  &&  isReady
+        gpexec.(Ref(gp), collect_commands(gp))
+    end
+    return SessionHandle(sid, isReady)
+end
+
+
+# ---------------------------------------------------------------------
 """
     @gp args...
 
@@ -429,29 +458,17 @@ All Keyword names can be abbreviated as long as the resulting name is unambiguou
 - any other data type is processed through an implicit recipe. If a suitable recipe do not exists an error is raised.
 """
 macro gp(args...)
-    if (length(args) >= 1)  &&  isa(args[1], Bool)
-        force3d = args[1]
-        first = 2
-    else
-        force3d = false
-        first = 1
-    end
-
-    # Prepare parseArguments() call
-    parseargs = Expr(:call)
-    push!(parseargs.args, :(Gnuplot.parseArguments))
-    for iarg in first:length(args)
+    out = Expr(:call)
+    push!(out.args, :(Gnuplot.driver))
+    for iarg in 1:length(args)
         arg = args[iarg]
-        if (isa(arg, Expr)  &&  (arg.head == :(=)))  # replace keywords with Tuple{Symbol, Any}
-            sym = arg.args[1]
-            val = arg.args[2]
-            push!(parseargs.args, :(($(QuoteNode(sym)), $val)))
+        if (isa(arg, Expr)  &&  (arg.head == :(=)))
+            push!(out.args, Expr(:kw, arg.args[1], arg.args[2]))
         else
-            push!(parseargs.args, arg)
+            push!(out.args, arg)
         end
     end
-    push!(parseargs.args, Expr(:kw, :is3d, force3d))
-    return esc(:(Gnuplot.dispatch($parseargs...)))
+    return esc(out)
 end
 
 
@@ -462,8 +479,8 @@ This macro accepts the same syntax as [`@gp`](@ref), but produces a 3D plot inst
 """
 macro gsp(args...)
     out = Expr(:macrocall, Symbol("@gp"), LineNumberNode(1, nothing))
-    push!(out.args, true)
     push!(out.args, args...)
+    push!(out.args, Expr(:kw, :is3d, true))
     return esc(out)
 end
 
@@ -482,7 +499,7 @@ function savescript(gp::GPSession, filename)
     path_bin = joinpath(dirname(filename), join(s, "."))
     isabspath(path_bin)  ||  (path_bin=joinpath(".", path_bin))
 
-    # Dump named datasets / copy binary files
+    # Write named datasets / copy binary files
     for (name, source, data) in datasets(gp)
         if isa(data, DatasetText)
             println(stream, name * " << EOD")
@@ -493,7 +510,7 @@ function savescript(gp::GPSession, filename)
             cp(data.file, joinpath(path_bin, basename(data.file), force=true))
         end
     end
-    for s in collect_commands(gp, redirect_path=path_bin)  # todo handle global force3d
+    for s in collect_commands(gp, redirect_path=path_bin)
         println(stream, s)
     end
     close(stream)
@@ -501,13 +518,10 @@ function savescript(gp::GPSession, filename)
 end
 
 
-
 include("utils.jl")
 include("histogram.jl")
 # include("recipes.jl")
 include("repl.jl")
-
-
 
 
 # using PrecompileTools

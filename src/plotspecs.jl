@@ -34,7 +34,7 @@ end
 
 
 # ---------------------------------------------------------------------
-function parseKeywords(; kwargs...)
+function parseKeywords(; kws...)
     template = (xrange=NTuple{2, Real},
                 yrange=NTuple{2, Real},
                 zrange=NTuple{2, Real},
@@ -55,7 +55,7 @@ function parseKeywords(; kwargs...)
                 bmargin=Union{AbstractString,Real},
                 tmargin=Union{AbstractString,Real})
 
-    kw = canonicalize(template; kwargs...)
+    kw = canonicalize(template; kws...)
     out = Vector{String}()
     ismissing(kw.xrange ) || (push!(out, replace("set xrange  [" * join(kw.xrange , ":") * "]", "NaN"=>"*")))
     ismissing(kw.yrange ) || (push!(out, replace("set yrange  [" * join(kw.yrange , ":") * "]", "NaN"=>"*")))
@@ -89,7 +89,7 @@ end
 
 
 # ---------------------------------------------------------------------
-function parseStrAsCommand(s::String, mid::Int)
+function parseAsPlotCommand(s::String, mid::Int)
     (length(s) >= 2)  &&  (s[1:2] ==  "p "    )  &&  (return GPPlotCommand(strip(s[2:end]), mid=mid))
     (length(s) >= 3)  &&  (s[1:3] ==  "pl "   )  &&  (return GPPlotCommand(strip(s[3:end]), mid=mid))
     (length(s) >= 4)  &&  (s[1:4] ==  "plo "  )  &&  (return GPPlotCommand(strip(s[4:end]), mid=mid))
@@ -103,51 +103,16 @@ function parseStrAsCommand(s::String, mid::Int)
 end
 
 
-# ---------------------------------------------------------------------
-parseArguments() = (options.default, false, true, Vector{AbstractGPCommand}())
-function parseArguments(_args...; is3d=false)
+parseArguments() = Vector{AbstractGPCommand}()
+function parseArguments(_args...; mid=1, is3d=false, kws...)
     args = Vector{Any}([_args...])
-
-    # First pass: check for session names and `:-`
-    out_sid = nothing
-    out_doReset = length(args) != 0
-    out_doDump = true
-    pos = 1
-    while pos <= length(args)
-        arg = args[pos]
-        if typeof(arg) == Symbol
-            if arg == :-
-                if pos == 1
-                    out_doReset = false
-                elseif pos == length(args)
-                    out_doDump  = false
-                else
-                    error("Symbol `:-` has a meaning only if it is at first or last position in argument list.")
-                end
-            else
-                @assert isnothing(out_sid) "Only one session at a time can be addressed"
-                out_sid = arg
-            end
-            deleteat!(args, pos)
-        else
-            pos += 1
-        end
-    end
-    isnothing(out_sid)  &&  (out_sid = options.default)
 
     # Second pass: check data types, run implicit recipes and splat Vector{GPPlotDataCommands}
     pos = 1
     while pos <= length(args)
         arg = args[pos]
-        if isa(arg, Int)                             # ==> multiplot index
-            @assert arg > 0 "Multiplot index must be a positive integer"
-        elseif isa(arg, AbstractString)              # ==> a plotspec or a command
+        if isa(arg, AbstractString)                  # ==> a plotspec or a command
             args[pos] = string(strip(arg))
-        elseif isa(arg, Tuple)  &&                   # ==> a keyword/value pair
-            length(arg) == 2    &&
-            isa(arg[1], Symbol)                 ;
-            # Delay until fourth pass to avoid misinterpreting a
-            # keyword as a plotspec. E.g.: @gp x x.^2 ylog=true
         elseif isa(arg, Pair)                        # ==> a named dataset
             @assert typeof(arg[1]) == String "Dataset name must be a string"
             @assert arg[1][1] == '$' "Dataset name must start with a dollar sign"
@@ -166,8 +131,10 @@ function parseArguments(_args...; is3d=false)
             pe = recipe(arg)
             if isa(pe, AbstractGPCommand)
                 insert!(args, pos, pe)
-            elseif isa(pe, Vector{<: AbstractGPCommand})
-                insert!(args, pos, pe)
+            elseif isa(pe, Vector)  &&  all(isa.(pe, AbstractGPCommand))
+                for p in reverse(pe)
+                    insert!(args, pos, p)
+                end
             else
                 error("Recipe must return an AbstractGPCommand or Vector{<: AbstractGPCommand}")
             end
@@ -235,21 +202,15 @@ function parseArguments(_args...; is3d=false)
     end
 
     # Fourth pass: collect specs
-    mid = 1
-    cmds = Vector{String}()
     out_specs = Vector{AbstractGPCommand}()
+    push!(out_specs, GPCommand(parseKeywords(; kws...), mid=mid))
+
     pos = 1
     while pos <= length(args)
         arg = args[pos]
 
-        if isa(arg, Int)                         # ==> multiplot index
-            mid = arg
-        elseif isa(arg, Tuple)  &&               # ==> a keyword/value pair
-            length(arg) == 2    &&
-            isa(arg[1], Symbol)
-            push!(out_specs, GPCommand(parseKeywords(; [arg]...), mid=mid))
-        elseif isa(arg, String)                  # ==> a plotspec or a command
-            push!(out_specs, parseStrAsCommand(arg, mid))
+        if isa(arg, String)                      # ==> a plotspec or a command
+            push!(out_specs, parseAsPlotCommand(arg, mid))
         elseif isa(arg, Pair)                    # ==> name => dataset pair
             name = arg[1]
             @assert  isa(arg[2], Dataset)
@@ -264,11 +225,13 @@ function parseArguments(_args...; is3d=false)
                 end
                 push!(out_specs, GPPlotDataCommand(arg, cmd, mid=mid, is3d=is3d))
             end
+        elseif isa(arg, AbstractGPCommand)
+            push!(out_specs, arg)
         else
             error("Unexpected argument with type " * string(typeof(arg)))
         end
         pos += 1
     end
 
-    return (out_sid, out_doReset, out_doDump, out_specs)
+    return out_specs
 end

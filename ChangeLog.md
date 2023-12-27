@@ -1,7 +1,8 @@
 # Version 2.0.0
 - Breaking changes:
-  * dataset_names is no longer available
+  * dataset_names() is no longer available
   * mid must be specified at each invocation of `@gp` (it used to be remembered across invocations);
+  * Only one mid can be used at a time, and must be passed via the mid=keyword
   * Real numbers in @gp and @gsp are no longer interpreted as vectors with one element.  Use, e.g., `[0.]`;
   * Mixing plot and splot commands is no longer allowed
 
