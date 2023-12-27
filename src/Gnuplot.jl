@@ -2,10 +2,6 @@ module Gnuplot
 
 using StatsBase, ColorSchemes, ColorTypes, Colors, StructC14N, DataStructures
 
-include("GnuplotProcess.jl")
-using .GnuplotProcess
-
-
 export session_names, palette_names, linetypes, palette_levels, palette,
     terminal, terminals, test_terminal,
     stats, @gp, @gsp, save, gpexec,
@@ -18,10 +14,6 @@ export session_names, palette_names, linetypes, palette_levels, palette,
 Return the **Gnuplot.jl** package version.
 """
 version() = v"1.5.0"
-
-
-include("dataset.jl")
-include("plotspecs.jl")
 
 
 # ---------------------------------------------------------------------
@@ -62,8 +54,6 @@ Base.@kwdef mutable struct Options
     preferred_format::Symbol = :auto
 end
 const options = Options()
-gpversion() = Gnuplot.GnuplotProcess.gpversion(options.cmd)
-
 
 # ---------------------------------------------------------------------
 function __init__()
@@ -83,21 +73,22 @@ end
 
 
 # ---------------------------------------------------------------------
+include("GnuplotProcess.jl")
+using .GnuplotProcess
+gpversion() = Gnuplot.GnuplotProcess.gpversion(options.cmd)
+include("dataset.jl")
+include("plotspecs.jl")
+
 struct GPSession{T}
     process::T
     specs::Vector{AbstractGPCommand}
     GPSession()             = new{Nothing}(  nothing, Vector{AbstractGPCommand}())
     GPSession(p::GPProcess) = new{GPProcess}(p      , Vector{AbstractGPCommand}())
 end
+
+
+# ---------------------------------------------------------------------
 const sessions = OrderedDict{Symbol, GPSession}()
-
-
-# ---------------------------------------------------------------------
-import .GnuplotProcess: gpexec
-gpexec(gp::GPSession{GPProcess}, s::AbstractString) = gpexec(gp.process, s)
-
-
-# ---------------------------------------------------------------------
 function getsession(sid::Symbol=options.default)
     if !(sid in keys(sessions))
         if options.dry
@@ -115,6 +106,99 @@ function getsession(sid::Symbol=options.default)
     return sessions[sid]
 end
 
+
+"""
+    session_names()
+
+Return a vector with all currently active sessions.
+"""
+session_names() = Symbol.(keys(sessions))
+
+
+# ---------------------------------------------------------------------
+import .GnuplotProcess: gpexec, gpvars, reset, quit, terminal, terminals
+"""
+    gpexec(sid::Symbol, command::String)
+    gpexec(command::String)
+
+Execute the gnuplot command `command` on the underlying gnuplot process of the `sid` session, and return the results as a `Vector{String}`.  If a gnuplot error arises it is propagated as an `ErrorException`.
+
+If the `sid` argument is not provided, the default session is considered.
+
+## Examples:
+```julia-repl
+gpexec("print GPVAL_TERM")
+gpexec("plot sin(x)")
+```
+"""
+gpexec(gp::GPSession{Nothing}, s::AbstractString) = nothing
+gpexec(gp::GPSession{GPProcess}, s::AbstractString) = gpexec(gp.process, s)
+gpexec(sid::Symbol, s::String) = gpexec(getsession(sid), s)
+gpexec(s::String) = gpexec(getsession(), s)
+
+
+"""
+    gpvars(sid::Symbol)
+    gpvars()
+
+Return a `NamedTuple` with all currently defined gnuplot variables.  If the `sid` argument is not provided, the default session is considered.
+"""
+gpvars(gp::GPSession{Nothing}) = nothing
+gpvars(gp::GPSession{GPProcess}) = gpvars(gp.process)
+gpvars(sid::Symbol=options.default) = gpvars(getsession(sid))
+
+
+function reset(gp::GPSession)
+    delete_binaries(gp)
+    empty!(gp.specs)
+    reset(gp.process)
+
+    # Note: the reason to keep Options.term and .init separate are:
+    # - .term can be overriden by "unknown" (if options.gpviewer is false);
+    # - .init is dumped in scripts, while .term is not;
+    add_spec!(gp, GPCommand(options.init))
+    return nothing
+end
+
+
+"""
+    Gnuplot.quit(sid::Symbol)
+
+Quit the session identified by `sid` and the associated gnuplot process (if any).
+"""
+function quit(GP::GPSession{Nothing})
+    delete_binaries(gp)
+    delete!(sessions, sid)
+    return 0
+end    
+function quit(GP::GPSession{GPProcess})
+    delete_binaries(gp)
+    exitcode = quit(gp.process)
+    delete!(sessions, sid)
+    return exitcode
+end
+quit(sid::Symbol=options.default) = quit(getsession(sid))
+
+
+"""
+    terminal(sid::Symbol)
+    terminal()
+
+Return a `String` with the current gnuplot terminal (and its options) of the process associated to session `sid`, or to the default session (if `sid` is not provided).
+"""
+terminal(gp::GPSession{Nothing}) = "unknown"
+terminal(gp::GPSession{GPProcess}) = terminal(gp.process)
+terminal(sid::Symbol=options.default) = terminal(getsession(sid))
+
+"""
+    terminals()
+
+Return a `Vector{String}` with the names of all the available gnuplot terminals.
+"""
+terminals(gp::GPSession{Nothing}) = error("Unknown terminals for a dry session")
+terminals(gp::GPSession{GPProcess}) = terminals(gp.process)
+terminals(sid::Symbol=options.default) = terminals(getsession(sid))
+    
 
 # ---------------------------------------------------------------------
 add_spec!(gp::GPSession{Nothing}, spec::AbstractGPCommand) = push!(gp.specs, spec)
@@ -154,37 +238,6 @@ end
 
 
 # ---------------------------------------------------------------------
-import .GnuplotProcess.reset
-function reset(gp::GPSession)
-    delete_binaries(gp)
-    empty!(gp.specs)
-    reset(gp.process)
-
-    # Note: the reason to keep Options.term and .init separate are:
-    # - .term can be overriden by "unknown" (if options.gpviewer is false);
-    # - .init is dumped in scripts, while .term is not;
-    add_spec!(gp, GPCommand(options.init))
-    return nothing
-end
-
-
-# ---------------------------------------------------------------------
-import .GnuplotProcess.quit
-
-"""
-    Gnuplot.quit(sid::Symbol)
-
-Quit the session identified by `sid` and the associated gnuplot process (if any).
-"""
-function quit(sid::Symbol=options.default)
-    (sid in keys(sessions))  ||  (return 0)
-    gp = sessions[sid]
-    exitcode = quit(gp.process)
-    delete_binaries(gp)
-    delete!(sessions, sid)
-    return exitcode
-end
-
 """
     Gnuplot.quitall()
 
@@ -198,27 +251,8 @@ function quitall()
 end
 
 
-# --------------------------------------------------------------------
-"""
-    gpexec(sid::Symbol, command::String)
-    gpexec(command::String)
-
-Execute the gnuplot command `command` on the underlying gnuplot process of the `sid` session, and return the results as a `Vector{String}`.  If a gnuplot error arises it is propagated as an `ErrorException`.
-
-If the `sid` argument is not provided, the default session is considered.
-
-## Examples:
-```julia-repl
-gpexec("print GPVAL_TERM")
-gpexec("plot sin(x)")
-```
-"""
-gpexec(sid::Symbol, s::String) = gpexec(getsession(sid).process, s)
-gpexec(s::String) = gpexec(getsession().process, s)
-
-
 # ---------------------------------------------------------------------
-function collect_commands(gp::GPSession{T}; term::AbstractString="", output::AbstractString="", force3d=false) where T
+function collect_commands(gp::GPSession; term::AbstractString="", output::AbstractString="", force3d=false)
     function dropDuplicatedUsing(source, spec)
         # Ensure there is no duplicated `using` clause
         m0 = match(r"(.*) using 1", source)
@@ -307,26 +341,25 @@ function dispatch_gpviewer(sid, doReset, doDump, specs, force3d)
     end
     return nothing
 end
-
-function dispatch_extviewer(sid, doReset, doDump, specs, force3d)
-    gp = Gnuplot.getsession(sid)
-    doReset  &&  reset(gp)
-    Gnuplot.add_spec!.(Ref(gp), specs)
-    return Gnuplot.SessionRef(sid, force3d, doDump)
-end
-
-
-# ---------------------------------------------------------------------
+    
+    
 """
     SessionID
 
 A structure identifying a specific session.  Used in the `show` interface.
 """
-struct SessionRef
+struct SessionID
     sid::Symbol
     force3d::Bool
     dump::Bool
 end
+function dispatch_extviewer(sid, doReset, doDump, specs, force3d)
+    gp = Gnuplot.getsession(sid)
+    doReset  &&  reset(gp)
+    Gnuplot.add_spec!.(Ref(gp), specs)
+    return Gnuplot.SessionID(sid, force3d, doDump)
+end
+
 
 # --------------------------------------------------------------------
 """
@@ -417,77 +450,7 @@ macro gsp(args...)
 end
 
 
-# --------------------------------------------------------------------
-"""
-    session_names()
-
-Return a vector with all currently active sessions.
-"""
-session_names() = Symbol.(keys(sessions))
-
-
-# --------------------------------------------------------------------
-"""
-    terminals()
-
-Return a `Vector{String}` with the names of all the available gnuplot terminals.
-"""
-terminals() = GnuplotProcess.terminals(getsession().process)
-
-
-# --------------------------------------------------------------------
-"""
-    terminal(sid::Symbol)
-    terminal()
-
-Return a `String` with the current gnuplot terminal (and its options) of the process associated to session `sid`, or to the default session (if `sid` is not provided).
-"""
-terminal(sid::Symbol=options.default) = GnuplotProcess.terminal(getsession(sid).process)
-
-
-# --------------------------------------------------------------------
-import .GnuplotProcess.gpvars
-"""
-    gpvars(sid::Symbol)
-    gpvars()
-
-Return a `NamedTuple` with all currently defined gnuplot variables.  If the `sid` argument is not provided, the default session is considered.
-"""
-gpvars(sid::Symbol=options.default) = gpvars(getsession(sid).process)
-
-
-# --------------------------------------------------------------------
-"""
-    gpmargins(sid::Symbol)
-    gpmargins()
-
-Return a `NamedTuple` with keys `l`, `r`, `b` and `t` containing respectively the left, rigth, bottom and top margins of the current plot (in screen coordinates).
-"""
-function gpmargins(sid::Symbol=options.default)
-    vars = gpvars(sid)
-    l = vars.TERM_XMIN / (vars.TERM_XSIZE / vars.TERM_SCALE)
-    r = vars.TERM_XMAX / (vars.TERM_XSIZE / vars.TERM_SCALE)
-    b = vars.TERM_YMIN / (vars.TERM_YSIZE / vars.TERM_SCALE)
-    t = vars.TERM_YMAX / (vars.TERM_YSIZE / vars.TERM_SCALE)
-    return (l=l, r=r, b=b, t=t)
-end
-
-"""
-    gpranges(sid::Symbol)
-    gpranges()
-
-Return a `NamedTuple` with keys `x`, `y`, `z` and `cb` containing respectively the current plot ranges for the X, Y, Z and color box axis.
-"""
-function gpranges(sid::Symbol=options.default)
-    vars = gpvars(sid)
-    x = [vars.X_MIN, vars.X_MAX]
-    y = [vars.Y_MIN, vars.Y_MAX]
-    z = [vars.Z_MIN, vars.Z_MAX]
-    c = [vars.CB_MIN, vars.CB_MAX]
-    return (x=x, y=y, z=z, cb=c)
-end
-#
-# include("misc.jl")
+include("utils.jl")
 # include("recipes.jl")
 #
 #

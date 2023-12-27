@@ -1,8 +1,8 @@
 # Version 2.0.0
 - Breaking changes:
   * dataset_names is no longer available
- 
-
+  * mid must be specified at each invocation of `@gp` (it used to be remembered across invocations);
+  * Real numbers in @gp and @gsp are no longer interpreted as vectors with one element.  Use, e.g., `[0.]`;
 
 # Version 1.5.0
 - New features:

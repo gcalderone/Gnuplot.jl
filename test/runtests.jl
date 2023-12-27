@@ -140,7 +140,7 @@ Gnuplot.quitall()
 
 @gp mar="0,1,0,1" "plot sin(x)"
 @gp :- mar=gpmargins() "plot cos(x)"
-@gp :- 0. 0.
+@gp :- [0.] [0.]
 
 @gp "plot sin(x)" 2 xr=(-2pi,2pi) "pause 2" "plot cos(4*x)"
 
@@ -175,7 +175,7 @@ name = "\$MyDataSet1"
 @gp :- "plot $name w points" ylab="Data and model"    :-
 @gp :- "plot $name u 1:(f(\$1)) w lines"              :-
 @gp :- 2 xlab="X label" ylab="Residuals"              :-
-@gp :- "plot $name u 1:((f(\$1)-\$2) / \$3):(1) w errorbars notit"
+@gp :- 2 "plot $name u 1:((f(\$1)-\$2) / \$3):(1) w errorbars notit"
 
 # Retrieve values for a, b and c
 if Gnuplot.options.dry
@@ -196,7 +196,7 @@ name = "\$MyDataSet1"
 @gp :- :dry "plot $name w points"                            :-
 @gp :- :dry "plot $name u 1:(f(\$1)) w lines"                :-
 @gp :- :dry 2 xlab="X label" ylab="Residuals"                :-
-@gp :- :dry "plot $name u 1:((f(\$1)-\$2) / \$3):(1) w errorbars notit" :-
+@gp :- :dry 2 "plot $name u 1:((f(\$1)-\$2) / \$3):(1) w errorbars notit" :-
 @gp :- :dry
 save(:dry, "test.gp")        # write on file test.gp
 Gnuplot.quitall()

@@ -1,32 +1,3 @@
-# ---------------------------------------------------------------------
-"""
-    GPPlotCommands
-
-Specifications for a plot item based on a single dataset.
-
-# Fields
-- `mid::Int`: multiplot ID (use 0 for single plots);
-- `is3d::Bool`: true if the data are supposed to be displayed in a 3D plot;
-- `cmds::Vector{String}`: commands to set plot properties;
-- `name::String`: name of the dataset (use "" to automatically generate a unique name);
-- `data::Dataset`: a dataset
-- `plot::Vector{String}`: plot specifications for the associated `Dataset`;
-
-The constructor is defined as follows:
-```julia
-GPPlotCommands(;mid::Int=0, is3d::Bool=false,
-          cmds::Union{String, Vector{String}}=Vector{String}(),
-          name::String="",
-          data::Dataset=DatasetEmpty(),
-          plot::Union{String, Vector{String}}=Vector{String}(),
-          kwargs...)
-```
-No field is mandatory, i.e. even `Gnuplot.GPPlotCommands()` provides a valid structure.
-The constructor also accept all the keywords accepted by `parseKeywords`.
-"""
-
-
-
 abstract type AbstractGPCommand end
 has_dataset(::AbstractGPCommand) = false
 
