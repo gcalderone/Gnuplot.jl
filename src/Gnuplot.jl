@@ -85,10 +85,9 @@ end
 # ---------------------------------------------------------------------
 struct GPSession{T}
     process::T
-    datasources::Vector{String}
-    specs::Vector{PlotSpecs}
-    GPSession()             = new{Nothing}(  nothing, Vector{String}(), Vector{PlotSpecs}())
-    GPSession(p::GPProcess) = new{GPProcess}(p      , Vector{String}(), Vector{PlotSpecs}())
+    specs::Vector{AbstractGPCommand}
+    GPSession()             = new{Nothing}(  nothing, Vector{AbstractGPCommand}())
+    GPSession(p::GPProcess) = new{GPProcess}(p      , Vector{AbstractGPCommand}())
 end
 const sessions = OrderedDict{Symbol, GPSession}()
 
@@ -118,17 +117,37 @@ end
 
 
 # ---------------------------------------------------------------------
-function add_spec!(gp::GPSession{GPProcess}, spec::PlotSpecs)
-    push!(gp.datasources, "")
+add_spec!(gp::GPSession{Nothing}, spec::AbstractGPCommand) = push!(gp.specs, spec)
+function add_spec!(gp::GPSession{GPProcess}, spec::AbstractGPCommand)
     push!(gp.specs, spec)
+    if has_dataset(spec)  &&  isa(spec.data, DatasetText)
+        if isa(spec, GPNamedDataset)
+            name = spec.data.name
+        else
+            @assert isa(spec, GPPlotDataCommand)
+            name = "\$data$(length(gp.specs))"
+        end
+        if gp.process.options.verbose
+            printstyled(color=:light_black,      "GNUPLOT ($(gp.process.sid)) "  , name, " << EOD\n")
+            printstyled(color=:light_black, join("GNUPLOT ($(gp.process.sid)) " .* spec.data.preview, "\n") * "\n")
+            printstyled(color=:light_black,      "GNUPLOT ($(gp.process.sid)) ", "EOD\n")
+        end
+        write(gp.process.pin, name * " << EOD\n")
+        write(gp.process.pin, spec.data.data)
+        write(gp.process.pin, "\nEOD\n")
+        flush(gp.process.pin)
+    end
+    nothing
 end
 
 
 # ---------------------------------------------------------------------
 function delete_binaries(gp::GPSession)
     for spec in gp.specs
-        if isa(spec.data, DatasetBin)  &&  (spec.data.file != "")
-            rm(spec.data.file, force=true)
+        if has_dataset(spec)
+            if isa(spec.data, DatasetBin)  &&  (spec.data.file != "")
+                rm(spec.data.file, force=true)
+            end
         end
     end
 end
@@ -138,14 +157,13 @@ end
 import .GnuplotProcess.reset
 function reset(gp::GPSession)
     delete_binaries(gp)
-    empty!(gp.datasources)
     empty!(gp.specs)
     reset(gp.process)
 
     # Note: the reason to keep Options.term and .init separate are:
     # - .term can be overriden by "unknown" (if options.gpviewer is false);
     # - .init is dumped in scripts, while .term is not;
-    add_spec!(gp, PlotSpecs(cmds=deepcopy(options.init)))
+    add_spec!(gp, GPCommand(options.init))
     return nothing
 end
 
@@ -233,48 +251,39 @@ function collect_commands(gp::GPSession{T}; term::AbstractString="", output::Abs
     @assert all(1 .<= mids)
 
     for mid in 1:maximum(mids)
-        # Add commands
-        for i in findall(mids .== mid)
-            append!(out, gp.specs[i].cmds)
+        if !(mid in mids)
+            push!(out, "set multiplot next")
         end
 
-        # Send data
-        for i in findall(mids .== mid)
+        is3d = false
+        plotcmd = Vector{String}()
+        for i in 1:length(gp.specs)
             spec = gp.specs[i]
-            if isa(spec.data, DatasetText)
-                name = (spec.name == ""  ?  "\$data$(i)"  :  spec.name)
-                if name != gp.datasources[i]
-                    if gp.process.options.verbose
-                        printstyled(color=:light_black,      "GNUPLOT ($(gp.process.sid)) "  , name, " << EOD\n")
-                        printstyled(color=:light_black, join("GNUPLOT ($(gp.process.sid)) " .* spec.data.preview, "\n") * "\n")
-                        printstyled(color=:light_black,      "GNUPLOT ($(gp.process.sid)) ", "EOD\n")
-                    end
-                    if T == GPProcess
-                        write(gp.process.pin, name * " << EOD\n")
-                        write(gp.process.pin, spec.data.data)
-                        write(gp.process.pin, "\nEOD\n")
-                        flush(gp.process.pin)
-                    end
-                    gp.datasources[i] = name
-                end
-            elseif isa(spec.data, DatasetBin)
-                gp.datasources[i] = dropDuplicatedUsing.(spec.data.source, spec.plot)
-            else
-                @assert isa(spec.data, DatasetEmpty)
+            if !isa(spec, GPNamedDataset)  &&  (spec.mid != mid)
+                continue
             end
+
+            if isa(spec, GPCommand)
+                push!(out, spec.cmd)
+            elseif isa(spec, GPNamedDataset)
+                ; # nothing to do
+            elseif isa(spec, GPPlotCommand)
+                is3d = is3d | spec.is3d
+                push!(plotcmd, spec.cmd)
+            else
+                @assert isa(spec, GPPlotDataCommand)
+                is3d = is3d | spec.is3d
+                push!(plotcmd, "\$data$(i) " * spec.cmd)
+            end
+            #elseif isa(spec.data, DatasetBin)
+            #    gp.datasources[i] = dropDuplicatedUsing.(spec.data.source, spec.plot)
         end
 
-        # Add plot commands
-        if count(mids .== mid) == 0
+        if length(plotcmd) == 0
             push!(out, "set multiplot next")
         else
-            s = string.(strip.([gp.datasources[i] .* " " .* gp.specs[i].plot for i in findall(mids .== mid)]))
-            if count(s != "") > 0
-                s = s[findall(s .!= "")]
-                push!(out, (gp.specs[findfirst(mids .== mid)].is3d  ?  "splot "  :  "plot ") * " \\\n  " * join(s, ", \\\n  "))
-            else
-                push!(out, "set multiplot next")
-            end
+            push!(out, (is3d  ?  "splot "  :  "plot ") * " \\\n" *
+                join(plotcmd, ", \\\n  "))
         end
     end
     push!(out, "unset multiplot")
@@ -293,7 +302,6 @@ function dispatch(_args...; is3d=false)
     doReset  &&  reset(gp)
 
     for spec in specs
-        spec.is3d = (is3d | spec.is3d)
         add_spec!(gp, spec)
     end
 

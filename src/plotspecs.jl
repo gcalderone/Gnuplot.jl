@@ -1,6 +1,6 @@
 # ---------------------------------------------------------------------
 """
-    PlotSpecs
+    GPPlotCommands
 
 Specifications for a plot item based on a single dataset.
 
@@ -14,37 +14,55 @@ Specifications for a plot item based on a single dataset.
 
 The constructor is defined as follows:
 ```julia
-PlotSpecs(;mid::Int=0, is3d::Bool=false,
+GPPlotCommands(;mid::Int=0, is3d::Bool=false,
           cmds::Union{String, Vector{String}}=Vector{String}(),
           name::String="",
           data::Dataset=DatasetEmpty(),
           plot::Union{String, Vector{String}}=Vector{String}(),
           kwargs...)
 ```
-No field is mandatory, i.e. even `Gnuplot.PlotSpecs()` provides a valid structure.
+No field is mandatory, i.e. even `Gnuplot.GPPlotCommands()` provides a valid structure.
 The constructor also accept all the keywords accepted by `parseKeywords`.
 """
-mutable struct PlotSpecs
+
+
+abstract type AbstractGPCommand end
+has_dataset(::AbstractGPCommand) = false
+
+mutable struct GPCommand <: AbstractGPCommand
     mid::Int
-    is3d::Bool
-    cmds::Vector{String}
+    cmd::String
+    GPCommand(cmd::AbstractString; mid::Int=1) = new(mid, deepcopy(string(cmd)))
+    GPCommand(cmds::Vector{<: AbstractString}; mid::Int=1) = new(mid, join(string.(cmds), ";\n"))
+end
+
+mutable struct GPNamedDataset <: AbstractGPCommand
     name::String
     data::Dataset
-    plot::String
-
-    function PlotSpecs(;mid::Int=1, is3d::Bool=false,
-                       cmds::Union{String, Vector{String}}=Vector{String}(),
-                       name::String="",
-                       data::Dataset=DatasetEmpty(),
-                       plot::String="")
-        if isa(cmds, String)
-            if cmds != ""
-                cmds = [cmds]
-            end
-        end
-        new(mid, is3d, deepcopy(cmds), name, data, plot)
-    end
+    GPNamedDataset(name::AbstractString, data::Dataset) =
+        new(mid, name, string(data))
 end
+has_dataset(::GPNamedDataset) = true
+
+mutable struct GPPlotCommand <: AbstractGPCommand
+    mid::Int
+    is3d::Bool
+    cmd::String
+    GPPlotCommand(cmd::AbstractString; mid::Int=1, is3d::Bool=false) =
+        new(mid, is3d, string(cmd))
+end
+
+mutable struct GPPlotDataCommand <: AbstractGPCommand
+    mid::Int
+    is3d::Bool
+    data::Dataset
+    cmd::String
+
+    GPPlotDataCommand(data::Dataset, cmd::AbstractString; mid::Int=1, is3d::Bool=false) =
+        new(mid, is3d, data, string(cmd))
+end
+has_dataset(::GPPlotDataCommand) = true
+
 
 
 # ---------------------------------------------------------------------
@@ -103,78 +121,63 @@ end
 
 
 # ---------------------------------------------------------------------
+function parseStrAsCommand(s::String, mid::Int)
+    (length(s) >= 2)  &&  (s[1:2] ==  "p "    )  &&  (return GPPlotCommand(strip(s[2:end]), mid=mid))
+    (length(s) >= 3)  &&  (s[1:3] ==  "pl "   )  &&  (return GPPlotCommand(strip(s[3:end]), mid=mid))
+    (length(s) >= 4)  &&  (s[1:4] ==  "plo "  )  &&  (return GPPlotCommand(strip(s[4:end]), mid=mid))
+    (length(s) >= 5)  &&  (s[1:5] ==  "plot " )  &&  (return GPPlotCommand(strip(s[5:end]), mid=mid))
+    (length(s) >= 2)  &&  (s[1:2] ==  "s "    )  &&  (return GPPlotCommand(strip(s[2:end]), mid=mid, is3d=true))
+    (length(s) >= 3)  &&  (s[1:3] ==  "sp "   )  &&  (return GPPlotCommand(strip(s[3:end]), mid=mid, is3d=true))
+    (length(s) >= 4)  &&  (s[1:4] ==  "spl "  )  &&  (return GPPlotCommand(strip(s[4:end]), mid=mid, is3d=true))
+    (length(s) >= 5)  &&  (s[1:5] ==  "splo " )  &&  (return GPPlotCommand(strip(s[5:end]), mid=mid, is3d=true))
+    (length(s) >= 6)  &&  (s[1:6] ==  "splot ")  &&  (return GPPlotCommand(strip(s[6:end]), mid=mid, is3d=true))
+    return GPCommand(s, mid=mid)
+end
+
+
+# ---------------------------------------------------------------------
 function parseArguments(_args...)
-    function parseCmd(s::String)
-        (isplot, is3d, cmd) = (false, false, s)
-        (length(s) >= 2)  &&  (s[1:2] ==  "p "    )  &&  ((isplot, is3d, cmd) = (true, false, strip(s[2:end])))
-        (length(s) >= 3)  &&  (s[1:3] ==  "pl "   )  &&  ((isplot, is3d, cmd) = (true, false, strip(s[3:end])))
-        (length(s) >= 4)  &&  (s[1:4] ==  "plo "  )  &&  ((isplot, is3d, cmd) = (true, false, strip(s[4:end])))
-        (length(s) >= 5)  &&  (s[1:5] ==  "plot " )  &&  ((isplot, is3d, cmd) = (true, false, strip(s[5:end])))
-        (length(s) >= 2)  &&  (s[1:2] ==  "s "    )  &&  ((isplot, is3d, cmd) = (true, true , strip(s[2:end])))
-        (length(s) >= 3)  &&  (s[1:3] ==  "sp "   )  &&  ((isplot, is3d, cmd) = (true, true , strip(s[3:end])))
-        (length(s) >= 4)  &&  (s[1:4] ==  "spl "  )  &&  ((isplot, is3d, cmd) = (true, true , strip(s[4:end])))
-        (length(s) >= 5)  &&  (s[1:5] ==  "splo " )  &&  ((isplot, is3d, cmd) = (true, true , strip(s[5:end])))
-        (length(s) >= 6)  &&  (s[1:6] ==  "splot ")  &&  ((isplot, is3d, cmd) = (true, true , strip(s[6:end])))
-        return (isplot, is3d, string(cmd))
-    end
+    args = Vector{Any}([_args...])
 
     # First pass: check for session names and `:-`
-    sid = nothing
-    args = Vector{Any}([_args...])
-    pos = 1
-    while pos <= length(args)
-        arg = args[pos]
-        if  (typeof(arg) == Symbol)  &&
-            (arg != :-)
-            @assert isnothing(sid) "Only one session at a time can be addressed"
-            sid = arg
-            deleteat!(args, pos)
-            continue
-        end
-        pos += 1
-    end
-    isnothing(sid)  &&  (sid = options.default)
-
-    if length(args) == 0
-        doReset = false
-    else
-        doReset = true
-    end
-    doDump = true
+    out_sid = nothing
+    out_doReset = length(args) != 0
+    out_doDump = true
     pos = 1
     while pos <= length(args)
         arg = args[pos]
         if typeof(arg) == Symbol
-            @assert arg == :-
-            if pos == 1
-                doReset = false
-            elseif pos == length(args)
-                doDump  = false
+            if arg == :-
+                if pos == 1
+                    out_doReset = false
+                elseif pos == length(args)
+                    out_doDump  = false
+                else
+                    error("Symbol `:-` has a meaning only if it is at first or last position in argument list.")
+                end
             else
-                @warn "Symbol `:-` has a meaning only if it is at first or last position in argument list."
+                @assert isnothing(out_sid) "Only one session at a time can be addressed"
+                out_sid = arg
             end
             deleteat!(args, pos)
-            continue
+        else
+            pos += 1
         end
-        pos += 1
     end
+    isnothing(out_sid)  &&  (out_sid = options.default)
 
     # Second pass: check data types, run implicit recipes and splat
-    # Vector{PlotSpecs}
+    # Vector{GPPlotDataCommands}
     pos = 1
     while pos <= length(args)
         arg = args[pos]
-        if isa(arg, Symbol)                          # session ID (already handled)
-            deleteat!(args, pos)
-            continue
-        elseif isa(arg, Int)                         # ==> multiplot index
+        if isa(arg, Int)                             # ==> multiplot index
             @assert arg > 0 "Multiplot index must be a positive integer"
         elseif isa(arg, AbstractString)              # ==> a plotspec or a command
-            deleteat!(args, pos)
-            insert!(args, pos, string(strip(arg)))
+            args[pos] = string(strip(arg))
         elseif isa(arg, Tuple)  &&                   # ==> a keyword/value pair
             length(arg) == 2    &&
-                isa(arg[1], Symbol)             ;
+            isa(arg[1], Symbol)                 ;
             # Delay until fourth pass to avoid misinterpreting a
             # keyword as a plotspec. E.g.: @gp x x.^2 ylog=true
         elseif isa(arg, Pair)                        # ==> a named dataset
@@ -187,7 +190,7 @@ function parseArguments(_args...)
             insert!(args, pos, string(strip(arg[1])) => nothing)
         elseif isa(arg, AbstractArray) &&            # ==> a dataset column
             ((nonmissingtype(eltype(arg)) <: Real)    ||
-             (nonmissingtype(eltype(arg)) <: AbstractString))  ;
+            (nonmissingtype(eltype(arg)) <: AbstractString));
         elseif isa(arg, Real)                        # ==> a dataset column with only one row
             args[pos] = [arg]
         elseif isa(arg, Dataset)                ;    # ==> a Dataset object
@@ -195,22 +198,22 @@ function parseArguments(_args...)
             # @info which(recipe, tuple(typeof(arg)))  # debug
             deleteat!(args, pos)
             pe = recipe(arg)
-            if isa(pe, PlotSpecs)
+            if isa(pe, AbstractGPCommand)
                 insert!(args, pos, pe)
-            elseif isa(pe, Vector{PlotSpecs})
+            elseif isa(pe, Vector{<: AbstractGPCommand})
                 for i in 1:length(pe)
                     insert!(args, pos, pe[i])
                 end
             else
-                error("Recipe must return a PlotSpecs or Vector{PlotSpecs}")
+                error("Recipe must return an AbstractGPCommand or Vector{<: AbstractGPCommand}")
             end
             continue
-        elseif isa(arg, Vector{PlotSpecs})         # ==> explicit recipe (vector)
+        elseif isa(arg, Vector{<: AbstractGPCommand})    # ==> explicit recipe (vector)
             deleteat!(args, pos)
             for i in length(arg):-1:1
                 insert!(args, pos, arg[i])
             end
-        elseif isa(arg, PlotSpecs)            ;    # ==> explicit recipe (scalar)
+        elseif isa(arg, GPPlotDataCommands)     ;    # ==> explicit recipe (scalar)
         else
             error("Unexpected argument with type " * string(typeof(arg)))
         end
@@ -267,70 +270,44 @@ function parseArguments(_args...)
         end
     end
 
-    # Fourth pass: collect PlotSpecs objects
+    # Fourth pass: collect specs
     mid = 1
-    name = ""
     cmds = Vector{String}()
-    elems = Vector{PlotSpecs}()
+    out_specs = Vector{AbstractGPCommand}()
     pos = 1
     while pos <= length(args)
         arg = args[pos]
 
         if isa(arg, Int)                         # ==> multiplot index
-            if length(cmds) > 0
-                push!(elems, PlotSpecs(mid=mid, cmds=cmds))
-                empty!(cmds)
-            end
             mid = arg
-            name = ""
-            empty!(cmds)
         elseif isa(arg, Tuple)  &&               # ==> a keyword/value pair
             length(arg) == 2    &&
-                isa(arg[1], Symbol)
-            push!(cmds, parseKeywords(; [arg]...))
+            isa(arg[1], Symbol)
+            push!(out_specs, GPCommand(parseKeywords(; [arg]...), mid=mid))
         elseif isa(arg, String)                  # ==> a plotspec or a command
-            (isPlot, is3d, s) = parseCmd(arg)
-            if isPlot
-                push!(elems, PlotSpecs(mid=mid, is3d=is3d, cmds=cmds, plot=s))
-                empty!(cmds)
-            else
-                push!(cmds, s)
-            end
-            name = ""
-        elseif isa(arg, Pair)                    # ==> dataset name
+            push!(out_specs, parseStrAsCommand(arg, mid))
+        elseif isa(arg, Pair)                    # ==> name => dataset pair
             name = arg[1]
-        elseif isa(arg, Dataset)                 # ==> A Dataset
-            spec = Vector{String}()
-            if name == ""  # only unnamed data sets have an associated plot spec
-                spec = ""
-                if (pos < length(args))  &&
-                    isa(args[pos+1], String)
-                    spec = args[pos+1]
+            @info "AAA" arg[2]
+            @info arg[1] arg[2] typeof(arg[2])
+            @assert  isa(arg[2], Dataset)
+            @assert !isa(arg[2], DatasetEmpty)
+            push!(out_specs, GPNamedDataset(arg[1], arg[2]))
+        elseif isa(arg, Dataset)                 # ==> Unnamed Dataset
+            if !isa(arg, DatasetEmpty)
+                cmd = ""
+                if (pos < length(args))  &&  isa(args[pos+1], String)
+                    cmd = args[pos+1]
                     deleteat!(args, pos+1)
                 end
+                @info cmd
+                push!(out_specs, GPPlotDataCommand(arg, cmd, mid=mid))
             end
-            if !isa(arg, DatasetEmpty)
-                push!(elems, PlotSpecs(mid=mid, cmds=cmds, name=name, data=arg, plot=spec))
-            end
-            name = ""
-            empty!(cmds)
-        elseif isa(arg, PlotSpecs)
-            if length(cmds) > 0
-                push!(elems, PlotSpecs(mid=mid, cmds=cmds))
-                empty!(cmds)
-            end
-            name = ""
-            (mid != 0)  &&  (arg.mid = mid)
-            push!(elems, arg)
         else
             error("Unexpected argument with type " * string(typeof(arg)))
         end
         pos += 1
     end
-    if length(cmds) > 0
-        push!(elems, PlotSpecs(mid=mid, cmds=cmds))
-        empty!(cmds)
-    end
 
-    return (sid, doReset, doDump, elems)
+    return (out_sid, out_doReset, out_doDump, out_specs)
 end
