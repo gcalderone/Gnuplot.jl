@@ -4,7 +4,7 @@ using StatsBase, ColorSchemes, ColorTypes, Colors, StructC14N, DataStructures
 
 export session_names, palette_names, linetypes, palette_levels, palette,
     terminal, terminals, test_terminal,
-    stats, @gp, @gsp, save, gpexec,
+    stats, @gp, @gsp, save, savescript, gpexec,
     hist_bins, hist_weights,
     boxxy, contourlines, dgrid3d, hist, gpvars, gpmargins, gpranges
 
@@ -573,7 +573,7 @@ end
 
 include("histogram.jl")
 include("utils.jl")
-# include("recipes.jl")
+include("recipes.jl")
 include("repl.jl")
 
 

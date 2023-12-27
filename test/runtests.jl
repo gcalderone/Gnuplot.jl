@@ -136,7 +136,7 @@ Gnuplot.quitall()
 #-----------------------------------------------------------------
 @gp "plot sin(x)"
 @gp "plot sin(x)" "pl cos(x)"
-@gp "plo sin(x)" "s cos(x)"
+@test_throws AssertionError @gp "plo sin(x)" "s cos(x)"
 
 @gp mar="0,1,0,1" "plot sin(x)"
 @gp :- mar=gpmargins() "plot cos(x)"
@@ -195,10 +195,10 @@ name = "\$MyDataSet1"
 @gp :- :dry name=>(x, y+noise, err)                          :-
 @gp :- :dry "plot $name w points"                            :-
 @gp :- :dry "plot $name u 1:(f(\$1)) w lines"                :-
-@gp :- :dry 2 xlab="X label" ylab="Residuals"                :-
-@gp :- :dry 2 "plot $name u 1:((f(\$1)-\$2) / \$3):(1) w errorbars notit" :-
+@gp :- :dry mid=2 xlab="X label" ylab="Residuals"                :-
+@gp :- :dry mid=2 "plot $name u 1:((f(\$1)-\$2) / \$3):(1) w errorbars notit" :-
 @gp :- :dry
-save(:dry, "test.gp")        # write on file test.gp
+savescript(:dry, "test.gp")        # write on file test.gp
 Gnuplot.quitall()
 #gpexec("load 'test.gp'") # load file test.gp, commented to avoid errors in CI
 
@@ -280,7 +280,7 @@ end
 
 Gnuplot.options.verbose = true
 @gp randn(10^6) randn(10^6)
-@gp :- 0. 0.
+@gp :- [0.] [0.]
 Gnuplot.quit(:default)
 
 Gnuplot.options.dry = true
