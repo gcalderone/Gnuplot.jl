@@ -40,7 +40,7 @@ mutable struct GPNamedDataset <: AbstractGPCommand
     name::String
     data::Dataset
     GPNamedDataset(name::AbstractString, data::Dataset) =
-        new(mid, name, string(data))
+        new(string(name), data)
 end
 has_dataset(::GPNamedDataset) = true
 
@@ -183,16 +183,14 @@ function parseArguments(_args...)
         elseif isa(arg, Pair)                        # ==> a named dataset
             @assert typeof(arg[1]) == String "Dataset name must be a string"
             @assert arg[1][1] == '$' "Dataset name must start with a dollar sign"
-            deleteat!(args, pos)
-            for i in length(arg[2]):-1:1
-                insert!(args, pos, arg[2][i])
+            if !isa(arg[2], Dataset)
+                deleteat!(args, pos)
+                accum = [arg[2][i] for i in 1:length(arg[2])]
+                insert!(args, pos, arg[1] => Dataset(accum))
             end
-            insert!(args, pos, string(strip(arg[1])) => nothing)
         elseif isa(arg, AbstractArray) &&            # ==> a dataset column
             ((nonmissingtype(eltype(arg)) <: Real)    ||
             (nonmissingtype(eltype(arg)) <: AbstractString));
-        elseif isa(arg, Real)                        # ==> a dataset column with only one row
-            args[pos] = [arg]
         elseif isa(arg, Dataset)                ;    # ==> a Dataset object
         elseif hasmethod(recipe, tuple(typeof(arg))) # ==> implicit recipe
             # @info which(recipe, tuple(typeof(arg)))  # debug
@@ -201,19 +199,17 @@ function parseArguments(_args...)
             if isa(pe, AbstractGPCommand)
                 insert!(args, pos, pe)
             elseif isa(pe, Vector{<: AbstractGPCommand})
-                for i in 1:length(pe)
-                    insert!(args, pos, pe[i])
-                end
+                insert!(args, pos, pe)
             else
                 error("Recipe must return an AbstractGPCommand or Vector{<: AbstractGPCommand}")
             end
             continue
-        elseif isa(arg, Vector{<: AbstractGPCommand})    # ==> explicit recipe (vector)
+        elseif isa(arg, Vector{<: AbstractGPCommand})# ==> explicit recipe (vector)
             deleteat!(args, pos)
             for i in length(arg):-1:1
                 insert!(args, pos, arg[i])
             end
-        elseif isa(arg, GPPlotDataCommands)     ;    # ==> explicit recipe (scalar)
+        elseif isa(arg, AbstractGPCommand)      ;    # ==> explicit recipe (scalar)
         else
             error("Unexpected argument with type " * string(typeof(arg)))
         end
@@ -288,8 +284,6 @@ function parseArguments(_args...)
             push!(out_specs, parseStrAsCommand(arg, mid))
         elseif isa(arg, Pair)                    # ==> name => dataset pair
             name = arg[1]
-            @info "AAA" arg[2]
-            @info arg[1] arg[2] typeof(arg[2])
             @assert  isa(arg[2], Dataset)
             @assert !isa(arg[2], DatasetEmpty)
             push!(out_specs, GPNamedDataset(arg[1], arg[2]))
@@ -300,7 +294,6 @@ function parseArguments(_args...)
                     cmd = args[pos+1]
                     deleteat!(args, pos+1)
                 end
-                @info cmd
                 push!(out_specs, GPPlotDataCommand(arg, cmd, mid=mid))
             end
         else

@@ -122,7 +122,7 @@ function add_spec!(gp::GPSession{GPProcess}, spec::AbstractGPCommand)
     push!(gp.specs, spec)
     if has_dataset(spec)  &&  isa(spec.data, DatasetText)
         if isa(spec, GPNamedDataset)
-            name = spec.data.name
+            name = spec.name
         else
             @assert isa(spec, GPPlotDataCommand)
             name = "\$data$(length(gp.specs))"
@@ -247,7 +247,7 @@ function collect_commands(gp::GPSession{T}; term::AbstractString="", output::Abs
     end
     (output != "")  &&  push!(out, "set output '$(replace(output, "'" => "''"))'")
 
-    mids = getfield.(gp.specs, :mid)
+    mids = getfield.(filter(x -> (:mid in fieldnames(typeof(x))), gp.specs), :mid)
     @assert all(1 .<= mids)
 
     for mid in 1:maximum(mids)
