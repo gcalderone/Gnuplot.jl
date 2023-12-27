@@ -1,5 +1,33 @@
 # --------------------------------------------------------------------
 """
+    test_terminal(term=nothing; linetypes=nothing, palette=nothing)
+
+Run the `test` and `test palette` commands on a gnuplot terminal.
+
+If no `term` is given it will use the default terminal. If `lt` and `pal` are given they are used as input to the [`linetypes`](@ref) and [`palette`](@ref) function repsetcively to load the associated color scheme.
+
+# Examples
+```julia
+test_terminal()
+test_terminal("wxt", lt=:rust, pal=:viridis)
+```
+"""
+function test_terminal(term=nothing; lt=nothing, pal=nothing)
+    quit(:test_term)
+    quit(:test_palette)
+    if !isnothing(term)
+        gpexec(:test_term    , "set term $term")
+        gpexec(:test_palette , "set term $term")
+    end
+    s = (isnothing(lt)  ?  ""  :  linetypes(lt))
+    gpexec(:test_term    , "$s; test")
+    s = (isnothing(pal)  ?  ""  :  palette(pal))
+    gpexec(:test_palette , "$s; test palette")
+end
+
+
+# --------------------------------------------------------------------
+"""
     gpmargins(sid::Symbol)
     gpmargins()
 
@@ -110,6 +138,42 @@ end
 palette(s::Symbol; kwargs...) = palette(colorschemes[s]; kwargs...)
 palette(cmap::ColorScheme; kwargs...) =
     palette(palette_levels(cmap; kwargs...)...)
+
+
+# --------------------------------------------------------------------
+"""
+    stats(sid::Symbol)
+    stats()
+
+Print a statistical summary for the `name` dataset, belonging to `sid` session.  If `name` is not provdied a summary is printed for each dataset in the session.  If `sid` is not provided the default session is considered.
+
+This function is actually a wrapper for the gnuplot command `stats`.
+"""
+function stats(gp::GPSession{GPProcess})
+    for i in 1:length(gp.specs)
+        spec = gp.specs[i]
+        if has_dataset(spec)
+            if isa(spec, GPNamedDataset)
+                name = spec.name
+                source = spec.name
+            elseif isa(spec, GPPlotDataCommand)
+                name = "\$data$i"
+                if isa(spec.data, DatasetText)
+                    source = name
+                elseif isa(spec.data, DatasetBin)
+                    source = spec.data.source
+                else
+                    @assert isa(spec.data, DatasetEmpty)
+                    @info sid=gp.process.sid name=name "(empty dataset)"
+                    continue
+                end
+            end
+            @info sid=gp.process.sid name=name source=source
+            println(gpexec(gp, "stats $source"))
+        end
+    end
+end
+stats(sid::Symbol=options.default) = stats(getsession(sid))
 
 
 # --------------------------------------------------------------------
