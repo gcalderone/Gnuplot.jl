@@ -26,17 +26,18 @@ The constructor also accept all the keywords accepted by `parseKeywords`.
 """
 
 
+
 abstract type AbstractGPCommand end
 has_dataset(::AbstractGPCommand) = false
 
-mutable struct GPCommand <: AbstractGPCommand
+struct GPCommand <: AbstractGPCommand
     mid::Int
     cmd::String
     GPCommand(cmd::AbstractString; mid::Int=1) = new(mid, deepcopy(string(cmd)))
     GPCommand(cmds::Vector{<: AbstractString}; mid::Int=1) = new(mid, join(string.(cmds), ";\n"))
 end
 
-mutable struct GPNamedDataset <: AbstractGPCommand
+struct GPNamedDataset <: AbstractGPCommand
     name::String
     data::Dataset
     GPNamedDataset(name::AbstractString, data::Dataset) =
@@ -44,7 +45,7 @@ mutable struct GPNamedDataset <: AbstractGPCommand
 end
 has_dataset(::GPNamedDataset) = true
 
-mutable struct GPPlotCommand <: AbstractGPCommand
+struct GPPlotCommand <: AbstractGPCommand
     mid::Int
     is3d::Bool
     cmd::String
@@ -52,17 +53,15 @@ mutable struct GPPlotCommand <: AbstractGPCommand
         new(mid, is3d, string(cmd))
 end
 
-mutable struct GPPlotDataCommand <: AbstractGPCommand
+struct GPPlotDataCommand <: AbstractGPCommand
     mid::Int
-    is3d::Bool
     data::Dataset
     cmd::String
 
-    GPPlotDataCommand(data::Dataset, cmd::AbstractString; mid::Int=1, is3d::Bool=false) =
-        new(mid, is3d, data, string(cmd))
+    GPPlotDataCommand(data::Dataset, cmd::AbstractString; mid::Int=1) =
+        new(mid, data, string(cmd))
 end
 has_dataset(::GPPlotDataCommand) = true
-
 
 
 # ---------------------------------------------------------------------

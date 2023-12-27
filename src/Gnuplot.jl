@@ -218,7 +218,7 @@ gpexec(s::String) = gpexec(getsession().process, s)
 
 
 # ---------------------------------------------------------------------
-function collect_commands(gp::GPSession{T}; term::AbstractString="", output::AbstractString="") where T
+function collect_commands(gp::GPSession{T}; term::AbstractString="", output::AbstractString="", force3d=false) where T
     function dropDuplicatedUsing(source, spec)
         # Ensure there is no duplicated `using` clause
         m0 = match(r"(.*) using 1", source)
@@ -255,12 +255,12 @@ function collect_commands(gp::GPSession{T}; term::AbstractString="", output::Abs
             push!(out, "set multiplot next")
         end
 
-        is3d = false
         plotcmd = Vector{String}()
+        is3d = force3d
         for i in 1:length(gp.specs)
             spec = gp.specs[i]
-            if !isa(spec, GPNamedDataset)  &&  (spec.mid != mid)
-                continue
+            if !isa(spec, GPNamedDataset)
+                (spec.mid != mid)  &&  continue
             end
 
             if isa(spec, GPCommand)
@@ -268,15 +268,17 @@ function collect_commands(gp::GPSession{T}; term::AbstractString="", output::Abs
             elseif isa(spec, GPNamedDataset)
                 ; # nothing to do
             elseif isa(spec, GPPlotCommand)
-                is3d = is3d | spec.is3d
+                is3d = force3d | spec.is3d
                 push!(plotcmd, spec.cmd)
             else
                 @assert isa(spec, GPPlotDataCommand)
-                is3d = is3d | spec.is3d
-                push!(plotcmd, "\$data$(i) " * spec.cmd)
+                if isa(spec.data, DatasetText)
+                    push!(plotcmd, "\$data$(i) " * spec.cmd)
+                else
+                    push!(plotcmd, spec.data.source * " " * spec.cmd)
+                end
             end
-            #elseif isa(spec.data, DatasetBin)
-            #    gp.datasources[i] = dropDuplicatedUsing.(spec.data.source, spec.plot)
+            #TODO elseif isa(spec.data, DatasetBin)  gp.datasources[i] = dropDuplicatedUsing.(spec.data.source, spec.plot)
         end
 
         if length(plotcmd) == 0
@@ -296,23 +298,35 @@ end
 
 
 # ---------------------------------------------------------------------
-function dispatch(_args...; is3d=false)
-    (sid, doReset, doDump, specs) = parseArguments(_args...)
-    gp = getsession(sid)
+function dispatch_gpviewer(sid, doReset, doDump, specs, force3d)
+    gp = Gnuplot.getsession(sid)
     doReset  &&  reset(gp)
-
-    for spec in specs
-        add_spec!(gp, spec)
+    Gnuplot.add_spec!.(Ref(gp), specs)
+    if doDump
+        gpexec.(Ref(gp), Gnuplot.collect_commands(gp, force3d=force3d))
     end
-
-    if options.gpviewer  &&  doDump
-        for cmd in collect_commands(gp)
-            gpexec(gp, cmd)
-        end
-    end
-    return sid
+    return nothing
 end
 
+function dispatch_extviewer(sid, doReset, doDump, specs, force3d)
+    gp = Gnuplot.getsession(sid)
+    doReset  &&  reset(gp)
+    Gnuplot.add_spec!.(Ref(gp), specs)
+    return Gnuplot.SessionRef(sid, force3d, doDump)
+end
+
+
+# ---------------------------------------------------------------------
+"""
+    SessionID
+
+A structure identifying a specific session.  Used in the `show` interface.
+"""
+struct SessionRef
+    sid::Symbol
+    force3d::Bool
+    dump::Bool
+end
 
 # --------------------------------------------------------------------
 """
@@ -362,19 +376,31 @@ All Keyword names can be abbreviated as long as the resulting name is unambiguou
 - any other data type is processed through an implicit recipe. If a suitable recipe do not exists an error is raised.
 """
 macro gp(args...)
-    out = Expr(:call)
-    push!(out.args, :(Gnuplot.dispatch))
-    for iarg in 1:length(args)
+    if isa(args[1], Bool)
+        force3d = args[1]
+        first = 2
+    else
+        force3d = false
+        first = 1
+    end
+
+    parseargs = Expr(:call)
+    push!(parseargs.args, :(Gnuplot.parseArguments))
+    for iarg in first:length(args)
         arg = args[iarg]
-        if (isa(arg, Expr)  &&  (arg.head == :(=)))
-            sym = string(arg.args[1])
+        if (isa(arg, Expr)  &&  (arg.head == :(=)))  # replace keywords with Tuple{Symbol, Any}
+            sym = arg.args[1]
             val = arg.args[2]
-            push!(out.args, :((Symbol($sym),$val)))
+            push!(parseargs.args, :(($(QuoteNode(sym)), $val)))
         else
-            push!(out.args, arg)
+            push!(parseargs.args, arg)
         end
     end
-    return esc(out)
+
+    if options.gpviewer
+        return esc(:(Gnuplot.dispatch_gpviewer($parseargs..., $force3d)))
+    end
+    return esc(:(Gnuplot.dispatch_extviewer($parseargs..., $force3d)))
 end
 
 
@@ -385,8 +411,8 @@ This macro accepts the same syntax as [`@gp`](@ref), but produces a 3D plot inst
 """
 macro gsp(args...)
     out = Expr(:macrocall, Symbol("@gp"), LineNumberNode(1, nothing))
+    push!(out.args, true)
     push!(out.args, args...)
-    push!(out.args, Expr(:kw, :is3d, true))
     return esc(out)
 end
 
