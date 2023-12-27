@@ -150,27 +150,10 @@ Print a statistical summary for the `name` dataset, belonging to `sid` session. 
 This function is actually a wrapper for the gnuplot command `stats`.
 """
 function stats(gp::GPSession{GPProcess})
-    for i in 1:length(gp.specs)
-        spec = gp.specs[i]
-        if has_dataset(spec)
-            if isa(spec, GPNamedDataset)
-                name = spec.name
-                source = spec.name
-            elseif isa(spec, GPPlotDataCommand)
-                name = "\$data$i"
-                if isa(spec.data, DatasetText)
-                    source = name
-                elseif isa(spec.data, DatasetBin)
-                    source = spec.data.source
-                else
-                    @assert isa(spec.data, DatasetEmpty)
-                    @info sid=gp.process.sid name=name "(empty dataset)"
-                    continue
-                end
-            end
-            @info sid=gp.process.sid name=name source=source
-            println(gpexec(gp, "stats $source"))
-        end
+    for (name, source, data) in datasets(gp)
+        isnothing(data)  &&  continue
+        @info sid=gp.process.sid name=name source=source type=typeof(data)
+        println(gpexec(gp, "stats $source"))
     end
 end
 stats(sid::Symbol=options.default) = stats(getsession(sid))

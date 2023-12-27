@@ -1,5 +1,4 @@
 abstract type AbstractGPCommand end
-has_dataset(::AbstractGPCommand) = false
 
 struct GPCommand <: AbstractGPCommand
     mid::Int
@@ -14,7 +13,6 @@ struct GPNamedDataset <: AbstractGPCommand
     GPNamedDataset(name::AbstractString, data::Dataset) =
         new(string(name), data)
 end
-has_dataset(::GPNamedDataset) = true
 
 struct GPPlotCommand <: AbstractGPCommand
     mid::Int
@@ -32,7 +30,6 @@ struct GPPlotDataCommand <: AbstractGPCommand
     GPPlotDataCommand(data::Dataset, cmd::AbstractString; mid::Int=1) =
         new(mid, data, string(cmd))
 end
-has_dataset(::GPPlotDataCommand) = true
 
 
 # ---------------------------------------------------------------------

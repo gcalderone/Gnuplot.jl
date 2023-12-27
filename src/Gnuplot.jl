@@ -198,16 +198,38 @@ terminals(sid::Symbol=options.default) = terminals(getsession(sid))
     
 
 # ---------------------------------------------------------------------
+function datasets(gp::GPSession)
+    out = []
+    for i in 1:length(gp.specs)
+        spec = gp.specs[i]
+        if isa(spec, GPCommand)
+            push!(out, (nothing, nothing, nothing))
+        elseif isa(spec, GPNamedDataset)
+            push!(out, (spec.name, spec.name, spec.data))
+        elseif isa(spec, GPPlotCommand)
+            push!(out, (nothing, nothing, nothing))
+        else
+            @assert isa(spec, GPPlotDataCommand)
+            name = "\$data$i"
+            if isa(spec.data, DatasetText)
+                source = name
+            else
+                @assert isa(spec.data, DatasetBin)
+                source = spec.data.source
+            end
+            push!(out, (name, source, spec.data))
+        end
+    end
+    return out
+end
+
+
+# ---------------------------------------------------------------------
 add_spec!(gp::GPSession{Nothing}, spec::AbstractGPCommand) = push!(gp.specs, spec)
 function add_spec!(gp::GPSession{GPProcess}, spec::AbstractGPCommand)
     push!(gp.specs, spec)
-    if has_dataset(spec)  &&  isa(spec.data, DatasetText)
-        if isa(spec, GPNamedDataset)
-            name = spec.name
-        else
-            @assert isa(spec, GPPlotDataCommand)
-            name = "\$data$(length(gp.specs))"
-        end
+    name, source, data = datasets(gp)[end]
+    if isa(data, DatasetText)
         if gp.process.options.verbose
             printstyled(color=:light_black,      "GNUPLOT ($(gp.process.sid)) "  , name, " << EOD\n")
             printstyled(color=:light_black, join("GNUPLOT ($(gp.process.sid)) " .* spec.data.preview, "\n") * "\n")
@@ -224,11 +246,9 @@ end
 
 # ---------------------------------------------------------------------
 function delete_binaries(gp::GPSession)
-    for spec in gp.specs
-        if has_dataset(spec)
-            if isa(spec.data, DatasetBin)  &&  (spec.data.file != "")
-                rm(spec.data.file, force=true)
-            end
+    for (name, source, data) in datasets(gp)
+        if isa(data, DatasetBin)  &&  (data.file != "")
+            rm(data.file, force=true)
         end
     end
 end
