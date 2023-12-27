@@ -9,8 +9,8 @@ end
 
 struct GPNamedDataset <: AbstractGPCommand
     name::String
-    data::Dataset
-    GPNamedDataset(name::AbstractString, data::Dataset) =
+    data::DatasetText
+    GPNamedDataset(name::AbstractString, data::DatasetText) =
         new(string(name), data)
 end
 
@@ -154,7 +154,7 @@ function parseArguments(_args...)
             if !isa(arg[2], Dataset)
                 deleteat!(args, pos)
                 accum = [arg[2][i] for i in 1:length(arg[2])]
-                insert!(args, pos, arg[1] => Dataset(accum))
+                insert!(args, pos, arg[1] => DatasetText(accum...))
             end
         elseif isa(arg, AbstractArray) &&            # ==> a dataset column
             ((nonmissingtype(eltype(arg)) <: Real)    ||

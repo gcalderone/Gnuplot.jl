@@ -55,7 +55,7 @@ Base.@kwdef mutable struct Options
 end
 const options = Options()
 
-# ---------------------------------------------------------------------
+
 function __init__()
     # Check whether we are running in an IJulia, Juno, VSCode or Pluto session.
     # (copied from Gaston.jl).
@@ -195,7 +195,7 @@ Return a `Vector{String}` with the names of all the available gnuplot terminals.
 terminals(gp::GPSession{Nothing}) = error("Unknown terminals for a dry session")
 terminals(gp::GPSession{GPProcess}) = terminals(gp.process)
 terminals(sid::Symbol=options.default) = terminals(getsession(sid))
-    
+
 
 # ---------------------------------------------------------------------
 function datasets(gp::GPSession)
@@ -269,7 +269,7 @@ end
 
 
 # ---------------------------------------------------------------------
-function collect_commands(gp::GPSession; term::AbstractString="", output::AbstractString="", force3d=false)
+function collect_commands(gp::GPSession; term::AbstractString="", output::AbstractString="", force3d=false, redirect_path=nothing)
     function dropDuplicatedUsing(source, spec)
         # Ensure there is no duplicated `using` clause
         m0 = match(r"(.*) using 1", source)
@@ -327,7 +327,13 @@ function collect_commands(gp::GPSession; term::AbstractString="", output::Abstra
                 if isa(spec.data, DatasetText)
                     push!(plotcmd, "\$data$(i) " * spec.cmd)
                 else
-                    push!(plotcmd, spec.data.source * " " * spec.cmd)
+                    @assert isa(spec.data, DatasetBin)
+                    if isnothing(redirect_path)
+                        push!(plotcmd, spec.data.source * " " * spec.cmd)
+                    else
+                        s = replace(spec.data.source, spec.data.file => joinpath(redirect_path, basename(spec.data.file)))
+                        push!(plotcmd, s * " " * spec.cmd)
+                    end
                 end
             end
             #TODO elseif isa(spec.data, DatasetBin)  gp.datasources[i] = dropDuplicatedUsing.(spec.data.source, spec.plot)
@@ -361,8 +367,8 @@ function dispatch_gpviewer(sid, doReset, doDump, specs, force3d)
     end
     return nothing
 end
-    
-    
+
+
 """
     SessionID
 
@@ -470,16 +476,47 @@ macro gsp(args...)
 end
 
 
+# ---------------------------------------------------------------------
+function savescript(gp::GPSession, filename)
+    stream = open(filename, "w")
+    println(stream, "reset session")
+
+    # Path for binary files associated to the output script
+    s = split(basename(filename), ".")
+    if length(s) > 1
+        deleteat!(s, length(s))
+    end
+    s[end] *= "_data"
+    path_bin = joinpath(dirname(filename), join(s, "."))
+    isabspath(path_bin)  ||  (path_bin=joinpath(".", path_bin))
+
+    # Dump named datasets / copy binary files
+    for (name, source, data) in datasets(gp)
+        if isa(data, DatasetText)
+            println(stream, name * " << EOD")
+            println(stream, data.data)
+            println(stream, "EOD")
+        elseif isa(data, DatasetBin)  &&  (data.file != "")
+            mkpath(path_bin)
+            cp(data.file, joinpath(path_bin, basename(data.file), force=true))
+        end
+    end
+    for s in collect_commands(gp, redirect_path=path_bin)  # todo handle global force3d
+        println(stream, s)
+    end
+    close(stream)
+    return filename
+end
+
+
+
 include("utils.jl")
-
-
-
 # include("recipes.jl")
-
 include("repl.jl")
-#
-#
-#
+
+
+
+
 # using PrecompileTools
 # @compile_workload begin
 #     _orig_term = options.term
