@@ -359,17 +359,6 @@ end
 
 
 # ---------------------------------------------------------------------
-function dispatch_gpviewer(sid, doReset, doDump, specs)
-    gp = Gnuplot.getsession(sid)
-    doReset  &&  reset(gp)
-    Gnuplot.add_spec!.(Ref(gp), specs)
-    if doDump
-        gpexec.(Ref(gp), Gnuplot.collect_commands(gp))
-    end
-    return nothing
-end
-
-
 """
     SessionID
 
@@ -379,10 +368,15 @@ struct SessionID
     sid::Symbol
     dump::Bool
 end
-function dispatch_extviewer(sid, doReset, doDump, specs)
+
+function dispatch(sid, doReset, doDump, specs)
     gp = Gnuplot.getsession(sid)
     doReset  &&  reset(gp)
     Gnuplot.add_spec!.(Ref(gp), specs)
+    if options.gpviewer  &&  doDump
+        gpexec.(Ref(gp), Gnuplot.collect_commands(gp))
+        return nothing
+    end
     return Gnuplot.SessionID(sid, doDump)
 end
 
@@ -457,11 +451,7 @@ macro gp(args...)
         end
     end
     push!(parseargs.args, Expr(:kw, :is3d, force3d))
-
-    if options.gpviewer
-        return esc(:(Gnuplot.dispatch_gpviewer($parseargs...)))
-    end
-    return esc(:(Gnuplot.dispatch_extviewer($parseargs...)))
+    return esc(:(Gnuplot.dispatch($parseargs...)))
 end
 
 
