@@ -503,6 +503,7 @@ end
 
 
 include("utils.jl")
+include("histogram.jl")
 # include("recipes.jl")
 include("repl.jl")
 
