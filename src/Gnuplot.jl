@@ -4,7 +4,7 @@ using StatsBase, ColorSchemes, ColorTypes, Colors, StructC14N, DataStructures
 
 export session_names, palette_names, linetypes, palette_levels, palette,
     terminal, terminals, test_terminal,
-    stats, @gp, @gsp, save, savescript, gpexec,
+    stats, @gp, @gsp, save, gpexec,
     hist_bins, hist_weights,
     boxxy, contourlines, dgrid3d, hist, gpvars, gpmargins, gpranges
 
@@ -149,10 +149,10 @@ gpvars(gp::GPSession{GPProcess}) = gpvars(gp.process)
 gpvars(sid::Symbol=options.default) = gpvars(getsession(sid))
 
 
-function reset(gp::GPSession)
+function reset(gp::GPSession{T}) where T
     delete_binaries(gp)
     empty!(gp.specs)
-    reset(gp.process)
+    (T == GnuplotProcess)  &&  reset(gp.process)
 
     # Note: the reason to keep Options.term and .init separate are:
     # - .term can be overriden by "unknown" (if options.gpviewer is false);
@@ -486,9 +486,9 @@ end
 
 
 # ---------------------------------------------------------------------
-savescript(             file::AbstractString) = savescript(options.default, file)
-savescript(sid::Symbol, file::AbstractString) = savescript(getsession(sid), file)
-function savescript(gp::GPSession, filename)
+save(             file::AbstractString) = save(options.default, file)
+save(sid::Symbol, file::AbstractString) = save(getsession(sid), file)
+function save(gp::GPSession, filename::AbstractString)
     stream = open(filename, "w")
     println(stream, "reset session")
 

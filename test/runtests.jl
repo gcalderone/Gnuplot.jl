@@ -198,7 +198,7 @@ name = "\$MyDataSet1"
 @gp :- :dry mid=2 xlab="X label" ylab="Residuals"                :-
 @gp :- :dry mid=2 "plot $name u 1:((f(\$1)-\$2) / \$3):(1) w errorbars notit" :-
 @gp :- :dry
-savescript(:dry, "test.gp")        # write on file test.gp
+save(:dry, "test.gp")        # write on file test.gp
 Gnuplot.quitall()
 #gpexec("load 'test.gp'") # load file test.gp, commented to avoid errors in CI
 
