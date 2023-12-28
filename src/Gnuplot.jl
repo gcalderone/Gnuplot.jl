@@ -75,7 +75,21 @@ end
 # ---------------------------------------------------------------------
 include("GnuplotProcess.jl")
 using .GnuplotProcess
-gpversion() = Gnuplot.GnuplotProcess.gpversion(options.cmd)
+
+"""
+    Gnuplot.gpversion()
+
+Return the gnuplot application version.
+
+Raise an error if version is < 5.0 (required to use data blocks).
+"""
+function gpversion()
+    ver = Gnuplot.GnuplotProcess.gpversion(options.cmd)
+     if ver < v"5.0"
+        error("gnuplot ver. >= 5.0 is required, but " * string(ver) * " was found.")
+     end
+end
+
 include("dataset.jl")
 recipe() = error("No recipe defined")
 include("plotspecs.jl")
@@ -516,7 +530,7 @@ function save(gp::GPSession, filename::AbstractString)
             println(stream, "EOD")
         elseif isa(data, DatasetBin)  &&  (data.file != "")
             mkpath(path_bin)
-            cp(data.file, joinpath(path_bin, basename(data.file), force=true))
+            cp(data.file, joinpath(path_bin, basename(data.file)), force=true)
         end
     end
     for s in collect_commands(gp, redirect_path=path_bin)

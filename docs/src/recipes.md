@@ -33,22 +33,19 @@ Currently, the **Gnuplot.jl** package provides no built-in explicit recipe.  The
 To generate a plot using the data contained in a `DataFrame` object we need, beside the data itself, the name of the columns to use for the X and Y coordinates.  The following example shows how to implement an explicit recipe to plot a `DataFrame` object:
 ```@example abc
 using RDatasets, DataFrames, Gnuplot
-import Gnuplot: PlotElement, DatasetText
 
 function plotdf(df::DataFrame, colx::Symbol, coly::Symbol; group=nothing)
     if isnothing(group)
-        return PlotElement(data=DatasetText(df[:, colx], df[:, coly]),
-                           plot="w p notit",
-                           xlab=string(colx), ylab=string(coly))
+        return Gnuplot.parseArguments(df[:, colx], df[:, coly], "w p notit",
+                                     xlab=string(colx), ylab=string(coly))
     end
 
-    out = Vector{Gnuplot.PlotElement}()
-    push!(out, PlotElement(;xlab=string(colx), ylab=string(coly)))
+    out = Vector{Gnuplot.AbstractGPCommand}()
+	append!(out, Gnuplot.parseArguments(xlab=string(colx), ylab=string(coly)))
     for g in sort(unique(df[:, group]))
         i = findall(df[:, group] .== g)
         if length(i) > 0
-            push!(out, PlotElement(data=DatasetText(df[i, colx], df[i, coly]),
-                                   plot="w p t '$g'"))
+            append!(out, Gnuplot.parseArguments(df[i, colx], df[i, coly], "w p t '$g'"))
         end
     end
     return out

@@ -24,7 +24,6 @@ linetypes
 palette
 palette_levels
 palette_names
-recipe
 save
 session_names
 stats
