@@ -2,9 +2,11 @@
 - Breaking changes:
   * dataset_names() is no longer available;
   * Real numbers in @gp and @gsp are no longer interpreted as vectors with one element.  Use, e.g., `[0.]`;
+  * Multiplot ID can only be specified once in a `parseSpec` call, and it must be the first argument in the list;
   * Mixing plot and splot commands is no detected as an error;
-  * `Gnuplot.recipe` is no longer exported;
+  * `Gnuplot.save` and `Gnuplot.recipe` are no longer exported;
   * PlotElement is no longer available (see section on Gnuplot internals);
+
 
 # Version 1.5.0
 - New features:
@@ -13,8 +15,7 @@
 	* The `hist` function is now a simple wrapper to
       `StatsBase.fit(Histogram...)`;
 
-	* The output of `hist` can be passed to `hist_bins` and
-      `hist_weights` functions to obtain ready-to-plot arrays;
+	* The output of `hist` can be passed to `hist_bins` and `hist_weights` functions to obtain ready-to-plot arrays;
 
 Note: Julia version >= 1.9 is now required!
 

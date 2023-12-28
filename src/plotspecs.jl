@@ -104,14 +104,18 @@ end
 
 
 parseSpecs() = Vector{AbstractGPCommand}()
-function parseSpecs(_args...; mid=1, is3d=false, kws...)
+function parseSpecs(_args...; default_mid=1, is3d=false, kws...)
     args = Vector{Any}([_args...])
 
-    # First pass: check data types, run implicit recipes and splat Vector{GPPlotDataCommands}
+    # First pass: check data types, search for mid, run implicit recipes and splat Vector{GPPlotDataCommands}
     pos = 1
+    mid = nothing
     while pos <= length(args)
         arg = args[pos]
         if isa(arg, Int)                        ;    # ==> multiplot ID
+            @assert isnothing(mid) "Multiplot ID can only be specified once"
+            @assert pos == 1 "Multiplot ID must be specified before plot specs."
+            mid = arg
         elseif isa(arg, AbstractString)              # ==> a plotspec or a command
             args[pos] = string(strip(arg))
         elseif isa(arg, Pair)                        # ==> a named dataset
@@ -149,7 +153,6 @@ function parseSpecs(_args...; mid=1, is3d=false, kws...)
         else
             error("Unexpected argument with type " * string(typeof(arg)))
         end
-
         pos += 1
     end
 
@@ -203,6 +206,7 @@ function parseSpecs(_args...; mid=1, is3d=false, kws...)
     end
 
     # Third pass: collect specs
+    isnothing(mid)  &&  (mid = default_mid)
     out_specs = Vector{AbstractGPCommand}()
     s = parseKeywords(; kws...)
     (s != "")  &&  push!(out_specs, GPCommand(s, mid=mid))
@@ -212,7 +216,7 @@ function parseSpecs(_args...; mid=1, is3d=false, kws...)
         arg = args[pos]
 
         if isa(arg, Int)                         # ==> multiplot ID
-            mid = arg
+            ;
         elseif isa(arg, String)                  # ==> a plotspec or a command
             push!(out_specs, parseAsPlotCommand(arg, mid))
         elseif isa(arg, Pair)                    # ==> name => dataset pair

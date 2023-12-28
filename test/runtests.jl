@@ -142,7 +142,8 @@ Gnuplot.quitall()
 @gp :- mar=gpmargins() "plot cos(x)"
 @gp :- [0.] [0.]
 
-@gp "plot sin(x)" 2 xr=(-2pi,2pi) "pause 2" "plot cos(4*x)"
+@gp "plot sin(x)"
+@gp  xr=(-2pi,2pi) "pause 2" "plot cos(4*x)"
 
 x = range(-2pi, stop=2pi, length=100);
 y = 1.5 * sin.(0.3 .+ 0.7x);
@@ -198,7 +199,7 @@ name = "\$MyDataSet1"
 @gp :- :dry 2 xlab="X label" ylab="Residuals"                :-
 @gp :- :dry  "plot $name u 1:((f(\$1)-\$2) / \$3):(1) w errorbars notit" :-
 @gp :- :dry
-save(:dry, "test.gp")        # write on file test.gp
+Gnuplot.save(:dry, "test.gp")        # write on file test.gp
 Gnuplot.quitall()
 #gpexec("load 'test.gp'") # load file test.gp, commented to avoid errors in CI
 

@@ -4,7 +4,7 @@ using StatsBase, ColorSchemes, ColorTypes, Colors, StructC14N, DataStructures
 
 export session_names, palette_names, linetypes, palette_levels, palette,
     terminal, terminals, test_terminal,
-    stats, @gp, @gsp, save, gpexec,
+    stats, @gp, @gsp, gpexec,
     hist_bins, hist_weights,
     boxxy, contourlines, dgrid3d, hist, gpvars, gpmargins, gpranges
 
@@ -436,7 +436,7 @@ function update!(_args...; kws...)
         end
     end
 
-    specs = parseSpecs(args...; mid=mid, kws...)
+    specs = parseSpecs(args...; default_mid=mid, kws...)
     add_spec!.(Ref(gp), specs)
     if isReady
         if options.gpviewer

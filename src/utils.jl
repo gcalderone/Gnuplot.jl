@@ -145,18 +145,18 @@ palette(cmap::ColorScheme; kwargs...) =
     stats(sid::Symbol)
     stats()
 
-Print a statistical summary for the `name` dataset, belonging to `sid` session.  If `name` is not provdied a summary is printed for each dataset in the session.  If `sid` is not provided the default session is considered.
+Print a statistical summary all datasets belonging to `sid` session.  If `sid` is not provided the default session is considered.
 
 This function is actually a wrapper for the gnuplot command `stats`.
 """
-function stats(gp::GPSession{GPProcess})
+function stats(sid::Symbol=options.default)
+    gp = getsession(sid)
     for (name, source, data) in datasets(gp)
         isnothing(data)  &&  continue
-        @info sid=gp.process.sid name=name source=source type=typeof(data)
+        @info sid=gp.sid name=name source=source type=typeof(data)
         println(gpexec(gp, "stats $source"))
     end
 end
-stats(sid::Symbol=options.default) = stats(getsession(sid))
 
 
 # --------------------------------------------------------------------
