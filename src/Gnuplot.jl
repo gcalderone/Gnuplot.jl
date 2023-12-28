@@ -142,7 +142,10 @@ gpexec("plot sin(x)")
 ```
 """
 gpexec(gp::GPSession{Nothing}, s::AbstractString) = nothing
-gpexec(gp::GPSession{GPProcess}, s::AbstractString) = gpexec(gp.process, s)
+function gpexec(gp::GPSession{GPProcess}, s::AbstractString)
+    gp.process.options.verbose = options.verbose
+    gpexec(gp.process, s)
+end
 gpexec(sid::Symbol, s::String) = gpexec(getsession(sid), s)
 gpexec(s::String) = gpexec(getsession(), s)
 
@@ -396,7 +399,7 @@ end
 function driver(_args...; kws...)
     args = Vector{Any}([_args...])
 
-    # First pass: check for session name, `:-` and multiplot index
+    # First pass: check for session name and `:-`
     sid = nothing
     doReset = length(args) > 0
     isReady = true
@@ -425,7 +428,6 @@ function driver(_args...; kws...)
     isnothing(sid)  &&  (sid = options.default)
 
     gp = getsession(sid)
-    isa(gp, GPSession{GPProcess})  &&  (gp.process.options.verbose = options.verbose)
     doReset  &&  reset(gp)
     mid = 1
     for i in 1:length(gp.specs)  # reuse mid from latest addition
