@@ -117,15 +117,15 @@ h = hist(x, y, bs1=binsize, bs2=binsize, range1=gpranges().x, range2=gpranges().
 b = hist_bins(h, 1)
 c = sum(hist_weights(h), dims=2) ./ 2
 @gp :- 2 ma=margins bma=top+gap rma=right :-
-@gp :-   "set xtics format ''" "set ytics format ''"  xlab="" ylab="" :-
-@gp :-    b c fill(binsize/2, length(b)) c "w boxxy notit fs solid 0.4" :-
+@gp :- 2 "set xtics format ''" "set ytics format ''"  xlab="" ylab="" :-
+@gp :- 2 b c fill(binsize/2, length(b)) c "w boxxy notit fs solid 0.4" :-
 
 # Project histogram on Y
 b = hist_bins(h, 2)
 c = sum(hist_weights(h), dims=1) ./ 2
 @gp :- 3 ma=margins lma=right+gap tma=top :-
-@gp :-     "unset xrange" :-
-@gp :-   c b c fill(binsize/2, length(b)) "w boxxy notit fs solid 0.4" :-
+@gp :- 3 "unset xrange" :-
+@gp :- 3 c b c fill(binsize/2, length(b)) "w boxxy notit fs solid 0.4" :-
 @gp
 saveas("advanced011b") # hide
 ```

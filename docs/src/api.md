@@ -12,7 +12,6 @@ The list of **Gnuplot.jl** exported symbols is as follows:
 @gsp
 boxxy
 contourlines
-dataset_names
 dgrid3d
 gpexec
 gpmargins
@@ -48,7 +47,6 @@ Gnuplot.DatasetBin
 Gnuplot.IsoContourLines
 Gnuplot.Options
 Gnuplot.Path2d
-Gnuplot.PlotElement
 Gnuplot.gpversion
 Gnuplot.quit
 Gnuplot.quitall

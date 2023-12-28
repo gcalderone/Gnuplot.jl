@@ -50,7 +50,7 @@ Base.@kwdef mutable struct Options
         MIME"text/plain"      => "dumb enhanced ansi")
     gpviewer::Bool = false
     init::Vector{String} = Vector{String}()
-    verbose::Bool = true
+    verbose::Bool = false
     preferred_format::Symbol = :auto
 end
 const options = Options()
@@ -375,14 +375,15 @@ function driver(_args...; kws...)
     sid = nothing
     doReset = length(args) > 0
     isReady = true
+    mid = nothing
     pos = 1
     while pos <= length(args)
         arg = args[pos]
-        if typeof(arg) == Symbol
+        if isa(arg, Symbol)
             if arg == :-
-                if pos == 1
+                if (pos == 1)  &&  doReset
                     doReset = false
-                elseif pos == length(args)
+                elseif (pos == length(args))  &&  isReady
                     isReady  = false
                 else
                     error("Symbol `:-` has a meaning only if it is at first or last position in argument list.")
@@ -393,15 +394,21 @@ function driver(_args...; kws...)
                 sid = arg
             end
             deleteat!(args, pos)
+        elseif isa(arg, Int)
+            @assert isnothing(mid) "Only one multiplot ID can be specified"
+            @assert pos == 1 "Multiplot ID should be specified before plot specs"
+            mid = arg
+            deleteat!(args, pos)
         else
             pos += 1
         end
     end
     isnothing(sid)  &&  (sid = options.default)
+    isnothing(mid)  &&  (mid = 1)
 
     gp = getsession(sid)
     doReset && reset(gp)
-    specs = parseArguments(args...; kws...)
+    specs = parseArguments(args...; mid=mid, kws...)
     add_spec!.(Ref(gp), specs)
     if options.gpviewer  &&  isReady
         gpexec.(Ref(gp), collect_commands(gp))
@@ -555,9 +562,11 @@ end
 # --------------------------------------------------------------------
 import Base.show, Base.display
 
+show(io::IO, d::T) where T <: Dataset = write(io, string(T))
+
 display(gp::SessionHandle) = nothing
 
-function show(io::IO, mime, gp::SessionHandle)
+function internal_show(io::IO, mime::T, gp::SessionHandle) where T <: MIME
     if gp.readyToShow  &&  !options.gpviewer  &&  (mime in keys(options.mime))
         term = string(strip(options.mime[mime]))
         if term != ""
@@ -569,6 +578,10 @@ function show(io::IO, mime, gp::SessionHandle)
     end
     nothing
 end
+show(io::IO, mime::MIME"text/plain"   , gp::SessionHandle) = internal_show(io, mime, gp)
+# show(io::IO, mime::MIME"image/svg+xml", gp::SessionID) = internal_show(io, typeof(mime), gp)
+# show(io::IO, mime::MIME"image/png"    , gp::SessionID) = internal_show(io, typeof(mime), gp)
+# show(io::IO, mime::MIME"text/html"    , gp::SessionID) = internal_show(io, typeof(mime), gp)
 
 
 include("histogram.jl")
