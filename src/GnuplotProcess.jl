@@ -28,9 +28,7 @@ end
 mutable struct Options
     cmd::String
     verbose::Bool
-    gpviewer::Bool
-    term::String
-    Options() = new("gnuplot", false, true, "")
+    Options() = new("gnuplot", false)
 end
 
 
@@ -65,11 +63,6 @@ struct GPProcess
         @async readTask(out)
         @async while !eof(pout) # see PR #51
             write(stdout, readavailable(pout))
-        end
-
-        # Read gnuplot default terminal
-        if options.term == ""
-            options.term = terminal(out)
         end
 
         # The stderr of the gnuplot process goes to Julia which can parse
@@ -195,24 +188,6 @@ function reset(gp::GPProcess)
     gpexec(gp, "unset multiplot")
     gpexec(gp, "set output")
     gpexec(gp, "reset session")
-
-    if gp.options.gpviewer
-        # Use gnuplot viewer
-        (gp.options.term != "")  &&  gpexec(gp, "set term " * gp.options.term)
-
-        # Set window title (if not already set)
-        term = gpexec(gp, "print GPVAL_TERM")
-        if term in ("aqua", "x11", "qt", "wxt")
-            opts = gpexec(gp, "print GPVAL_TERMOPTIONS")
-            if findfirst("title", opts) == nothing
-                gpexec(gp, "set term $term $opts title 'Gnuplot.jl: $(gp.sid)'")
-            end
-        end
-    else
-        # Use external viewer
-        gpexec(gp, "set term unknown")
-    end
-
     return nothing
 end
 

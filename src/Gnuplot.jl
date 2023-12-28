@@ -95,10 +95,11 @@ recipe() = error("No recipe defined")
 include("plotspecs.jl")
 
 struct GPSession{T}
+    sid::Symbol
     process::T
     specs::Vector{AbstractGPCommand}
-    GPSession()             = new{Nothing}(  nothing, Vector{AbstractGPCommand}())
-    GPSession(p::GPProcess) = new{GPProcess}(p      , Vector{AbstractGPCommand}())
+    GPSession(sid::Symbol)               = new{Nothing}(  sid, nothing, Vector{AbstractGPCommand}())
+    GPSession(sid::Symbol, p::GPProcess) = new{GPProcess}(sid, p      , Vector{AbstractGPCommand}())
 end
 
 
@@ -107,7 +108,7 @@ const sessions = OrderedDict{Symbol, GPSession}()
 function getsession(sid::Symbol=options.default)
     if !(sid in keys(sessions))
         if options.dry
-            sessions[sid] = GPSession()
+            sessions[sid] = GPSession(sid)
         else
             popt = GnuplotProcess.Options()
             for f in fieldnames(typeof(options))
@@ -115,7 +116,12 @@ function getsession(sid::Symbol=options.default)
                     setproperty!(popt, f, getproperty(options, f))
                 end
             end
-            sessions[sid] = GPSession(GPProcess(sid, popt))
+            sessions[sid] = GPSession(sid, GPProcess(sid, popt))
+
+            # Read gnuplot default terminal
+            if options.term == ""
+                options.term = terminal(sessions[sid])
+            end
         end
     end
     return sessions[sid]
@@ -167,6 +173,23 @@ function reset(gp::GPSession{T}) where T
     delete_binaries(gp)
     empty!(gp.specs)
     (T == GnuplotProcess)  &&  reset(gp.process)
+
+    if options.gpviewer
+        # Use gnuplot viewer
+        (options.term != "")  &&  gpexec(gp, "set term " * options.term)
+
+        # Set window title (if not already set)
+        term = gpexec(gp, "print GPVAL_TERM")
+        if term in ("aqua", "x11", "qt", "wxt")
+            opts = gpexec(gp, "print GPVAL_TERMOPTIONS")
+            if findfirst("title", opts) == nothing
+                gpexec(gp, "set term $term $opts title 'Gnuplot.jl: $(gp.sid)'")
+            end
+        end
+    else
+        # Use external viewer
+        gpexec(gp, "set term unknown")
+    end
 
     # Note: the reason to keep Options.term and .init separate are:
     # - .term can be overriden by "unknown" (if options.gpviewer is false);
@@ -245,10 +268,10 @@ function add_spec!(gp::GPSession{GPProcess}, spec::AbstractGPCommand)
     push!(gp.specs, spec)
     name, source, data = datasets(gp)[end]
     if isa(data, DatasetText)
-        if gp.process.options.verbose
-            printstyled(color=:light_black,      "GNUPLOT ($(gp.process.sid)) "  , name, " << EOD\n")
-            printstyled(color=:light_black, join("GNUPLOT ($(gp.process.sid)) " .* spec.data.preview, "\n") * "\n")
-            printstyled(color=:light_black,      "GNUPLOT ($(gp.process.sid)) ", "EOD\n")
+        if options.verbose
+            printstyled(color=:light_black,      "GNUPLOT ($(gp.sid)) "  , name, " << EOD\n")
+            printstyled(color=:light_black, join("GNUPLOT ($(gp.sid)) " .* spec.data.preview, "\n") * "\n")
+            printstyled(color=:light_black,      "GNUPLOT ($(gp.sid)) ", "EOD\n")
         end
         write(gp.process.pin, name * " << EOD\n")
         write(gp.process.pin, spec.data.data)
@@ -414,7 +437,8 @@ function driver(_args...; kws...)
     isnothing(sid)  &&  (sid = options.default)
 
     gp = getsession(sid)
-    doReset && reset(gp)
+    isa(gp, GPSession{GPProcess})  &&  (gp.process.options.verbose = options.verbose)
+    doReset  &&  reset(gp)
     mid = 1
     for i in 1:length(gp.specs)  # reuse mid from latest addition
         if !isa(gp.specs[i], GPNamedDataset)
@@ -583,7 +607,7 @@ function internal_show(io::IO, mime::T, gp::SessionHandle) where T <: MIME
         term = string(strip(options.mime[mime]))
         if term != ""
             file = tempname()
-            save(gp.sid, term=term, output=file)
+            save(gp.sid, term=term, output=file)  # TODO
             write(io, read(file))
             rm(file; force=true)
         end
@@ -602,19 +626,19 @@ include("recipes.jl")
 include("repl.jl")
 
 
-# using PrecompileTools
-# @compile_workload begin
-#     _orig_term = options.term
-#     _orig_dry  = options.dry
-#     options.term = "unknown"
-#     options.dry = true
-#     @gp 1:9
-#     @gp tit="test" [0., 1.] [0., 1.] "w l"
-#     @gp  hist(rand(10^6))
-#     @gsp hist(rand(10^6), rand(10^6))
-#     quitall()
-#     options.term = _orig_term
-#     options.dry  = _orig_dry
-# end
+using PrecompileTools
+@compile_workload begin
+    _orig_term = options.term
+    _orig_dry  = options.dry
+    options.term = "unknown"
+    options.dry = true
+    @gp 1:9
+    @gp tit="test" [0., 1.] [0., 1.] "w l"
+    @gp  hist(rand(10^6))
+    @gsp hist(rand(10^6), rand(10^6))
+    quitall()
+    options.term = _orig_term
+    options.dry  = _orig_dry
+end
 
 end #module

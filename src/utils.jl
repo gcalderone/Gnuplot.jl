@@ -196,7 +196,7 @@ end
 
 # --------------------------------------------------------------------
 function gp_write_table(args...; kw...)
-    @assert !Gnuplot.options.dry "Feature not available in *dry* mode."
+    @assert !options.dry "Feature not available in *dry* mode."
     tmpfile = Base.Filesystem.tempname()
     sid = Symbol("j", Base.Libc.getpid())
     gp = getsession(sid)
