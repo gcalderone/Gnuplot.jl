@@ -1,10 +1,10 @@
 # Version 2.0.0
 - Breaking changes:
-  * dataset_names() is no longer available
-  * mid must be specified at each invocation of `@gp` (it used to be remembered across invocations);
-  * Only one mid can be used at a time, and may be passed via the mid=keyword
+  * dataset_names() is no longer available;
   * Real numbers in @gp and @gsp are no longer interpreted as vectors with one element.  Use, e.g., `[0.]`;
-  * Mixing plot and splot commands is no longer allowed
+  * Mixing plot and splot commands is no detected as an error;
+  * `Gnuplot.recipe` is no longer exported;
+  * PlotElement is no longer available (see section on Gnuplot internals);
 
 # Version 1.5.0
 - New features:

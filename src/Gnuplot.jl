@@ -389,7 +389,6 @@ function driver(_args...; kws...)
     sid = nothing
     doReset = length(args) > 0
     isReady = true
-    mid = nothing
     pos = 1
     while pos <= length(args)
         arg = args[pos]
@@ -408,20 +407,21 @@ function driver(_args...; kws...)
                 sid = arg
             end
             deleteat!(args, pos)
-        elseif isa(arg, Int)
-            @assert isnothing(mid) "Only one multiplot ID can be specified"
-            @assert pos == 1 "Multiplot ID should be specified before plot specs"
-            mid = arg
-            deleteat!(args, pos)
         else
             pos += 1
         end
     end
     isnothing(sid)  &&  (sid = options.default)
-    isnothing(mid)  &&  (mid = 1)
 
     gp = getsession(sid)
     doReset && reset(gp)
+    mid = 1
+    for i in 1:length(gp.specs)  # reuse mid from latest addition
+        if !isa(gp.specs[i], GPNamedDataset)
+            mid = gp.specs[i].mid
+        end
+    end
+
     specs = parseArguments(args...; mid=mid, kws...)
     add_spec!.(Ref(gp), specs)
     if options.gpviewer  &&  isReady

@@ -142,12 +142,12 @@ Gnuplot.quitall()
 @gp :- mar=gpmargins() "plot cos(x)"
 @gp :- [0.] [0.]
 
-@gp "plot sin(x)" xr=(-2pi,2pi) "pause 2" "plot cos(4*x)"
+@gp "plot sin(x)" 2 xr=(-2pi,2pi) "pause 2" "plot cos(4*x)"
 
 x = range(-2pi, stop=2pi, length=100);
 y = 1.5 * sin.(0.3 .+ 0.7x);
-err = 0.1 * maximum(abs.(y)) .* fill(1, size(x));
-noise = err .* randn(length(x));
+e = 0.1 * maximum(abs.(y)) .* fill(1, size(x));
+noise = e .* randn(length(x));
 
 h = hist(noise, nbins=10)
 @gp hist_bins(h) hist_weights(h) "w steps notit"
@@ -166,16 +166,16 @@ name = "\$MyDataSet1"
 @gp("set key horizontal", "set grid",
     xrange=(-7,7), ylabel="Y label",
     x, y, "w l t 'Real model' dt 2 lw 2 lc rgb 'red'",
-    x, y+noise, err, "w errorbars t 'Data'")
+    x, y+noise, e, "w errorbars t 'Data'")
 
 @gp "f(x) = a * sin(b + c*x); a = 1; b = 1; c = 1;"   :-
-@gp :- name=>(x, y+noise, err)                        :-
+@gp :- name=>(x, y+noise, e)                        :-
 @gp :- "fit f(x) $name u 1:2:3 via a, b, c;"          :-
 @gp :- "set multiplot layout 2,1"                     :-
 @gp :- "plot $name w points" ylab="Data and model"    :-
 @gp :- "plot $name u 1:(f(\$1)) w lines"              :-
-@gp :- mid=2 xlab="X label" ylab="Residuals"              :-
-@gp :- mid=2 "plot $name u 1:((f(\$1)-\$2) / \$3):(1) w errorbars notit"
+@gp :- 2 xlab="X label" ylab="Residuals"              :-
+@gp :- "plot $name u 1:((f(\$1)-\$2) / \$3):(1) w errorbars notit"
 
 # Retrieve values for a, b and c
 if Gnuplot.options.dry
@@ -192,11 +192,11 @@ end
 @gp :- :dry "a = $a; b = $b; c = $c"                         :-
 @gp :- :dry "set multiplot layout 2,1" ylab="Data and model" :-
 name = "\$MyDataSet1"
-@gp :- :dry name=>(x, y+noise, err)                          :-
+@gp :- :dry name=>(x, y+noise, e)                          :-
 @gp :- :dry "plot $name w points"                            :-
 @gp :- :dry "plot $name u 1:(f(\$1)) w lines"                :-
-@gp :- :dry mid=2 xlab="X label" ylab="Residuals"                :-
-@gp :- :dry mid=2 "plot $name u 1:((f(\$1)-\$2) / \$3):(1) w errorbars notit" :-
+@gp :- :dry 2 xlab="X label" ylab="Residuals"                :-
+@gp :- :dry  "plot $name u 1:((f(\$1)-\$2) / \$3):(1) w errorbars notit" :-
 @gp :- :dry
 save(:dry, "test.gp")        # write on file test.gp
 Gnuplot.quitall()

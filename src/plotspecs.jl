@@ -111,7 +111,8 @@ function parseArguments(_args...; mid=1, is3d=false, kws...)
     pos = 1
     while pos <= length(args)
         arg = args[pos]
-        if isa(arg, AbstractString)                  # ==> a plotspec or a command
+        if isa(arg, Int)                        ;    # ==> multiplot ID
+        elseif isa(arg, AbstractString)              # ==> a plotspec or a command
             args[pos] = string(strip(arg))
         elseif isa(arg, Pair)                        # ==> a named dataset
             @assert typeof(arg[1]) == String "Dataset name must be a string"
@@ -203,13 +204,16 @@ function parseArguments(_args...; mid=1, is3d=false, kws...)
 
     # Fourth pass: collect specs
     out_specs = Vector{AbstractGPCommand}()
-    push!(out_specs, GPCommand(parseKeywords(; kws...), mid=mid))
+    s = parseKeywords(; kws...)
+    (s != "")  &&  push!(out_specs, GPCommand(s, mid=mid))
 
     pos = 1
     while pos <= length(args)
         arg = args[pos]
 
-        if isa(arg, String)                      # ==> a plotspec or a command
+        if isa(arg, Int)                         # ==> multiplot ID
+            mid = arg
+        elseif isa(arg, String)                  # ==> a plotspec or a command
             push!(out_specs, parseAsPlotCommand(arg, mid))
         elseif isa(arg, Pair)                    # ==> name => dataset pair
             name = arg[1]

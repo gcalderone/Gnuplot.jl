@@ -64,29 +64,25 @@ saveas("recipes001") # hide
 The following is a slightly more complex example illustrating how to generate a corner plot:
 ```@example abc
 using RDatasets, DataFrames, Gnuplot
-import Gnuplot: PlotElement, DatasetBin
 
 function cornerplot(df::DataFrame; nbins=5, margins="0.1, 0.9, 0.15, 0.9", spacing=0.01, ticscale=1)
     numeric_cols = findall([eltype(df[:, i]) <: Real for i in 1:ncol(df)])
-    out = Vector{PlotElement}()
-    push!(out, PlotElement(cmds="set multiplot layout $(length(numeric_cols)), $(length(numeric_cols)) margins $margins spacing $spacing columnsfirst downward"))
-    push!(out, PlotElement(name="\$null", data=DatasetText([10,10])))
+    out = Vector{Gnuplot.AbstractGPCommand}()
+    append!(out, Gnuplot.parseArguments("set multiplot layout $(length(numeric_cols)), $(length(numeric_cols)) margins $margins spacing $spacing columnsfirst downward"))
     id = 1
     for ix in numeric_cols
         for iy in numeric_cols
-            push!(out, PlotElement(mid=id, xlab="", ylab="", cmds=["set xtics format ''", "set ytics format ''", "set tics scale $ticscale"]))
-            (iy == maximum(numeric_cols))  &&  push!(out, PlotElement(mid=id, xlab=names(df)[ix], cmds="set xtics format '% h'"))
-            (ix == minimum(numeric_cols))  &&  push!(out, PlotElement(mid=id, ylab=names(df)[iy]))
+			append!(out, Gnuplot.parseArguments(mid=id, xlab="", ylab="", "set xtics format ''", "set ytics format ''", "set tics scale $ticscale"))
+            (iy == maximum(numeric_cols))  &&  append!(out, Gnuplot.parseArguments(mid=id, xlab=names(df)[ix], "set xtics format '% h'"))
+            (ix == minimum(numeric_cols))  &&  append!(out, Gnuplot.parseArguments(mid=id, ylab=names(df)[iy]))
 
             xr = [extrema(df[:, ix])...]
             yr = [extrema(df[:, iy])...]
             if ix == iy
                 h = hist(df[:, ix], range=xr, nbins=nbins)
-                push!(out, PlotElement(mid=id, cmds="unset ytics", xr=xr, yr=[NaN,NaN], data=DatasetBin(hist_bins(h), hist_weights(h)), plot="w steps notit lc rgb 'black'"))
+                append!(out, Gnuplot.parseArguments(mid=id, "unset ytics", xr=xr, yr=[NaN,NaN], hist_bins(h), hist_weights(h), "w steps notit lc rgb 'black'"))
             elseif ix < iy
-                push!(out, PlotElement(mid=id,                     xr=xr, yr=yr       , data=DatasetBin(df[:, ix], df[:, iy]), plot="w p notit"))
-            else
-                push!(out, PlotElement(mid=id, cmds="set multiplot next"))
+                append!(out, Gnuplot.parseArguments(mid=id,                xr=xr, yr=yr       , df[:, ix], df[:, iy], "w p notit"))
             end
             id += 1
         end
@@ -164,7 +160,7 @@ end
 with only one mandatory argument.  In order to exploit the optional keyword we can explicitly invoke the recipe as follows:
 ```@example abc
 img = testimage("walkbridge");
-@gp palette(:gray1) recipe(img, "flipy rot=15deg")
+@gp palette(:gray1) Gnuplot.recipe(img, "flipy rot=15deg")
 saveas("recipes007c") # hide
 ```
 ![](assets/recipes007c.png)
