@@ -171,11 +171,11 @@ function parseSpecs(_args...; default_mid=1, is3d=false, kws...)
             tt = eltype(arg)
 
             # Try to convert into Int, Float64 and String
-            if (tt  <: Integer)  &&  !(tt <: Int)
+            if (tt <: Integer)  &&  !(tt <: Int)
                 arg = convert(Array{Int}, arg)
-            elseif (tt  <: AbstractFloat)  &&  !(tt <: Float64)
+            elseif (tt <: AbstractFloat)  &&  !(tt <: Float64)
                 arg = convert(Array{Float64}, arg)
-            elseif (tt  <: AbstractString)  &&  !(tt <: String)
+            elseif (tt <: AbstractString)  &&  !(tt <: String)
                 arg = convert(Array{String}, arg)
             end
 
@@ -190,13 +190,7 @@ function parseSpecs(_args...; default_mid=1, is3d=false, kws...)
 
         if !taken  ||  (pos > length(args))
             if length(accum) > 0
-                mm = extrema(length.(accum))
-                if mm[1] == 0   # empty Dataset
-                    @assert mm[1] == mm[2] "At least one input array is empty, while other(s) are not"
-                    d = DatasetEmpty()
-                else
-                    d = Dataset(accum)
-                end
+                d = Dataset(accum)
                 insert!(args, pos, d)
                 empty!(accum)
             end
@@ -222,17 +216,14 @@ function parseSpecs(_args...; default_mid=1, is3d=false, kws...)
         elseif isa(arg, Pair)                    # ==> name => dataset pair
             name = arg[1]
             @assert  isa(arg[2], Dataset)
-            @assert !isa(arg[2], DatasetEmpty)
             push!(out_specs, GPNamedDataset(arg[1], arg[2]))
         elseif isa(arg, Dataset)                 # ==> Unnamed Dataset
-            if !isa(arg, DatasetEmpty)
-                cmd = ""
-                if (pos < length(args))  &&  isa(args[pos+1], String)
-                    cmd = args[pos+1]
-                    deleteat!(args, pos+1)
-                end
-                push!(out_specs, GPPlotDataCommand(arg, cmd, mid=mid, is3d=is3d))
+            cmd = ""
+            if (pos < length(args))  &&  isa(args[pos+1], String)
+                cmd = args[pos+1]
+                deleteat!(args, pos+1)
             end
+            push!(out_specs, GPPlotDataCommand(arg, cmd, mid=mid, is3d=is3d))
         elseif isa(arg, AbstractGPCommand)
             push!(out_specs, arg)
         else

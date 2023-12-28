@@ -130,14 +130,6 @@ Abstract type for all dataset structures.
 abstract type Dataset end
 
 """
-    DatasetEmpty
-
-An empty dataset.
-"""
-struct DatasetEmpty <: Dataset
-end
-
-"""
     DatasetText
 
 A dataset whose data are stored as a text buffer.

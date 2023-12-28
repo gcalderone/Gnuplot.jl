@@ -116,10 +116,10 @@ Gnuplot.options.term = "unknown"
 
 #-----------------------------------------------------------------
 # Test wth empty dataset
-@gp Float64[]
-@gsp Float64[]
-@gp Float64[] Float64[]
-@gsp Float64[] Float64[]
+@test_throws ErrorException @gp Float64[]
+@test_throws ErrorException @gsp Float64[]
+@test_throws ErrorException @gp Float64[] Float64[]
+@test_throws ErrorException @gsp Float64[] Float64[]
 
 
 #-----------------------------------------------------------------
