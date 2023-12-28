@@ -27,7 +27,6 @@ Structure containing the package global options, accessible through `Gnuplot.opt
 - `cmd::String`: command to start the Gnuplot process (default: `"gnuplot"`)
 - `default::Symbol`: default session name (default: `:default`)
 - `term::String`: default terminal for interactive use (default: empty string, i.e. use gnuplot settings);
-- `mime::Dict{DataType, String}`: dictionary of MIME types and corresponding gnuplot terminals.  Used to export images with either [`save()`](@ref) or `show()` (see [Display options](@ref));
 - `gpviewer::Bool`: use a gnuplot terminal as main plotting device (if `true`) or an external viewer (if `false`);
 - `init::Vector{String}`: commands to initialize the session when it is created or reset (e.g., to set default palette);
 - `verbose::Bool`: verbosity flag (default: `false`)
@@ -41,13 +40,6 @@ Base.@kwdef mutable struct Options
     cmd::String = "gnuplot"
     default::Symbol = :default
     term::String = ""
-    mime::Dict{DataType, String} = Dict(
-        MIME"application/pdf" => "pdfcairo enhanced",
-        MIME"image/jpeg"      => "jpeg enhanced",
-        MIME"image/png"       => "pngcairo enhanced",
-        MIME"image/svg+xml"   => "svg enhanced mouse standalone dynamic background rgb 'white'",
-        MIME"text/html"       => "svg enhanced mouse standalone dynamic",  # canvas mousing
-        MIME"text/plain"      => "dumb enhanced ansi")
     gpviewer::Bool = false
     init::Vector{String} = Vector{String}()
     verbose::Bool = false
@@ -59,15 +51,12 @@ const options = Options()
 function __init__()
     # Check whether we are running in an IJulia, Juno, VSCode or Pluto session.
     # (copied from Gaston.jl).
-    options.gpviewer = !(
-        ((isdefined(Main, :IJulia)  &&  Main.IJulia.inited)  ||
-         (isdefined(Main, :Juno)    &&  Main.Juno.isactive()) ||
-         (isdefined(Main, :VSCodeServer)) ||
-         (isdefined(Main, :PlutoRunner)) )
-    )
-    if isdefined(Main, :VSCodeServer)
-        # VS Code shows "dynamic" plots with fixed and small size :-(
-        options.mime[MIME"image/svg+xml"] = replace(options.mime[MIME"image/svg+xml"], "dynamic" => "")
+    options.gpviewer = true
+    if ((isdefined(Main, :IJulia)  &&  Main.IJulia.inited)  ||
+        (isdefined(Main, :Juno)    &&  Main.Juno.isactive()) ||
+        (isdefined(Main, :VSCodeServer)) ||
+        (isdefined(Main, :PlutoRunner)) )
+        options.gpviewer = false
     end
 end
 
@@ -400,7 +389,6 @@ A structure identifying a specific session.  Used in the `show` interface.
 """
 struct SessionHandle
     sid::Symbol
-    readyToShow::Bool
 end
 
 
@@ -448,10 +436,14 @@ function driver(_args...; kws...)
 
     specs = parseArguments(args...; mid=mid, kws...)
     add_spec!.(Ref(gp), specs)
-    if options.gpviewer  &&  isReady
-        gpexec.(Ref(gp), collect_commands(gp))
+    if isReady
+        if options.gpviewer
+            gpexec.(Ref(gp), collect_commands(gp))
+        else
+            return SessionHandle(sid)
+        end
     end
-    return SessionHandle(sid, isReady)
+    return nothing
 end
 
 
@@ -514,7 +506,6 @@ macro gp(args...)
     return esc(out)
 end
 
-
 """
     @gsp args...
 
@@ -529,9 +520,9 @@ end
 
 
 # ---------------------------------------------------------------------
-save(             file::AbstractString) = save(options.default, file)
-save(sid::Symbol, file::AbstractString) = save(getsession(sid), file)
-function save(gp::GPSession, filename::AbstractString)
+save(file::AbstractString) = save(options.default, file)
+function save(sid::Symbol, filename::AbstractString)
+    gp = getsession(sid)
     stream = open(filename, "w")
     println(stream, "reset session")
 
@@ -565,8 +556,7 @@ end
 
 # --------------------------------------------------------------------
 """
-    save([sid::Symbol]; term="", output="")
-    save([sid::Symbol,] mime::Type{T}; output="") where T <: MIME
+    save([sid::Symbol;] term="", output="")
     save([sid::Symbol,] script_filename::String, ;term="", output="")
 
 Export a (multi-)plot into the external file name provided in the `output=` keyword.  The gnuplot terminal to use is provided through the `term=` keyword or the `mime` argument.  In the latter case the proper terminal is set according to the `Gnuplot.options.mime` dictionary.
@@ -583,41 +573,31 @@ save(term="pngcairo", output="output.png")
 save("script.gp")
 ```
 """
-save(sid::Symbol=options.default; kws...) = gpexec.(Ref(getsession(sid)), collect_commands(getsession(sid); kws...))
-
-save(mime::Type{T}; kw...) where T <: MIME = save(options.default, mime; kw...)
-function save(sid::Symbol, mime::Type{T}; kw...) where T <: MIME
-    @assert mime in keys(options.mime) "No terminal is defined for $mime.  Check `Gnuplot.options.mime` dictionary."
-    term = string(strip(options.mime[mime]))
-    if term != ""
-        return save(sid; term=term, kw...)
-    end
+function save(sid::Symbol=options.default; kws...)
+    gpexec.(Ref(getsession(sid)), collect_commands(getsession(sid); kws...))
+    nothing
 end
 
 
 # --------------------------------------------------------------------
-import Base.show, Base.display
+import Base.show
 
 show(io::IO, d::T) where T <: Dataset = write(io, string(T))
 
-display(gp::SessionHandle) = nothing
-
-function internal_show(io::IO, mime::T, gp::SessionHandle) where T <: MIME
-    if gp.readyToShow  &&  !options.gpviewer  &&  (mime in keys(options.mime))
-        term = string(strip(options.mime[mime]))
-        if term != ""
-            file = tempname()
-            save(gp.sid, term=term, output=file)  # TODO
-            write(io, read(file))
-            rm(file; force=true)
-        end
-    end
+function _show(io::IO, gp::SessionHandle, term::String)
+    options.gpviewer  &&  return nothing
+    file = tempname()
+    save(gp.sid, term=term, output=file)
+    write(io, read(file))
+    rm(file; force=true)
     nothing
 end
-show(io::IO, mime::MIME"text/plain"   , gp::SessionHandle) = internal_show(io, mime, gp)
-# show(io::IO, mime::MIME"image/svg+xml", gp::SessionID) = internal_show(io, typeof(mime), gp)
-# show(io::IO, mime::MIME"image/png"    , gp::SessionID) = internal_show(io, typeof(mime), gp)
-# show(io::IO, mime::MIME"text/html"    , gp::SessionID) = internal_show(io, typeof(mime), gp)
+show(io::IO, ::MIME"application/pdf", gp::SessionHandle) = _show(io, gp, "pdfcairo enhanced")
+show(io::IO, ::MIME"image/jpeg"     , gp::SessionHandle) = _show(io, gp, "jpeg enhanced")
+show(io::IO, ::MIME"image/png"      , gp::SessionHandle) = _show(io, gp, "pngcairo enhanced")
+show(io::IO, ::MIME"image/svg+xml"  , gp::SessionHandle) = _show(io, gp, "svg enhanced mouse standalone background rgb 'white'")  #  dynamic
+show(io::IO, ::MIME"text/html"      , gp::SessionHandle) = _show(io, gp, "svg enhanced mouse standalone dynamic")  # canvas mousing
+show(io::IO, ::MIME"text/plain"     , gp::SessionHandle) = _show(io, gp, "dumb enhanced ansi")
 
 
 include("histogram.jl")
