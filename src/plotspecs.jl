@@ -103,11 +103,11 @@ function parseAsPlotCommand(s::String, mid::Int)
 end
 
 
-parseArguments() = Vector{AbstractGPCommand}()
-function parseArguments(_args...; mid=1, is3d=false, kws...)
+parseSpecs() = Vector{AbstractGPCommand}()
+function parseSpecs(_args...; mid=1, is3d=false, kws...)
     args = Vector{Any}([_args...])
 
-    # Second pass: check data types, run implicit recipes and splat Vector{GPPlotDataCommands}
+    # First pass: check data types, run implicit recipes and splat Vector{GPPlotDataCommands}
     pos = 1
     while pos <= length(args)
         arg = args[pos]
@@ -153,7 +153,7 @@ function parseArguments(_args...; mid=1, is3d=false, kws...)
         pos += 1
     end
 
-    # Third pass: convert data into Dataset objects
+    # Second pass: convert data into Dataset objects
     pos = 1
     accum = Vector{AbstractArray}()
     while pos <= length(args)
@@ -202,7 +202,7 @@ function parseArguments(_args...; mid=1, is3d=false, kws...)
         end
     end
 
-    # Fourth pass: collect specs
+    # Third pass: collect specs
     out_specs = Vector{AbstractGPCommand}()
     s = parseKeywords(; kws...)
     (s != "")  &&  push!(out_specs, GPCommand(s, mid=mid))

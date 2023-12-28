@@ -13,7 +13,7 @@ export session_names, palette_names, linetypes, palette_levels, palette,
 
 Return the **Gnuplot.jl** package version.
 """
-version() = v"1.5.0"
+version() = v"1.6.0"
 
 
 # ---------------------------------------------------------------------
@@ -396,7 +396,7 @@ end
 
 
 # --------------------------------------------------------------------
-function driver(_args...; kws...)
+function update!(_args...; kws...)
     args = Vector{Any}([_args...])
 
     # First pass: check for session name and `:-`
@@ -436,7 +436,7 @@ function driver(_args...; kws...)
         end
     end
 
-    specs = parseArguments(args...; mid=mid, kws...)
+    specs = parseSpecs(args...; mid=mid, kws...)
     add_spec!.(Ref(gp), specs)
     if isReady
         if options.gpviewer
@@ -497,7 +497,7 @@ All Keyword names can be abbreviated as long as the resulting name is unambiguou
 - any other data type is processed through an implicit recipe. If a suitable recipe do not exists an error is raised.
 """
 macro gp(args...)
-    out = Expr(:call, :(Gnuplot.driver))
+    out = Expr(:call, :(Gnuplot.update!))
     for arg in args
         if (isa(arg, Expr)  &&  (arg.head == :(=)))  # forward keywords
             push!(out.args, Expr(:kw, arg.args[1], arg.args[2]))
