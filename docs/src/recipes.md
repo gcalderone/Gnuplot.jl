@@ -40,7 +40,7 @@ function plotdf(df::DataFrame, colx::Symbol, coly::Symbol; group=nothing)
                                   xlab=string(colx), ylab=string(coly))
     end
 
-    out = Vector{Gnuplot.AbstractGPCommand}()
+    out = Vector{Gnuplot.AbstractGPInput}()
 	append!(out, Gnuplot.parseSpecs(xlab=string(colx), ylab=string(coly)))
     for g in sort(unique(df[:, group]))
         i = findall(df[:, group] .== g)
@@ -67,7 +67,7 @@ using RDatasets, DataFrames, Gnuplot
 
 function cornerplot(df::DataFrame; nbins=5, margins="0.1, 0.9, 0.15, 0.9", spacing=0.01, ticscale=1)
     numeric_cols = findall([eltype(df[:, i]) <: Real for i in 1:ncol(df)])
-    out = Vector{Gnuplot.AbstractGPCommand}()
+    out = Vector{Gnuplot.AbstractGPInput}()
     append!(out, Gnuplot.parseSpecs("set multiplot layout $(length(numeric_cols)), $(length(numeric_cols)) margins $margins spacing $spacing columnsfirst downward"))
     id = 1
     for ix in numeric_cols

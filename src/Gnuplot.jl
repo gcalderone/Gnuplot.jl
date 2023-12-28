@@ -86,9 +86,9 @@ include("plotspecs.jl")
 struct GPSession{T}
     sid::Symbol
     process::T
-    specs::Vector{AbstractGPCommand}
-    GPSession(sid::Symbol)               = new{Nothing}(  sid, nothing, Vector{AbstractGPCommand}())
-    GPSession(sid::Symbol, p::GPProcess) = new{GPProcess}(sid, p      , Vector{AbstractGPCommand}())
+    specs::Vector{AbstractGPInput}
+    GPSession(sid::Symbol)               = new{Nothing}(  sid, nothing, Vector{AbstractGPInput}())
+    GPSession(sid::Symbol, p::GPProcess) = new{GPProcess}(sid, p      , Vector{AbstractGPInput}())
 end
 
 
@@ -255,8 +255,8 @@ end
 
 
 # ---------------------------------------------------------------------
-add_spec!(gp::GPSession{Nothing}, spec::AbstractGPCommand) = push!(gp.specs, spec)
-function add_spec!(gp::GPSession{GPProcess}, spec::AbstractGPCommand)
+add_spec!(gp::GPSession{Nothing}, spec::AbstractGPInput) = push!(gp.specs, spec)
+function add_spec!(gp::GPSession{GPProcess}, spec::AbstractGPInput)
     push!(gp.specs, spec)
     name, source, data = datasets(gp)[end]
     if isa(data, DatasetText)
