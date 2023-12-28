@@ -479,11 +479,9 @@ All Keyword names can be abbreviated as long as the resulting name is unambiguou
 - any other data type is processed through an implicit recipe. If a suitable recipe do not exists an error is raised.
 """
 macro gp(args...)
-    out = Expr(:call)
-    push!(out.args, :(Gnuplot.driver))
-    for iarg in 1:length(args)
-        arg = args[iarg]
-        if (isa(arg, Expr)  &&  (arg.head == :(=)))
+    out = Expr(:call, :(Gnuplot.driver))
+    for arg in args
+        if (isa(arg, Expr)  &&  (arg.head == :(=)))  # forward keywords
             push!(out.args, Expr(:kw, arg.args[1], arg.args[2]))
         else
             push!(out.args, arg)
