@@ -1,5 +1,4 @@
 using Documenter, Gnuplot
-empty!(Gnuplot.options.mime)
 
 makedocs(sitename="Gnuplot.jl",
          authors = "Giorgio Calderone",

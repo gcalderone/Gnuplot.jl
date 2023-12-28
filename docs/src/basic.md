@@ -6,7 +6,7 @@ Gnuplot.splash("assets/logo.png")
 Gnuplot.options.term = "unknown"
 empty!(Gnuplot.options.init)
 push!( Gnuplot.options.init, linetypes(:Set1_5, lw=1.5, ps=1.5))
-saveas(file) = save(term="pngcairo size 550,350 fontscale 0.8", output="assets/$(file).png")
+saveas(file) = Gnuplot.save(term="pngcairo size 550,350 fontscale 0.8", output="assets/$(file).png")
 ```
 
 # Basic usage
@@ -263,9 +263,9 @@ terminals()
 ```
 (see also [`terminal()`](@ref) to check your current terminal).
 
-Once you choose the proper terminal (i.e. format of the exported file), use the [`save()`](@ref) function to export.  As an example, all the plots in this page have been saved with:
+Once you choose the proper terminal (i.e. format of the exported file), use the [`Gnuplot.save()`](@ref) function to export.  As an example, all the plots in this page have been saved with:
 ```julia
-save(term="pngcairo size 550,350 fontscale 0.8", output="assets/output.png")
+Gnuplot.save(term="pngcairo size 550,350 fontscale 0.8", output="assets/output.png")
 ```
 Note that you can pass both the terminal name and its options via the `term=` keyword.  See [Gnuplot terminals](@ref) for further info on the terminals.
 
@@ -279,16 +279,16 @@ The script allows a complete decoupling of plot data and aethetics, from the Jul
 
 To generate a script for one of the examples above use:
 ```julia
-save("script.gp")
+Gnuplot.save("script.gp")
 ```
-after the plot has been displayed.  Note that when images or large datasets are involved, `save()` may store the data in binary files under a directory named `<script name>_data`. In order to work properly both the script and the associated directory must be available in the same directory.
+after the plot has been displayed.  Note that when images or large datasets are involved, `Gnuplot.save()` may store the data in binary files under a directory named `<script name>_data`. In order to work properly both the script and the associated directory must be available in the same directory.
 
 
 E.g., the following code:
 ```@example abc
 x = 1:10
 @gp x x.^2 "w l"
-save("script1.gp")
+Gnuplot.save("script1.gp")
 ```
 will produce the following file, named `script1.gp`:
 ```
@@ -314,7 +314,7 @@ While the following:
 ```@example abc
 img = randn(100, 300);
 @gp "set size ratio -1" "set autoscale fix" img "flipy with image notit"
-save("script2.gp")
+Gnuplot.save("script2.gp")
 ```
 will produce:
 ```

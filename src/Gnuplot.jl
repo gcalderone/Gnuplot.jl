@@ -386,7 +386,7 @@ end
 
 # ---------------------------------------------------------------------
 """
-    SessionID
+    SessionHandle
 
 A structure identifying a specific session.  Used in the `show` interface.
 """

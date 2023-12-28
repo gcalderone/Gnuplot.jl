@@ -24,7 +24,6 @@ linetypes
 palette
 palette_levels
 palette_names
-save
 session_names
 stats
 terminals
@@ -40,7 +39,6 @@ In order to call these functions you should add the `Gnuplot.` prefix to the fun
 
 ```@docs
 Gnuplot.Dataset
-Gnuplot.DatasetEmpty
 Gnuplot.DatasetText
 Gnuplot.DatasetBin
 Gnuplot.IsoContourLines
@@ -50,5 +48,6 @@ Gnuplot.gpversion
 Gnuplot.quit
 Gnuplot.quitall
 Gnuplot.repl_init
+Gnuplot.save
 Gnuplot.version
 ```

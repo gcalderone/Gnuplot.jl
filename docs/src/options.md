@@ -6,7 +6,7 @@ mkpath("assets")
 Gnuplot.options.term = "unknown"
 empty!(Gnuplot.options.init)
 push!( Gnuplot.options.init, linetypes(:Set1_5, lw=1.5, ps=1.5))
-saveas(file) = save(term="pngcairo size 550,350 fontscale 0.8", output="assets/$(file).png")
+saveas(file) = Gnuplot.save(term="pngcairo size 550,350 fontscale 0.8", output="assets/$(file).png")
 ```
 
 # Display options
@@ -38,7 +38,7 @@ The package options are stored in a global structure available in Julia as `Gnup
 Gnuplot.options.term = "wxt size 700,400";
 ```
 
-- `mime::Dict{MIME, String}`: dictionary of MIME types and corresponding gnuplot terminals.  Used to export images with either [`save()`](@ref) or `show()` (see [Display options](@ref)).  Default values are:
+- `mime::Dict{MIME, String}`: dictionary of MIME types and corresponding gnuplot terminals.  Used to export images with either [`Gnuplot.save()`](@ref) or `show()` (see [Display options](@ref)).  Default values are:
   - `MIME"application/pdf" => "pdfcairo enhanced"`
   - `MIME"image/jpeg"      => "jpeg enhanced"`
   - `MIME"image/png"       => "pngcairo enhanced"`
@@ -60,7 +60,7 @@ gpexec("set term wxt");                                    # hide
 Gnuplot.options.verbose = true;
 x = 1.:10;
 @gp x x.^2 "w l t 'Parabola'"
-save(term="pngcairo size 480,360 fontscale 0.8", output="output.png")
+Gnuplot.save(term="pngcairo size 480,360 fontscale 0.8", output="output.png")
 Gnuplot.options.verbose = false                            # hide
 push!(Gnuplot.options.init, linetypes(:Set1_5, lw=1.5));   # hide
 gpexec("set term unknown");                                # hide
@@ -97,7 +97,7 @@ using Requires
         #Gnuplot.options.mime[MIME"text/html"] = "svg enhanced standalone mouse dynamic";
 
         # Set the terminal to plot in a terminal emulator:
-        # (try with `save(MIME"text/plain")`):
+        # (try with `Gnuplot.save(MIME"text/plain")`):
         #Gnuplot.options.mime[MIME"text/plain"] = "sixelgd enhanced"; # requires vt340 emulation
 
         # Set the default linetypes

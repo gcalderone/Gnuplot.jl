@@ -6,7 +6,7 @@ mkpath("assets")
 Gnuplot.options.term = "unknown"
 empty!(Gnuplot.options.init)
 push!( Gnuplot.options.init, linetypes(:Set1_5, lw=1.5, ps=1.5))
-saveas(file) = save(term="pngcairo size 550,350 fontscale 0.8", output="assets/$(file).png")
+saveas(file) = Gnuplot.save(term="pngcairo size 550,350 fontscale 0.8", output="assets/$(file).png")
 ```
 
 # Advanced usage
@@ -315,7 +315,7 @@ gx, gy, gz = dgrid3d(x, y, z, "40,40 gauss 0.1,0.1")
 # Hide exrapolated values
 gx, gy, gz = dgrid3d(x, y, z, "40,40 gauss 0.1,0.1", extra=false)
 @gsp :- 3 tit="Interpolation on a grid\\n(extrapolated values are hidden)" gx gy gz "w l notit lc pal"
-save(term="pngcairo size 1000,400 fontscale 1.0", output="assets/advanced015b.png")  # hide
+Gnuplot.save(term="pngcairo size 1000,400 fontscale 1.0", output="assets/advanced015b.png")  # hide
 ```
 ![](assets/advanced015b.png)
 
@@ -340,7 +340,7 @@ end
 ```
 Here the `frame` variable is used as multiplot index. The animation can be saved in a GIF file with:
 ```@example abc
-save(term="gif animate size 480,360 delay 5", output="assets/animation.gif")
+Gnuplot.save(term="gif animate size 480,360 delay 5", output="assets/animation.gif")
 ```
 ![](assets/animation.gif)
 
