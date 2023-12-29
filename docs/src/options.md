@@ -6,7 +6,7 @@ mkpath("assets")
 Gnuplot.options.term = "unknown"
 empty!(Gnuplot.options.init)
 push!( Gnuplot.options.init, linetypes(:Set1_5, lw=1.5, ps=1.5))
-saveas(file) = Gnuplot.save(term="pngcairo size 550,350 fontscale 0.8", output="assets/$(file).png")
+saveas(file) = Gnuplot.save(term="pngcairo size 550,350 fontscale 0.8", "assets/$(file).png")
 ```
 
 # Display options
@@ -15,9 +15,34 @@ The display behaviour of **Gnuplot.jl** depends on the value of the `Gnuplot.opt
 
 - if `true` the plot is displayed in a gnuplot window, using one of the interactive terminals such as `wxt`, `qt` or `aqua`.  This is the default setting when running a Julia REPL session; The terminal options can be customized using `Gnuplot.options.term`;
 
-- if `false` the plot is displayed through the Julia [multimedia interface](https://docs.julialang.org/en/v1/base/io-network/#Multimedia-I/O-1), i.e. it is exported as either a `png`, `svg` or `html` file, and displayed in an external viewer.  This is the default setting when running a Jupyter, JupyterLab or Juno session.  The terminal options can be customized using the `Gnuplot.options.mime` dictionary.
+- if `false` the plot is displayed through the Julia [multimedia interface](https://docs.julialang.org/en/v1/base/io-network/#Multimedia-I/O-1), i.e. it is exported as either a `png`, `svg` or `html` file, and displayed in an external viewer.  This is the default setting when running a Jupyter, VSCode or Juno session.  The terminal options can be customized using the `Gnuplot.options.mime` dictionary.
 
 The `Gnuplot.options.gpviewer` flag is automatically set when the package is first loaded according to the runtime environment, however the user can change its value at any time to fit specific needs.  Further informations and examples for both options are available in this Jupyter [notebook](https://github.com/gcalderone/Gnuplot.jl/blob/gh-pages/v1.3.0/options/display.ipynb).
+
+
+
+
+
+Clearly, the plot appears in the same notebook, even if the session is different.
+
+## Summary
+
+The following table summarize the main aspects of the approaches discussed above.
+
+| aa                                               | `gpviewer = true` on any environment             | `gpviewer = false`, REPL                         |                                                    |                                                 |
+|:-------------------------------------------------|:------------------------------------------------:|:------------------------------------------------:|----------------------------------------------------|-------------------------------------------------|
+| Plots are shown                                  | in dedicated window(s)                           | REPL: using the `dumb` terminal                  |                                                    |                                                 |
+|                                                  |                                                  | Jupyter, Pluto: as inline images in the notebook |                                                    |                                                 |
+|                                                  |                                                  | VSCode, Juno: as image in the plot pane          |                                                    |                                                 |
+| Updating a plot                                  | updates window content                           | REPL: scroll the terminal                        | creates a separate image                           | overwrites the plot pane content                |
+| Output of different session goes to              | separate windows                                 | same terminal                                    | the same notebook                                  | the same plot pane                              |
+| How many simultaneous plots can be shown?        | all windows fitting the screen                   | all those fitting the scroll area                | all those fitting the visible part of the notebook | only one (the plot pane)                        |
+| Calls to `display()`                             | does nothing                                     | generate a new plot                              | generates a new plot                               | generates a new plot                            |
+| The top level code works also within a function? | yes, explicit `display()` calls are not required | no, explicit `display()` calls are required      | no, explicit `display()` calls are required        | no, explicit `display()` calls are are required |
+| Terminal options are specified in                | `Gnuplot.options.term`                           | not applicable                                   | `Gnuplot.options.mime`                             | `Gnuplot.options.mime`                          |
+
+
+
 
 
 
@@ -60,7 +85,7 @@ gpexec("set term wxt");                                    # hide
 Gnuplot.options.verbose = true;
 x = 1.:10;
 @gp x x.^2 "w l t 'Parabola'"
-Gnuplot.save(term="pngcairo size 480,360 fontscale 0.8", output="output.png")
+Gnuplot.save(term="pngcairo size 480,360 fontscale 0.8", "output.png")
 Gnuplot.options.verbose = false                            # hide
 push!(Gnuplot.options.init, linetypes(:Set1_5, lw=1.5));   # hide
 gpexec("set term unknown");                                # hide
@@ -75,8 +100,8 @@ If you use **Gnuplot.jl** frequently you may find convenient to automatically ap
 using Requires
 @require Gnuplot="dc211083-a33a-5b79-959f-2ff34033469d" begin
         @info "Custom Gnuplot initialization"
-        # Uncomment the following if you don't have the gnuplot
-        # executable installed on your platform:
+        # Uncomment the following if you don't have gnuplot
+        # installed on your platform:
         #Gnuplot.options.dry = true;
 
         # Set the proper path if the gnuplot executable is not
@@ -89,16 +114,7 @@ using Requires
         #Gnuplot.options.gpviewer = true
 
         # Set the default terminal for interacitve use
-        Gnuplot.options.term = "wxt size 700,400";
-
-        # Set the terminal options for the exported MIME types:
-        #Gnuplot.options.mime[MIME"image/png"] = "";
-        #Gnuplot.options.mime[MIME"image/svg+xml"] = "svg enhanced standalone dynamic";
-        #Gnuplot.options.mime[MIME"text/html"] = "svg enhanced standalone mouse dynamic";
-
-        # Set the terminal to plot in a terminal emulator:
-        # (try with `Gnuplot.save(MIME"text/plain")`):
-        #Gnuplot.options.mime[MIME"text/plain"] = "sixelgd enhanced"; # requires vt340 emulation
+        Gnuplot.options.term = "wxt size 700,400 lw 1.4 enhanced";
 
         # Set the default linetypes
         empty!(Gnuplot.options.init);

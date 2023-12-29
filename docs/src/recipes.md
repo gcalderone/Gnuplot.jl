@@ -6,13 +6,13 @@ mkpath("assets")
 Gnuplot.options.term = "unknown"
 empty!(Gnuplot.options.init)
 push!( Gnuplot.options.init, linetypes(:Set1_5, lw=1.5, ps=1.5))
-saveas(file) = Gnuplot.save(term="pngcairo size 550,350 fontscale 0.8", output="assets/$(file).png")
+saveas(file) = Gnuplot.save(term="pngcairo size 550,350 fontscale 0.8", "assets/$(file).png")
 ```
 
 
 # Plot recipes
 
-A plot *recipe* is a quicklook visualization procedure aimed at reducing the amount of repetitive code to generate a plot.  More specifically, a recipe is a function that convert data from the "Julia world" into a form suitable to be ingested in **Gnuplot.jl**, namely a scalar (or a vector of) `Gnuplot.PlotElement` TODO object(s).  The latter contain informations on how to create a plot, or a part of it, and can be used directly as arguments in a `@gp` or `@gsp` call.
+A plot *recipe* is a quicklook visualization procedure aimed at reducing the amount of repetitive code to generate a plot.  More specifically, a recipe is a function that convert data from the "Julia world" into a form suitable to be ingested in gnuplot, namely a scalar (or a vector of) `Gnuplot.PlotElement` TODO object(s).  The latter contain informations on how to create a plot, or a part of it, and can be used directly as arguments in a `@gp` or `@gsp` call.
 
 There are two kinds of recipes:
 
@@ -40,7 +40,7 @@ function plotdf(df::DataFrame, colx::Symbol, coly::Symbol; group=nothing)
                                   xlab=string(colx), ylab=string(coly))
     end
 
-    out = Vector{Gnuplot.AbstractGPInput}()
+    out = Vector{Gnuplot.AbstractGPSpec}()
 	append!(out, Gnuplot.parseSpecs(xlab=string(colx), ylab=string(coly)))
     for g in sort(unique(df[:, group]))
         i = findall(df[:, group] .== g)
@@ -54,7 +54,7 @@ end
 # Load a DataFrame and plot two of its columns
 iris = dataset("datasets", "iris")
 @gp plotdf(iris, :SepalLength, :SepalWidth, group=:Species)
-saveas("recipes001") # hide
+saveas("recipes001"); nothing # hide
 ```
 ![](assets/recipes001.png)
 
@@ -67,7 +67,7 @@ using RDatasets, DataFrames, Gnuplot
 
 function cornerplot(df::DataFrame; nbins=5, margins="0.1, 0.9, 0.15, 0.9", spacing=0.01, ticscale=1)
     numeric_cols = findall([eltype(df[:, i]) <: Real for i in 1:ncol(df)])
-    out = Vector{Gnuplot.AbstractGPInput}()
+    out = Vector{Gnuplot.AbstractGPSpec}()
     append!(out, Gnuplot.parseSpecs("set multiplot layout $(length(numeric_cols)), $(length(numeric_cols)) margins $margins spacing $spacing columnsfirst downward"))
     id = 1
     for ix in numeric_cols
@@ -93,7 +93,7 @@ end
 # Load a DataFrame and generate a cornerplot
 iris = dataset("datasets", "iris")
 @gp cornerplot(iris)
-saveas("recipes001_1") # hide
+saveas("recipes001_1"); nothing # hide
 ```
 ![](assets/recipes001_1.png)
 
@@ -104,7 +104,7 @@ The object returned by the [`hist()`](@ref) function can be readily visualized b
 ```@example abc
 x = randn(1000);
 @gp hist(x)
-saveas("recipes002") # hide
+saveas("recipes002"); nothing # hide
 ```
 ![](assets/recipes002.png)
 
@@ -113,7 +113,7 @@ saveas("recipes002") # hide
 x = randn(10_000);
 y = randn(10_000);
 @gp hist(x, y)
-saveas("recipes002a") # hide
+saveas("recipes002a"); nothing # hide
 ```
 ![](assets/recipes002a.png)
 
@@ -126,7 +126,7 @@ y = randn(10_000);
 h = hist(x, y)
 clines = contourlines(h, "levels discrete 10, 30, 60, 90");
 @gp clines
-saveas("recipes002b") # hide
+saveas("recipes002b"); nothing # hide
 ```
 ![](assets/recipes002b.png)
 
@@ -146,7 +146,7 @@ To use these recipes simply pass an image to `@gp`, e.g.:
 using TestImages
 img = testimage("lighthouse");
 @gp img
-saveas("recipes007b") # hide
+saveas("recipes007b"); nothing # hide
 ```
 ![](assets/recipes007b.png)
 
@@ -161,7 +161,7 @@ with only one mandatory argument.  In order to exploit the optional keyword we c
 ```@example abc
 img = testimage("walkbridge");
 @gp palette(:gray1) Gnuplot.recipe(img, "flipy rot=15deg")
-saveas("recipes007c") # hide
+saveas("recipes007c"); nothing # hide
 ```
 ![](assets/recipes007c.png)
 

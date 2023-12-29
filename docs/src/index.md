@@ -68,6 +68,7 @@ As a final remark, note that the **Gnuplot.jl** features directly maps onto the 
 Before continuing, have a look at the [Examples](@ref) page!
 
 
+
 ## Notation
 In this documentation:
 - "**Gnuplot.jl**" refers to the Julia package;

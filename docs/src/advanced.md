@@ -6,7 +6,7 @@ mkpath("assets")
 Gnuplot.options.term = "unknown"
 empty!(Gnuplot.options.init)
 push!( Gnuplot.options.init, linetypes(:Set1_5, lw=1.5, ps=1.5))
-saveas(file) = Gnuplot.save(term="pngcairo size 550,350 fontscale 0.8", output="assets/$(file).png")
+saveas(file) = Gnuplot.save(term="pngcairo size 550,350 fontscale 0.8", "assets/$(file).png")
 ```
 
 # Advanced usage
@@ -27,7 +27,7 @@ x = range(-2pi, stop=2pi, length=100);
 y = sin.(x)
 name = "\$MyDataSet1"
 @gp name=>(x, y) "plot $name w l lc rgb 'black'" "pl $name u 1:(1.5*\$2) w l lc rgb 'red'"
-saveas("advanced010") # hide
+saveas("advanced010"); nothing # hide
 ```
 ![](assets/advanced010.png)
 
@@ -71,7 +71,7 @@ Recycling data from the previous example we can plot both data and best fit mode
 @gp :-   "p $name u 1:(f(\$1)) w l t 'Best fit model'"
 @gp :- 2 "p $name u 1:((f(\$1)-\$2) / \$3):(1) w errorbars t 'Resid. [{/Symbol s}]'"
 @gp :-   [extrema(x)...] [0,0] "w l notit dt 2 lc rgb 'black'" # reference line
-saveas("advanced011") # hide
+saveas("advanced011"); nothing # hide
 ```
 ![](assets/advanced011.png)
 
@@ -127,7 +127,7 @@ c = sum(hist_weights(h), dims=1) ./ 2
 @gp :-   "unset xrange" :-
 @gp :-   c b c fill(binsize/2, length(b)) "w boxxy notit fs solid 0.4" :-
 @gp
-saveas("advanced011b") # hide
+saveas("advanced011b"); nothing # hide
 ```
 ![](assets/advanced011b.png)
 
@@ -149,7 +149,7 @@ x = y = -10:0.33:10
 sinc2d(x,y) = sin.(sqrt.(x.^2 + y.^2))./sqrt.(x.^2+y.^2)
 fxy = [sinc2d(x,y) for x in x, y in y]
 @gsp :- 2 x y fxy "w pm3d notit"
-saveas("advanced012") # hide
+saveas("advanced012"); nothing # hide
 ```
 ![](assets/advanced012.png)
 
@@ -187,7 +187,7 @@ Gnuplot.quitall()
 ```@example abc
 x = randn(1000);
 @gp hist(x)
-saveas("advanced013a") # hide
+saveas("advanced013a"); nothing # hide
 ```
 ![](assets/advanced013a.png)
 
@@ -196,7 +196,7 @@ The [`hist()`](@ref) function also accept keywords to set the range to consider 
 x = randn(1000);
 h = hist(x, range=3 .* [-1,1], bs=0.5)
 @gp hist_bins(h) hist_weights(h) "w step t 'Data' lc rgb 'red'"
-saveas("advanced013b") # hide
+saveas("advanced013b"); nothing # hide
 ```
 ![](assets/advanced013b.png)
 
@@ -206,7 +206,7 @@ x = randn(10_000)
 y = randn(10_000)
 h = hist(x, y)
 @gp h
-saveas("advanced014a") # hide
+saveas("advanced014a"); nothing # hide
 ```
 ![](assets/advanced014a.png)
 
@@ -216,7 +216,7 @@ x = randn(10_000)
 y = randn(10_000)
 h = hist(x, y, bs1=0.25, nbins2=20, range1=[-3,3], range2=[-3,3])
 @gp "set size ratio -1" hist_bins(h, 1) hist_bins(h, 2) hist_weights(h) "w image notit"
-saveas("advanced014b") # hide
+saveas("advanced014b"); nothing # hide
 ```
 ![](assets/advanced014b.png)
 
@@ -225,7 +225,7 @@ Alternatively, 2D histograms may be displayed using the `boxxyerror` plot style 
 ```@example abc
 @gp "set size ratio -1" "set style fill solid 0.5 border lc rgb 'gray'" :-
 @gp :- boxxy(h) "w boxxy notit lc pal"
-saveas("advanced014c") # hide
+saveas("advanced014c"); nothing # hide
 ```
 ![](assets/advanced014c.png)
 
@@ -239,7 +239,7 @@ y = randn(10_000)
 h = hist(x, y)
 clines = contourlines(h, "levels discrete 10, 30, 60, 90");
 @gp clines
-saveas("advanced014d") # hide
+saveas("advanced014d"); nothing # hide
 ```
 ![](assets/advanced014d.png)
 
@@ -252,7 +252,7 @@ for i in 1:length(clines)
     @gp :- clines[i].data "w l t '$(clines[i].z)' lw $i dt $i lc pal" :-
 end
 @gp :- key="outside top center box horizontal"
-saveas("advanced014e") # hide
+saveas("advanced014e"); nothing # hide
 ```
 ![](assets/advanced014e.png)
 
@@ -269,7 +269,7 @@ p(σ) = round(1 - exp(-(σ^2) / 2), sigdigits=3)
 # Draw contour lines at 1, 2 and 3 σ
 clines = contourlines(h, p.(1:3));
 @gp palette(:beach, smooth=true, rev=true) "set grid front" "set size ratio -1" h clines
-saveas("advanced014f") # hide
+saveas("advanced014f"); nothing # hide
 ```
 ![](assets/advanced014f.png)
 
@@ -287,7 +287,7 @@ gx, gy, gz = dgrid3d(x, y, z, "20,30 splines")
 @gsp "set size ratio -1" "set xyplane at 0" xlab="X" ylab="Y" :-
 @gsp :-  x  y  z "w p t 'Scattered data' lc pal"
 @gsp :- gx gy gz "w l t 'Interpolation on a grid' lc pal"
-saveas("advanced015a") # hide
+saveas("advanced015a"); nothing # hide
 ```
 ![](assets/advanced015a.png)
 
@@ -315,7 +315,7 @@ gx, gy, gz = dgrid3d(x, y, z, "40,40 gauss 0.1,0.1")
 # Hide exrapolated values
 gx, gy, gz = dgrid3d(x, y, z, "40,40 gauss 0.1,0.1", extra=false)
 @gsp :- 3 tit="Interpolation on a grid\\n(extrapolated values are hidden)" gx gy gz "w l notit lc pal"
-Gnuplot.save(term="pngcairo size 1000,400 fontscale 1.0", output="assets/advanced015b.png")  # hide
+Gnuplot.save(term="pngcairo size 1000,400 fontscale 1.0", "assets/advanced015b.png"); nothing # hide
 ```
 ![](assets/advanced015b.png)
 
@@ -340,7 +340,7 @@ end
 ```
 Here the `frame` variable is used as multiplot index. The animation can be saved in a GIF file with:
 ```@example abc
-Gnuplot.save(term="gif animate size 480,360 delay 5", output="assets/animation.gif")
+Gnuplot.save(term="gif animate size 480,360 delay 5", "assets/animation.gif")
 ```
 ![](assets/animation.gif)
 
@@ -374,3 +374,30 @@ before starting a session (see also [Options](@ref)).  Note that the `dry` optio
 Clearly, no plot can be generated in dry sessions. Still, they are useful to run **Gnuplot.jl** code without raising errors (no attempt will be made to communicate with the underlying process).  Moreover, [Gnuplot scripts](@ref) can also be generated in a dry session, without the additional overhead of sending data to the gnuplot process.
 
 If a gnuplot process can not be started the package will print a warning, and automatically enable dry sessions.
+
+
+## Gnuplot.jl internals
+
+This section provides some technical information on **Gnuplot.jl** internals, feel free to skip if not interested.
+
+By checking the code generated by the `@gp` (for 2D plots) and `@gsp` (for 3D plots) macros we can get a glimpse on **Gnuplot.jl** internals:
+```@example abc
+@macroexpand @gp :foo 1:9 "w l"
+```
+
+Let's break down the relevant parts of the above code:
+- `gp = Gnuplot.getsession(:foo)`: this line is used to access the `:foo` session, which will be created if not already started.  Note that if the `:foo` symbol had not been given in the macro call the default session would be used, i.e. the line would reads as `Gnuplot.getsession(Gnuplot.options.default)`;
+
+- `Gnuplot.reset(gp)`: this will reset the session, i.e. delete all datasets and commands, as well as send the `reset session` command to the underlying gnuplot process.  If the literal symbol `:-` had been provided as first argument in the macro call this line would not be present;
+
+- `Gnuplot.parseSpecs(1:9, "w l", ...)`: this will convert the plot specifications (i.e. data, commands, etc.) from the "Julia world" into a form suitable to be ingested in gnuplot.  The output is a `Vector{<: AbstractGPSpec}`;
+  - `default_mid = Gnuplot.last_added_mid(gp)`: this line provides [`Gnuplot.parseSpecs`](@ref) with a default value for the multiplot ID of the plot specs (if none is provided in the plot specs themselves).  Specifically, this will be the ID of the last added plot spec;
+  - `is3d = false`: this keyword instructs `parseSpecs` to interpret the commands as meant to generate a 2D plot.  If the `@gsp` macro was used in place of `@gp`, this keyword would be set to `true`;
+  
+- `Gnuplot.append!(gp, ...)`: this will append the plot specs returned by `parseSpecs` into the session internal structure.  Also, if a gnuplot data block is present, it will be sent to the underlying gnuplot process;  If no plot spec are provided in the `@gp` macro call the entire `Gnuplot.append!(gp, ...)` would not be present;
+
+- `Gnuplot.collect_commands(gp)`: will return all gnuplot commands stored in the session as a `Vector{String}`, including the one just added but excluding the ones to define the data blocks;
+
+- `gpexec.(Ref(gp), ...)`: this will execute all the commands returned by `collect_commands` on the underlying gnuplot process via [`gpexec`](@ref) calls.  Note that this line is executed only if `Gnuplot.options.gpviewer` is `true`, i.e. if the plot is supposed to be displayed using a gnuplot window (see also [Options](@ref)).  If this is `false` the plot is displayed using the Julia [multimedia interface](https://docs.julialang.org/en/v1/base/io-network/#Multimedia-I/O), i.e. the calls to `gpexec` will be executed within a method whose definition is in the form `show(io::IO, ::MIME..., gp::GPSession)`.  If the literal symbol `:-` had been provided as last argument in the macro call the entire `Gnuplot.options.gpviewer && gpexec.(...)` line would not be present;
+
+- `gp`: this last line is supposed to trigger the Julia automatic display of the last returned value.

@@ -6,7 +6,7 @@ Gnuplot.splash("assets/logo.png")
 Gnuplot.options.term = "unknown"
 empty!(Gnuplot.options.init)
 push!( Gnuplot.options.init, linetypes(:Set1_5, lw=1.5, ps=1.5))
-saveas(file) = Gnuplot.save(term="pngcairo size 550,350 fontscale 0.8", output="assets/$(file).png")
+saveas(file) = Gnuplot.save(term="pngcairo size 550,350 fontscale 0.8", "assets/$(file).png")
 ```
 
 # Basic usage
@@ -17,7 +17,7 @@ The most important symbols exported by the package are the [`@gp`](@ref) (for 2D
 ```@example abc
 using Gnuplot
 @gp 1:20
-saveas("basic000") # hide
+saveas("basic000"); nothing # hide
 ```
 ![](assets/basic000.png)
 
@@ -57,7 +57,7 @@ before running the examples.
 #### Plot a sinusoid:
 ```@example abc
 @gp "plot sin(x)"
-saveas("basic001") # hide
+saveas("basic001"); nothing # hide
 ```
 ![](assets/basic001.png)
 
@@ -65,7 +65,7 @@ saveas("basic001") # hide
 #### Plot two curves:
 ```@example abc
 @gp "set key left" "plot sin(x)" "pl cos(x)"
-saveas("basic002") # hide
+saveas("basic002"); nothing # hide
 ```
 ![](assets/basic002.png)
 
@@ -78,7 +78,7 @@ saveas("basic002") # hide
 @gp    "set grid"  :-
 @gp :- "p sin(x)"  :-
 @gp :- "plo cos(x)"
-saveas("basic003") # hide
+saveas("basic003"); nothing # hide
 ```
 ![](assets/basic003.png)
 !!! note
@@ -90,7 +90,7 @@ saveas("basic003") # hide
 #### Plot a parabola
 ```@example abc
 @gp (1:20).^2
-saveas("basic004") # hide
+saveas("basic004"); nothing # hide
 ```
 ![](assets/basic004.png)
 
@@ -100,7 +100,7 @@ saveas("basic004") # hide
 ```@example abc
 x = 1:20
 @gp "set key left"   x ./ 20   x.^2   "with lines tit 'Parabola'"
-saveas("basic005") # hide
+saveas("basic005"); nothing # hide
 ```
 ![](assets/basic005.png)
 
@@ -113,7 +113,7 @@ x = 1:0.1:10
 @gp :- x x.^0.5 "w l tit 'Pow 0.5' dt 2 lw 2 lc rgb 'red'"
 @gp :- x x      "w l tit 'Pow 1'   dt 1 lw 3 lc rgb 'blue'"
 @gp :- x x.^2   "w l tit 'Pow 2'   dt 3 lw 2 lc rgb 'purple'"
-saveas("basic006") # hide
+saveas("basic006"); nothing # hide
 ```
 ![](assets/basic006.png)
 
@@ -164,7 +164,7 @@ where `NaN` in the `xrange` keyword means using axis autoscaling.
 img = randn(Float64, 8, 5)
 img[2,:] .= -5
 @gp img "w image notit"
-saveas("basic007a") # hide
+saveas("basic007a"); nothing # hide
 ```
 ![](assets/basic007a.png)
 
@@ -177,7 +177,7 @@ img = reshape(1:15, 5, 3)
 and its image representation, which is essentially upside down (since the Y coordinates increase upwards):
 ```@example abc
 @gp img "w image notit"
-saveas("basic007b") # hide
+saveas("basic007b"); nothing # hide
 ```
 ![](assets/basic007b.png)
 
@@ -191,7 +191,7 @@ E.g., to plot a spiral increasing in size along the `X` direction:
 ```@example abc
 x = 0:0.1:10pi
 @gsp cbr=[-1,1].*30  x  x.*sin.(x)  x.*cos.(x)  x./20  "w p pt 7 ps var lc pal"
-saveas("basic008") # hide
+saveas("basic008"); nothing # hide
 ```
 ![](assets/basic008.png)
 
@@ -206,7 +206,7 @@ A gnuplot-compliant palette can be retrieved with [`palette()`](@ref), and used 
 x = 0:0.1:10pi
 @gsp palette(:viridis) cbr=[-1,1].*30 :-
 @gsp :-  x  x.*sin.(x)  x.*cos.(x)  x./20  "w p pt 7 ps var lc pal"
-saveas("basic008a") # hide
+saveas("basic008a"); nothing # hide
 ```
 ![](assets/basic008a.png)
 
@@ -216,7 +216,7 @@ x = 0:0.1:10pi
 v, l, n = palette_levels(:viridis)
 @gsp palette(v.^0.25, l, n) cbr=[-1,1].*30 :-
 @gsp :-  x  x.*sin.(x)  x.*cos.(x)  x./20  "w p pt 7 ps var lc pal"
-saveas("basic008b") # hide
+saveas("basic008b"); nothing # hide
 ```
 ![](assets/basic008b.png)
 
@@ -232,7 +232,7 @@ The [ColorSchemes](https://juliagraphics.github.io/ColorSchemes.jl/stable/basics
 for i in 1:10
     @gp :- i .* (0:10) "w lp t '$i'"
 end
-saveas("basic009a") # hide
+saveas("basic009a"); nothing # hide
 ```
 ![](assets/basic009a.png)
 
@@ -242,7 +242,7 @@ saveas("basic009a") # hide
 for i in 1:10
     @gp :- i .* (0:10) "w lp t '$i'"
 end
-saveas("basic009b") # hide
+saveas("basic009b"); nothing # hide
 ```
 ![](assets/basic009b.png)
 
@@ -265,7 +265,7 @@ terminals()
 
 Once you choose the proper terminal (i.e. format of the exported file), use the [`Gnuplot.save()`](@ref) function to export.  As an example, all the plots in this page have been saved with:
 ```julia
-Gnuplot.save(term="pngcairo size 550,350 fontscale 0.8", output="assets/output.png")
+Gnuplot.save(term="pngcairo size 550,350 fontscale 0.8", "assets/output.png")
 ```
 Note that you can pass both the terminal name and its options via the `term=` keyword.  See [Gnuplot terminals](@ref) for further info on the terminals.
 
@@ -279,16 +279,17 @@ The script allows a complete decoupling of plot data and aethetics, from the Jul
 
 To generate a script for one of the examples above use:
 ```julia
-Gnuplot.save("script.gp")
+Gnuplot.savescript("script.gp")
 ```
-after the plot has been displayed.  Note that when images or large datasets are involved, `Gnuplot.save()` may store the data in binary files under a directory named `<script name>_data`. In order to work properly both the script and the associated directory must be available in the same directory.
+after the plot has been displayed.  Note that when images or large datasets are involved, `Gnuplot.savescript()` may store the data in binary files under a directory named `<script name>_data`. In order to work properly both the script and the associated directory must be available in the same directory.
 
 
 E.g., the following code:
 ```@example abc
 x = 1:10
 @gp x x.^2 "w l"
-Gnuplot.save("script1.gp")
+Gnuplot.savescript("script1.gp")
+nothing # hide
 ```
 will produce the following file, named `script1.gp`:
 ```
@@ -314,7 +315,8 @@ While the following:
 ```@example abc
 img = randn(100, 300);
 @gp "set size ratio -1" "set autoscale fix" img "flipy with image notit"
-Gnuplot.save("script2.gp")
+Gnuplot.savescript("script2.gp")
+nothing # hide
 ```
 will produce:
 ```

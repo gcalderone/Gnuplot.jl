@@ -20,6 +20,7 @@ gpvars
 hist
 hist_bins
 hist_weights
+line
 linetypes
 palette
 palette_levels
@@ -47,7 +48,10 @@ Gnuplot.Path2d
 Gnuplot.gpversion
 Gnuplot.quit
 Gnuplot.quitall
+Gnuplot.parseKeywords
+Gnuplot.parseSpecs
 Gnuplot.repl_init
 Gnuplot.save
+Gnuplot.savescript
 Gnuplot.version
 ```
