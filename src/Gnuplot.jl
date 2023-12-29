@@ -186,7 +186,7 @@ function reset(gp::GPSession{T}) where T
     # Note: the reason to keep Options.term and .init separate are:
     # - .term can be overriden by "unknown" (if options.gpviewer is false);
     # - .init is saved in scripts, while .term is not;
-    add_spec!(gp, GPCommand(options.init))
+    push!(gp, GPCommand(1, options.init))
     return nothing
 end
 
@@ -196,13 +196,11 @@ end
 
 Quit the session identified by `sid` and the associated gnuplot process (if any).
 """
-quit(gp::GPSession{Nothing}) = 0
-quit(gp::GPSession{GPProcess}) = quit(gp.process)
-function quit(sid::Symbol=options.default)
-    gp = getsession(sid)
+quit(sid::Symbol=options.default) = quit(getsession(sid))
+function quit(gp::GPSession{T}) where T
     delete_binaries(gp)
-    exitcode = quit(gp)
-    delete!(sessions, sid)
+    exitcode = (T == GPProcess)  ?   quit(gp.process)  :  0
+    delete!(sessions, gp.sid)
     return exitcode
 end
 
@@ -255,8 +253,13 @@ end
 
 
 # ---------------------------------------------------------------------
-add_spec!(gp::GPSession{Nothing}, spec::AbstractGPInput) = push!(gp.specs, spec)
-function add_spec!(gp::GPSession{GPProcess}, spec::AbstractGPInput)
+import Base.push!, Base.append!
+function push!(gp::GPSession{Nothing}, spec::AbstractGPInput)
+    push!(gp.specs, spec)
+    nothing
+end
+
+function push!(gp::GPSession{GPProcess}, spec::AbstractGPInput)
     push!(gp.specs, spec)
     name, source, data = datasets(gp)[end]
     if isa(data, DatasetText)
@@ -272,6 +275,7 @@ function add_spec!(gp::GPSession{GPProcess}, spec::AbstractGPInput)
     end
     nothing
 end
+append!(gp::GPSession, specs::Vector{AbstractGPInput}) = push!.(Ref(gp), specs)
 
 
 # ---------------------------------------------------------------------
@@ -337,9 +341,7 @@ function collect_commands(gp::GPSession{T}; term::AbstractString="", output::Abs
         is3d = nothing
         for i in 1:length(gp.specs)
             spec = gp.specs[i]
-            if !isa(spec, GPNamedDataset)
-                (spec.mid != mid)  &&  continue
-            end
+            isa(spec, AbstractGPInputMid)  &&  (spec.mid != mid)  &&  continue
 
             if isa(spec, GPCommand)
                 push!(out, spec.cmd)
@@ -371,8 +373,7 @@ function collect_commands(gp::GPSession{T}; term::AbstractString="", output::Abs
                 push!(out, "set multiplot next")
             end
         else
-            push!(out, (is3d  ?  "splot "  :  "plot ") * " \\\n" *
-                join(plotcmd, ", \\\n  "))
+            push!(out, (is3d  ?  "splot "  :  "plot ") * join(plotcmd, ", "))
         end
     end
     push!(out, "unset multiplot")
@@ -384,68 +385,19 @@ function collect_commands(gp::GPSession{T}; term::AbstractString="", output::Abs
 end
 
 
-# ---------------------------------------------------------------------
-"""
-    SessionHandle
-
-A structure identifying a specific session.  Used in the `show` interface.
-"""
-struct SessionHandle
-    sid::Symbol
+# --------------------------------------------------------------------
+function update_gpviewer!(gp::GPSession)
+    options.gpviewer  &&  gpexec.(Ref(gp), collect_commands(gp))
+    return gp
 end
 
 
 # --------------------------------------------------------------------
-function update!(_args...; kws...)
-    args = Vector{Any}([_args...])
-
-    # First pass: check for session name and `:-`
-    sid = nothing
-    doReset = length(args) > 0
-    isReady = true
-    pos = 1
-    while pos <= length(args)
-        arg = args[pos]
-        if isa(arg, Symbol)
-            if arg == :-
-                if (pos == 1)  &&  doReset
-                    doReset = false
-                elseif (pos == length(args))  &&  isReady
-                    isReady  = false
-                else
-                    error("Symbol `:-` has a meaning only if it is at first or last position in argument list.")
-                end
-            else
-                @assert isnothing(sid) "Only one session at a time can be addressed"
-                @assert pos == 1 "Session ID should be specified before plot specs"
-                sid = arg
-            end
-            deleteat!(args, pos)
-        else
-            pos += 1
-        end
+function last_added_mid(gp::GPSession)
+    for i in length(gp.specs):-1:1
+        isa(gp.specs[i], AbstractGPInputMid)  &&  (return gp.specs[i].mid)
     end
-    isnothing(sid)  &&  (sid = options.default)
-
-    gp = getsession(sid)
-    doReset  &&  reset(gp)
-    mid = 1
-    for i in 1:length(gp.specs)  # reuse mid from latest addition
-        if !isa(gp.specs[i], GPNamedDataset)
-            mid = gp.specs[i].mid
-        end
-    end
-
-    specs = parseSpecs(args...; default_mid=mid, kws...)
-    add_spec!.(Ref(gp), specs)
-    if isReady
-        if options.gpviewer
-            gpexec.(Ref(gp), collect_commands(gp))
-        else
-            return SessionHandle(sid)
-        end
-    end
-    return nothing
+    return 1
 end
 
 
@@ -497,13 +449,53 @@ All Keyword names can be abbreviated as long as the resulting name is unambiguou
 - any other data type is processed through an implicit recipe. If a suitable recipe do not exists an error is raised.
 """
 macro gp(args...)
-    out = Expr(:call, :(Gnuplot.update!))
-    for arg in args
-        if (isa(arg, Expr)  &&  (arg.head == :(=)))  # forward keywords
-            push!(out.args, Expr(:kw, arg.args[1], arg.args[2]))
-        else
-            push!(out.args, arg)
+    first = 1
+    is3d = false
+    if first <= length(args)  &&  isa(args[first], Bool)  &&  args[first]
+        is3d = true
+        first += 1
+    end
+    doReset = true
+    if first <= length(args)  &&  isa(args[first], QuoteNode)  &&  (args[first] == QuoteNode(:-))
+        doReset = false
+        first += 1
+    end
+    sid = nothing
+    if (first <= length(args))  &&  isa(args[first], QuoteNode)
+        sid = args[first]
+        first += 1
+    else
+        sid = :(Gnuplot.options.default)
+    end
+    doExec = true
+    last = length(args)
+    if (last >= 1)  &&  (last <= length(args))  &&  isa(args[last] , QuoteNode)  &&  (args[last] == QuoteNode(:-))
+        doExec = false
+        last -= 1
+    end
+
+    if first <= last
+        specs = Expr(:call, :(Gnuplot.parseSpecs))
+        for i in first:last
+            arg = args[i]
+            if (isa(arg, Expr)  &&  (arg.head == :(=)))  # forward keywords
+                push!(specs.args, Expr(:kw, arg.args[1], arg.args[2]))
+            else
+                push!(specs.args, arg)
+            end
         end
+        push!(specs.args, Expr(:kw, :default_mid, :(Gnuplot.last_added_mid(gp))))
+        push!(specs.args, Expr(:kw, :is3d, is3d))
+    else
+        doReset = false
+        specs = nothing
+    end
+    out = Expr(:block)
+    if doReset  ||  doExec  ||  !isnothing(specs)
+        push!(out.args,                       :(local gp = Gnuplot.getsession($sid)))
+        doReset  &&           push!(out.args, :(Gnuplot.reset(gp)))
+        isnothing(specs)  ||  push!(out.args, :(Gnuplot.append!(gp, $specs)))
+        doExec            &&  push!(out.args, :(Gnuplot.update_gpviewer!(gp)))
     end
     return esc(out)
 end
@@ -515,15 +507,28 @@ This macro accepts the same syntax as [`@gp`](@ref), but produces a 3D plot inst
 """
 macro gsp(args...)
     out = Expr(:macrocall, Symbol("@gp"), LineNumberNode(1, nothing))
-    push!(out.args, args...)
-    push!(out.args, Expr(:kw, :is3d, true))
+    push!(out.args, true)
+    append!(out.args, args)
     return esc(out)
 end
 
 
 # ---------------------------------------------------------------------
-save(file::AbstractString) = save(options.default, file)
-function save(sid::Symbol, filename::AbstractString)
+"""
+    savescript([sid::Symbol,] filename::String)
+
+Save a gnuplot script in `filename`.  The latter can then be used in a pure gnuplot session (Julia is no longer needed) to generate exactly the same plot.
+
+If the `sid` argument is provided the operation applies to the corresponding session, otherwise the default session is considered.
+
+Example:
+```julia
+@gp hist(randn(1000))
+Gnuplot.savescript("script.gp")
+```
+"""
+savescript(file::AbstractString) = savescript(options.default, file)
+function savescript(sid::Symbol, filename::AbstractString)
     gp = getsession(sid)
     stream = open(filename, "w")
     println(stream, "reset session")
@@ -558,26 +563,23 @@ end
 
 # --------------------------------------------------------------------
 """
-    save([sid::Symbol;] term="", output="")
-    save([sid::Symbol,] script_filename::String, ;term="", output="")
+    save([sid::Symbol,] filename:String; term="")
 
-Export a (multi-)plot into the external file name provided in the `output=` keyword.  The gnuplot terminal to use is provided through the `term=` keyword or the `mime` argument.  In the latter case the proper terminal is set according to the `Gnuplot.options.mime` dictionary.
-
-If the `script_filename` argument is provided a *gnuplot script* will be written in place of the output image.  The latter can then be used in a pure gnuplot session (Julia is no longer needed) to generate exactly the same original plot.
+Export a plot into `filename` using the terminal provided via the `term=` keyword.
 
 If the `sid` argument is provided the operation applies to the corresponding session, otherwise the default session is considered.
 
 Example:
 ```julia
 @gp hist(randn(1000))
-save(MIME"text/plain")
-save(term="pngcairo", output="output.png")
-save("script.gp")
+Gnuplot.save("output.png", term="pngcairo")
 ```
 """
-function save(sid::Symbol=options.default; kws...)
-    gpexec.(Ref(getsession(sid)), collect_commands(getsession(sid); kws...))
-    nothing
+save(file::AbstractString; term::AbstractString="") = save(options.default, file, term=term)
+function save(sid::Symbol, file::AbstractString; term::AbstractString="")
+    gp = getsession(sid)
+    gpexec.(Ref(gp), collect_commands(gp; term=term, output=file))
+    return file
 end
 
 
@@ -586,20 +588,20 @@ import Base.show
 
 show(io::IO, d::T) where T <: Dataset = write(io, string(T))
 
-function _show(io::IO, gp::SessionHandle, term::String)
+function _show(io::IO, gp::GPSession, term::String)
     options.gpviewer  &&  return nothing
-    file = tempname()
-    save(gp.sid, term=term, output=file)
-    write(io, read(file))
-    rm(file; force=true)
+    filename = tempname()
+    save(gp.sid, filename, term=term)
+    write(io, read(filename))
+    rm(filename; force=true)
     nothing
 end
-show(io::IO, ::MIME"application/pdf", gp::SessionHandle) = _show(io, gp, "pdfcairo enhanced")
-show(io::IO, ::MIME"image/jpeg"     , gp::SessionHandle) = _show(io, gp, "jpeg enhanced")
-show(io::IO, ::MIME"image/png"      , gp::SessionHandle) = _show(io, gp, "pngcairo enhanced")
-show(io::IO, ::MIME"image/svg+xml"  , gp::SessionHandle) = _show(io, gp, "svg enhanced mouse standalone background rgb 'white'")  #  dynamic
-show(io::IO, ::MIME"text/html"      , gp::SessionHandle) = _show(io, gp, "svg enhanced mouse standalone dynamic")  # canvas mousing
-show(io::IO, ::MIME"text/plain"     , gp::SessionHandle) = _show(io, gp, "dumb enhanced ansi")
+show(io::IO, ::MIME"application/pdf", gp::GPSession) = _show(io, gp, "pdfcairo enhanced")
+show(io::IO, ::MIME"image/jpeg"     , gp::GPSession) = _show(io, gp, "jpeg enhanced")
+show(io::IO, ::MIME"image/png"      , gp::GPSession) = _show(io, gp, "pngcairo enhanced")
+show(io::IO, ::MIME"image/svg+xml"  , gp::GPSession) = _show(io, gp, "svg enhanced mouse standalone background rgb 'white'")  #  dynamic
+show(io::IO, ::MIME"text/html"      , gp::GPSession) = _show(io, gp, "svg enhanced mouse standalone dynamic")  # canvas mousing
+show(io::IO, ::MIME"text/plain"     , gp::GPSession) = _show(io, gp, "dumb enhanced ansi")
 
 
 include("histogram.jl")

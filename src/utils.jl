@@ -189,7 +189,7 @@ function splash(outputfile="")
     @gp :- :splash "set arrow 1 from graph 0.05, 0.15 to graph 0.95, 0.15 size 0.2,20,60  noborder  lw 9 lc rgb '#4d64ae'" :-
     @gp :- :splash "set arrow 2 from graph 0.15, 0.05 to graph 0.15, 0.95 size 0.2,20,60  noborder  lw 9 lc rgb '#4d64ae'" :-
     @gp :- :splash ["0.35 0.65 @ 13253682", "0.85 0.65 g 3774278", "1.3 0.65 p 9591203"] "w labels notit font 'Mono,160' tc rgb var"
-    (outputfile == "")  ||  save(:splash, term="pngcairo transparent noenhanced size 600,300", output=outputfile)
+    (outputfile == "")  ||  save(:splash, outputfile, term="pngcairo transparent noenhanced size 600,300")
     nothing
 end
 
@@ -200,11 +200,12 @@ function gp_write_table(args...; kw...)
     tmpfile = Base.Filesystem.tempname()
     sid = Symbol("j", Base.Libc.getpid())
     gp = getsession(sid)
-    reset(gp)
-    gpexec(sid, "set term unknown")
-    update!(sid, "set table '$tmpfile'", args...; kw...)
-    gpexec(sid, "unset table")
-    quit(sid)
+    empty!(gp.specs)
+    reset(gp.process)
+    append!(gp, parseSpecs("set term unknown", "set table '$tmpfile'", args...; kw...))
+    gpexec.(Ref(gp), collect_commands(gp))
+    gpexec(gp, "unset table")
+    quit(gp)
     out = readlines(tmpfile)
     rm(tmpfile)
     return out

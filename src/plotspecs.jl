@@ -1,35 +1,30 @@
 abstract type AbstractGPInput end
 
-struct GPCommand <: AbstractGPInput
+abstract type AbstractGPInputMid <: AbstractGPInput end
+
+mutable struct GPCommand <: AbstractGPInputMid
     mid::Int
-    cmd::String
-    GPCommand(cmd::AbstractString; mid::Int=1) = new(mid, deepcopy(string(cmd)))
-    GPCommand(cmds::Vector{<: AbstractString}; mid::Int=1) = new(mid, join(string.(cmds), ";\n"))
+    const cmd::String
+    GPCommand(mid::Int, cmd::AbstractString) = new(mid, deepcopy(string(cmd)))
+    GPCommand(mid::Int, cmds::Vector{<: AbstractString}) = new(mid, join(string.(cmds), ";\n"))
 end
 
 struct GPNamedDataset <: AbstractGPInput
     name::String
     data::DatasetText
-    GPNamedDataset(name::AbstractString, data::DatasetText) =
-        new(string(name), data)
 end
 
-struct GPPlotCommand <: AbstractGPInput
+struct GPPlotCommand <: AbstractGPInputMid
     mid::Int
     is3d::Bool
     cmd::String
-    GPPlotCommand(cmd::AbstractString; mid::Int=1, is3d::Bool=false) =
-        new(mid, is3d, string(cmd))
 end
 
-struct GPPlotDataCommand <: AbstractGPInput
+struct GPPlotDataCommand <: AbstractGPInputMid
     mid::Int
     is3d::Bool
     data::Dataset
     cmd::String
-
-    GPPlotDataCommand(data::Dataset, cmd::AbstractString; mid::Int=1, is3d::Bool=false) =
-        new(mid, is3d, data, string(cmd))
 end
 
 
@@ -89,17 +84,17 @@ end
 
 
 # ---------------------------------------------------------------------
-function parseAsPlotCommand(s::String, mid::Int)
-    (length(s) >= 2)  &&  (s[1:2] ==  "p "    )  &&  (return GPPlotCommand(strip(s[2:end]), mid=mid))
-    (length(s) >= 3)  &&  (s[1:3] ==  "pl "   )  &&  (return GPPlotCommand(strip(s[3:end]), mid=mid))
-    (length(s) >= 4)  &&  (s[1:4] ==  "plo "  )  &&  (return GPPlotCommand(strip(s[4:end]), mid=mid))
-    (length(s) >= 5)  &&  (s[1:5] ==  "plot " )  &&  (return GPPlotCommand(strip(s[5:end]), mid=mid))
-    (length(s) >= 2)  &&  (s[1:2] ==  "s "    )  &&  (return GPPlotCommand(strip(s[2:end]), mid=mid, is3d=true))
-    (length(s) >= 3)  &&  (s[1:3] ==  "sp "   )  &&  (return GPPlotCommand(strip(s[3:end]), mid=mid, is3d=true))
-    (length(s) >= 4)  &&  (s[1:4] ==  "spl "  )  &&  (return GPPlotCommand(strip(s[4:end]), mid=mid, is3d=true))
-    (length(s) >= 5)  &&  (s[1:5] ==  "splo " )  &&  (return GPPlotCommand(strip(s[5:end]), mid=mid, is3d=true))
-    (length(s) >= 6)  &&  (s[1:6] ==  "splot ")  &&  (return GPPlotCommand(strip(s[6:end]), mid=mid, is3d=true))
-    return GPCommand(s, mid=mid)
+function parseAsPlotCommand(mid::Int, s::String)
+    (length(s) >= 2)  &&  (s[1:2] ==  "p "    )  &&  (return GPPlotCommand(mid, false, strip(s[2:end])))
+    (length(s) >= 3)  &&  (s[1:3] ==  "pl "   )  &&  (return GPPlotCommand(mid, false, strip(s[3:end])))
+    (length(s) >= 4)  &&  (s[1:4] ==  "plo "  )  &&  (return GPPlotCommand(mid, false, strip(s[4:end])))
+    (length(s) >= 5)  &&  (s[1:5] ==  "plot " )  &&  (return GPPlotCommand(mid, false, strip(s[5:end])))
+    (length(s) >= 2)  &&  (s[1:2] ==  "s "    )  &&  (return GPPlotCommand(mid, true , strip(s[2:end])))
+    (length(s) >= 3)  &&  (s[1:3] ==  "sp "   )  &&  (return GPPlotCommand(mid, true , strip(s[3:end])))
+    (length(s) >= 4)  &&  (s[1:4] ==  "spl "  )  &&  (return GPPlotCommand(mid, true , strip(s[4:end])))
+    (length(s) >= 5)  &&  (s[1:5] ==  "splo " )  &&  (return GPPlotCommand(mid, true , strip(s[5:end])))
+    (length(s) >= 6)  &&  (s[1:6] ==  "splot ")  &&  (return GPPlotCommand(mid, true , strip(s[6:end])))
+    return GPCommand(mid, s)
 end
 
 
@@ -108,13 +103,14 @@ function parseSpecs(_args...; default_mid=1, is3d=false, kws...)
     args = Vector{Any}([_args...])
 
     # First pass: check data types, search for mid, run implicit recipes and splat Vector{GPPlotDataCommands}
+    mid = 0
     pos = 1
-    mid = nothing
     while pos <= length(args)
         arg = args[pos]
         if isa(arg, Int)                        ;    # ==> multiplot ID
-            @assert isnothing(mid) "Multiplot ID can only be specified once"
-            @assert pos == 1 "Multiplot ID must be specified before plot specs."
+            @assert mid == 0 "Multiplot ID can only be specified once"
+            @assert pos == 1 "Multiplot ID must be specified before plot specs"
+            @assert arg >= 1 "Multiplot ID must be a positive integer"
             mid = arg
         elseif isa(arg, AbstractString)              # ==> a plotspec or a command
             args[pos] = string(strip(arg))
@@ -200,10 +196,10 @@ function parseSpecs(_args...; default_mid=1, is3d=false, kws...)
     end
 
     # Third pass: collect specs
-    isnothing(mid)  &&  (mid = default_mid)
+    (mid == 0)  &&  (mid = default_mid)
     out_specs = Vector{AbstractGPInput}()
     s = parseKeywords(; kws...)
-    (s != "")  &&  push!(out_specs, GPCommand(s, mid=mid))
+    (s != "")  &&  push!(out_specs, GPCommand(mid, s))
 
     pos = 1
     while pos <= length(args)
@@ -212,7 +208,7 @@ function parseSpecs(_args...; default_mid=1, is3d=false, kws...)
         if isa(arg, Int)                         # ==> multiplot ID
             ;
         elseif isa(arg, String)                  # ==> a plotspec or a command
-            push!(out_specs, parseAsPlotCommand(arg, mid))
+            push!(out_specs, parseAsPlotCommand(mid, arg))
         elseif isa(arg, Pair)                    # ==> name => dataset pair
             name = arg[1]
             @assert  isa(arg[2], Dataset)
@@ -223,7 +219,7 @@ function parseSpecs(_args...; default_mid=1, is3d=false, kws...)
                 cmd = args[pos+1]
                 deleteat!(args, pos+1)
             end
-            push!(out_specs, GPPlotDataCommand(arg, cmd, mid=mid, is3d=is3d))
+            push!(out_specs, GPPlotDataCommand(mid, is3d, arg, cmd))
         elseif isa(arg, AbstractGPInput)
             push!(out_specs, arg)
         else
