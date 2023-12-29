@@ -131,7 +131,7 @@ import .GnuplotProcess: gpexec, gpvars, reset, quit, terminal, terminals
     gpexec(sid::Symbol, command::String)
     gpexec(command::String)
 
-Execute the gnuplot command `command` on the underlying gnuplot process of the `sid` session, and return the results as a `Vector{String}`.  If a gnuplot error arises it is propagated as an `ErrorException`.
+Execute the gnuplot command `command` on the underlying gnuplot process of the `sid` session, and return the results as a `String`.  If a gnuplot error arises it is propagated as an `ErrorException`.
 
 If the `sid` argument is not provided, the default session is considered.
 
@@ -509,14 +509,14 @@ end
 """
     savescript([sid::Symbol,] filename::String)
 
-Save a gnuplot script in `filename`.  The latter can then be used in a pure gnuplot session (Julia is no longer needed) to generate exactly the same plot.
+Save a gnuplot script in `filename`, to be used in a separate gnuplot session (Julia is no longer needed) to generate exactly the same plot.
 
 If the `sid` argument is provided the operation applies to the corresponding session, otherwise the default session is considered.
 
 Example:
 ```julia
 @gp hist(randn(1000))
-Gnuplot.savescript("script.gp")
+Gnuplot.savescript("my_script.gp")
 ```
 """
 savescript(file::AbstractString) = savescript(options.default, file)
