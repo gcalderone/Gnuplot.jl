@@ -386,13 +386,6 @@ end
 
 
 # --------------------------------------------------------------------
-function update_gpviewer!(gp::GPSession)
-    options.gpviewer  &&  gpexec.(Ref(gp), collect_commands(gp))
-    return gp
-end
-
-
-# --------------------------------------------------------------------
 function last_added_mid(gp::GPSession)
     for i in length(gp.specs):-1:1
         isa(gp.specs[i], AbstractGPInputMid)  &&  (return gp.specs[i].mid)
@@ -400,8 +393,6 @@ function last_added_mid(gp::GPSession)
     return 1
 end
 
-
-# ---------------------------------------------------------------------
 """
     @gp args...
 
@@ -495,7 +486,8 @@ macro gp(args...)
         push!(out.args,                       :(local gp = Gnuplot.getsession($sid)))
         doReset  &&           push!(out.args, :(Gnuplot.reset(gp)))
         isnothing(specs)  ||  push!(out.args, :(Gnuplot.append!(gp, $specs)))
-        doExec            &&  push!(out.args, :(Gnuplot.update_gpviewer!(gp)))
+        doExec            &&  push!(out.args, :(Gnuplot.options.gpviewer  &&  gpexec.(Ref(gp), Gnuplot.collect_commands(gp))))
+        push!(out.args, doExec  ?             :(gp)  :  :(nothing))
     end
     return esc(out)
 end
