@@ -304,24 +304,24 @@ end
 
 # ---------------------------------------------------------------------
 function collect_commands(gp::GPSession{T}; term::AbstractString="", output::AbstractString="", redirect_path=nothing) where T
-    function dropDuplicatedUsing(source, spec)
-        # Ensure there is no duplicated `using` clause
-        m0 = match(r"(.*) using 1", source)
-        if !isnothing(m0)
-            for r in [r"u +[\d,\(]",
-                      r"us +[\d,\(]",
-                      r"usi +[\d,\(]",
-                      r"usin +[\d,\(]",
-                      r"using +[\d,\(]"]
-                m = match(r, spec)
-                if !isnothing(m)
-                    source = string(m0.captures[1])
-                    break
-                end
-            end
-        end
-        return source
-    end
+    # function dropDuplicatedUsing(source, spec)
+    #     # Ensure there is no duplicated `using` clause
+    #     m0 = match(r"(.*) using 1", source)
+    #     if !isnothing(m0)
+    #         for r in [r"u +[\d,\(]",
+    #                   r"us +[\d,\(]",
+    #                   r"usi +[\d,\(]",
+    #                   r"usin +[\d,\(]",
+    #                   r"using +[\d,\(]"]
+    #             m = match(r, spec)
+    #             if !isnothing(m)
+    #                 source = string(m0.captures[1])
+    #                 break
+    #             end
+    #         end
+    #     end
+    #     return source
+    # end
 
     out = Vector{String}()
     push!(out, "reset")
