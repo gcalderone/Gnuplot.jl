@@ -551,6 +551,7 @@ Gnuplot.save("output.png", term="pngcairo")
 save(file::AbstractString; term::AbstractString="") = save(options.default, file, term=term)
 function save(sid::Symbol, file::AbstractString; term::AbstractString="")
     gp = getsession(sid)
+    # gpexec.(Ref(gp), collect_commands(gp; term=term * "; set title '$term'", output=file)) # use this to detect which MIME is used for display
     gpexec.(Ref(gp), collect_commands(gp; term=term, output=file))
     return file
 end
@@ -563,8 +564,7 @@ show(io::IO, d::T) where T <: Dataset = write(io, string(T))
 
 function _show(io::IO, gp::GPSession, term::String)
     options.gpviewer  &&  return nothing
-    filename = tempname()
-    save(gp.sid, filename, term=term)
+    filename = save(gp.sid, tempname(), term=term)
     write(io, read(filename))
     rm(filename; force=true)
     nothing

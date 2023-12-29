@@ -144,6 +144,8 @@ The function accepts any number of arguments, with the following meaning:
 - any object `<:AbstractGPSpec` or `Vector{<:AbstractGPSpec}` is simply appended to the output.
 
 - any other data type is processed through an implicit recipe. If a suitable recipe do not exists an error is raised.
+
+All keywords will be processed via the `Gnuplot.parseKeywords` function.
 """
 parseSpecs() = Vector{AbstractGPSpec}()
 function parseSpecs(_args...; default_mid=1, is3d=false, kws...)
