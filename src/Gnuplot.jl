@@ -396,48 +396,25 @@ end
 """
     @gp args...
 
-The `@gp` macro, and its companion `@gsp` for 3D plots, allows to send data and commands to the gnuplot using an extremely concise syntax.  The macros accepts any number of arguments, with the following meaning:
+The `@gp` macro, and its companion `@gsp` for 3D plots, are used to add plot specs to a session and optionally update a plot.  It accepts all arguments accepted by `Gnuplot.parseSpecs` and `Gnuplot.parseKeywords`, plus the following optional ones:
+- a leading literal `:-`: avoids resetting the session before adding new plot specs;
 
-- one, or a group of consecutive, array(s) of either `Real` or `String` build up a dataset.  The different arrays are accessible as columns 1, 2, etc. from the `gnuplot` process.  The number of required input arrays depends on the chosen plot style (see `gnuplot` documentation);
+- a literal symbol (as first argument, or immediately after the `:-` symbol): name of the gnuplot session to address.  If not given the default session is used;
 
-- a string occurring before a dataset is interpreted as a `gnuplot` command (e.g. `set grid`);
+- a trailing literal `:-`: avoids immediately updating the plot.
 
-- a string occurring immediately after a dataset is interpreted as a *plot element* for the dataset, by which you can specify `using` clause, `with` clause, line styles, etc..  All keywords may be abbreviated following gnuplot conventions.  Moreover, "plot" and "splot" can be abbreviated to "p" and "s" respectively;
+The leading and trailing `:-` symbols are used to add specs to a gnuplot session using multiple statements rather than a single one.
 
-- the special symbol `:-` allows to split one long statement into multiple (shorter) ones.  If given as first argument it avoids starting a new plot.  If it given as last argument it avoids immediately running all commands to create the final plot;
+## Example:
+```julia
+# Reset default session and generate new plot
+@gp [-1,1] [-1,1] "w l t 'Main diagonal'"  [-1,1] [1,-1] "w l t 'Antidiagonal'" [0] [0] "w p t 'Origin'"
 
-- any other symbol is interpreted as a session ID;
-
-- an `Int` (>= 1) is interpreted as the plot destination in a multi-plot session (this specification applies to subsequent arguments, not previous ones);
-
-- an input in the form `"\\\$name"=>(array1, array2, etc...)` is interpreted as a named dataset.  Note that the dataset name must always start with a "`\$`";
-
-- an input in the form `keyword=value` is interpreted as a keyword/value pair.  The accepted keywords and their corresponding gnuplot commands are as follows:
-  - `xrange=[low, high]` => `"set xrange [low:high]`;
-  - `yrange=[low, high]` => `"set yrange [low:high]`;
-  - `zrange=[low, high]` => `"set zrange [low:high]`;
-  - `cbrange=[low, high]`=> `"set cbrange[low:high]`;
-  - `key="..."`  => `"set key ..."`;
-  - `title="..."`  => `"set title \"...\""`;
-  - `xlabel="..."` => `"set xlabel \"...\""`;
-  - `ylabel="..."` => `"set ylabel \"...\""`;
-  - `zlabel="..."` => `"set zlabel \"...\""`;
-  - `cblabel="..."` => `"set cblabel \"...\""`;
-  - `xlog=true`   => `set logscale x`;
-  - `ylog=true`   => `set logscale y`;
-  - `zlog=true`   => `set logscale z`.
-  - `cblog=true`  => `set logscale cb`;
-  - `margins=...` => `set margins ...`;
-  - `lmargin=...` => `set lmargin ...`;
-  - `rmargin=...` => `set rmargin ...`;
-  - `bmargin=...` => `set bmargin ...`;
-  - `tmargin=...` => `set tmargin ...`;
-
-All Keyword names can be abbreviated as long as the resulting name is unambiguous.  E.g. you can use `xr=[1,10]` in place of `xrange=[1,10]`.
-
-- a `PlotSpecs` object is expanded in its fields and processed as one of the previous arguments;
-
-- any other data type is processed through an implicit recipe. If a suitable recipe do not exists an error is raised.
+# Break above statement in three separate ones, and address the :foo session:
+@gp    :foo [-1,1] [-1,1] "w l t 'Main diagonal'" :-  # reset :foo session, do not update the plot
+@gp :- :foo [-1,1] [1,-1] "w l t 'Antidiagonal'"  :-  # add spec to the :foo session, do not update the plot
+@gp :- :foo [0] [0] "w p t 'Origin'"                  # add spec to the :foo session, update the plot
+```
 """
 macro gp(args...)
     first = 1
@@ -513,7 +490,7 @@ Save a gnuplot script in `filename`, to be used in a separate gnuplot session (J
 
 If the `sid` argument is provided the operation applies to the corresponding session, otherwise the default session is considered.
 
-Example:
+## Example:
 ```julia
 @gp hist(randn(1000))
 Gnuplot.savescript("my_script.gp")
@@ -561,7 +538,7 @@ Export a plot into `filename` using the terminal provided via the `term=` keywor
 
 If the `sid` argument is provided the operation applies to the corresponding session, otherwise the default session is considered.
 
-Example:
+## Example:
 ```julia
 @gp hist(randn(1000))
 Gnuplot.save("output.png", term="pngcairo")

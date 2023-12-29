@@ -1,13 +1,17 @@
 # Version 2.0.0
+- New explitict recipe: `line`
+
 - Breaking changes:
   * dataset_names() is no longer available;
   * Real numbers in @gp and @gsp are no longer interpreted as vectors with one element.  Use, e.g., `[0.]`;
-  * Multiplot ID can only be specified once in a `parseSpec` call, and it must be the first argument in the list;
-  * Mixing plot and splot commands is no detected as an error;
+  * Multiplot ID can only be specified once in a `parseSpec` call, and it must be present before other plot specs;
+  * Mixing plot and splot commands is now detected as an error;
   * `Gnuplot.save` and `Gnuplot.recipe` are no longer exported;
-  * PlotElement is no longer available (see section on Gnuplot internals);
-
-
+  * scripts are now saved using `Gnuplot.savescript` rather than `Gnuplot.save`;
+  * `output=` is no longer a keyword in `Gnuplot.save`, but a required argument;
+  * The `Options` structure no longer has a `mime` field: to customize terminal for a specific MIME a new method should be implemented;
+  * Several internal functions has been renamed
+  
 # Version 1.5.0
 - New features:
 	* using PrecompileTools to reduce time-to-first-plot in Julia v1.9;
