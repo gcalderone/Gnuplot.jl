@@ -1,26 +1,27 @@
-abstract type AbstractGPInput end
+abstract type AbstractGPSpec end
 
-abstract type AbstractGPInputMid <: AbstractGPInput end
+# A gnuplot spec belonging to a specific plot when multiplot is in use
+abstract type AbstractGPSpecMid <: AbstractGPSpec end
 
-mutable struct GPCommand <: AbstractGPInputMid
+mutable struct GPCommand <: AbstractGPSpecMid
     mid::Int
     const cmd::String
     GPCommand(mid::Int, cmd::AbstractString) = new(mid, deepcopy(string(cmd)))
     GPCommand(mid::Int, cmds::Vector{<: AbstractString}) = new(mid, join(string.(cmds), ";\n"))
 end
 
-struct GPNamedDataset <: AbstractGPInput
+struct GPNamedDataset <: AbstractGPSpec
     name::String
     data::DatasetText
 end
 
-struct GPPlotCommand <: AbstractGPInputMid
+struct GPPlotCommand <: AbstractGPSpecMid
     mid::Int
     is3d::Bool
     cmd::String
 end
 
-struct GPPlotDataCommand <: AbstractGPInputMid
+struct GPPlotWithData <: AbstractGPSpecMid
     mid::Int
     is3d::Bool
     data::Dataset
@@ -98,11 +99,11 @@ function parseAsPlotCommand(mid::Int, s::String)
 end
 
 
-parseSpecs() = Vector{AbstractGPInput}()
+parseSpecs() = Vector{AbstractGPSpec}()
 function parseSpecs(_args...; default_mid=1, is3d=false, kws...)
     args = Vector{Any}([_args...])
 
-    # First pass: check data types, search for mid, run implicit recipes and splat Vector{GPPlotDataCommands}
+    # First pass: check data types, search for mid, run implicit recipes and splat Vector{<: AbstractGPSpec}
     mid = 0
     pos = 1
     while pos <= length(args)
@@ -130,22 +131,22 @@ function parseSpecs(_args...; default_mid=1, is3d=false, kws...)
             # @info which(recipe, tuple(typeof(arg)))  # debug
             deleteat!(args, pos)
             pe = recipe(arg)
-            if isa(pe, AbstractGPInput)
+            if isa(pe, AbstractGPSpec)
                 insert!(args, pos, pe)
-            elseif isa(pe, Vector)  &&  all(isa.(pe, AbstractGPInput))
+            elseif isa(pe, Vector)  &&  all(isa.(pe, AbstractGPSpec))
                 for p in reverse(pe)
                     insert!(args, pos, p)
                 end
             else
-                error("Recipe must return an AbstractGPInput or Vector{<: AbstractGPInput}")
+                error("Recipe must return an AbstractGPSpec or Vector{<: AbstractGPSpec}")
             end
             continue
-        elseif isa(arg, Vector{<: AbstractGPInput})# ==> explicit recipe (vector)
+        elseif isa(arg, Vector{<: AbstractGPSpec})# ==> explicit recipe (vector)
             deleteat!(args, pos)
             for i in length(arg):-1:1
                 insert!(args, pos, arg[i])
             end
-        elseif isa(arg, AbstractGPInput)      ;    # ==> explicit recipe (scalar)
+        elseif isa(arg, AbstractGPSpec)      ;    # ==> explicit recipe (scalar)
         else
             error("Unexpected argument with type " * string(typeof(arg)))
         end
@@ -197,7 +198,7 @@ function parseSpecs(_args...; default_mid=1, is3d=false, kws...)
 
     # Third pass: collect specs
     (mid == 0)  &&  (mid = default_mid)
-    out_specs = Vector{AbstractGPInput}()
+    out_specs = Vector{AbstractGPSpec}()
     s = parseKeywords(; kws...)
     (s != "")  &&  push!(out_specs, GPCommand(mid, s))
 
@@ -219,8 +220,8 @@ function parseSpecs(_args...; default_mid=1, is3d=false, kws...)
                 cmd = args[pos+1]
                 deleteat!(args, pos+1)
             end
-            push!(out_specs, GPPlotDataCommand(mid, is3d, arg, cmd))
-        elseif isa(arg, AbstractGPInput)
+            push!(out_specs, GPPlotWithData(mid, is3d, arg, cmd))
+        elseif isa(arg, AbstractGPSpec)
             push!(out_specs, arg)
         else
             error("Unexpected argument with type " * string(typeof(arg)))

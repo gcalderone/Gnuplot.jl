@@ -26,14 +26,14 @@ Structure containing the package global options, accessible through `Gnuplot.opt
 - `dry::Bool`: whether to use *dry* sessions, i.e. without an underlying Gnuplot process (default: `false`)
 - `cmd::String`: command to start the Gnuplot process (default: `"gnuplot"`)
 - `default::Symbol`: default session name (default: `:default`)
-- `term::String`: default terminal for interactive use (default: empty string, i.e. use gnuplot settings);
+- `term::String`: default terminal for interactive use (default: empty string);
 - `gpviewer::Bool`: use a gnuplot terminal as main plotting device (if `true`) or an external viewer (if `false`);
 - `init::Vector{String}`: commands to initialize the session when it is created or reset (e.g., to set default palette);
 - `verbose::Bool`: verbosity flag (default: `false`)
 - `preferred_format::Symbol`: preferred format to send data to gnuplot.  Value must be one of:
    - `bin`: fastest solution for large datasets, but uses temporary files;
    - `text`: may be slow for large datasets, but no temporary file is involved;
-   - `auto` (default) automatically choose the best strategy.
+   - `auto` (default) use a heuristic to identify the best strategy.
 """
 Base.@kwdef mutable struct Options
     dry::Bool = false
@@ -86,9 +86,9 @@ include("plotspecs.jl")
 struct GPSession{T}
     sid::Symbol
     process::T
-    specs::Vector{AbstractGPInput}
-    GPSession(sid::Symbol)               = new{Nothing}(  sid, nothing, Vector{AbstractGPInput}())
-    GPSession(sid::Symbol, p::GPProcess) = new{GPProcess}(sid, p      , Vector{AbstractGPInput}())
+    specs::Vector{AbstractGPSpec}
+    GPSession(sid::Symbol)               = new{Nothing}(  sid, nothing, Vector{AbstractGPSpec}())
+    GPSession(sid::Symbol, p::GPProcess) = new{GPProcess}(sid, p      , Vector{AbstractGPSpec}())
 end
 
 
@@ -237,7 +237,7 @@ function datasets(gp::GPSession)
         elseif isa(spec, GPPlotCommand)
             push!(out, (nothing, nothing, nothing))
         else
-            @assert isa(spec, GPPlotDataCommand)
+            @assert isa(spec, GPPlotWithData)
             name = "\$data$i"
             if isa(spec.data, DatasetText)
                 source = name
@@ -254,12 +254,12 @@ end
 
 # ---------------------------------------------------------------------
 import Base.push!, Base.append!
-function push!(gp::GPSession{Nothing}, spec::AbstractGPInput)
+function push!(gp::GPSession{Nothing}, spec::AbstractGPSpec)
     push!(gp.specs, spec)
     nothing
 end
 
-function push!(gp::GPSession{GPProcess}, spec::AbstractGPInput)
+function push!(gp::GPSession{GPProcess}, spec::AbstractGPSpec)
     push!(gp.specs, spec)
     name, source, data = datasets(gp)[end]
     if isa(data, DatasetText)
@@ -275,7 +275,7 @@ function push!(gp::GPSession{GPProcess}, spec::AbstractGPInput)
     end
     nothing
 end
-append!(gp::GPSession, specs::Vector{AbstractGPInput}) = push!.(Ref(gp), specs)
+append!(gp::GPSession, specs::Vector{AbstractGPSpec}) = push!.(Ref(gp), specs)
 
 
 # ---------------------------------------------------------------------
@@ -341,7 +341,7 @@ function collect_commands(gp::GPSession{T}; term::AbstractString="", output::Abs
         is3d = nothing
         for i in 1:length(gp.specs)
             spec = gp.specs[i]
-            isa(spec, AbstractGPInputMid)  &&  (spec.mid != mid)  &&  continue
+            isa(spec, AbstractGPSpecMid)  &&  (spec.mid != mid)  &&  continue
 
             if isa(spec, GPCommand)
                 push!(out, spec.cmd)
@@ -351,7 +351,7 @@ function collect_commands(gp::GPSession{T}; term::AbstractString="", output::Abs
                 isnothing(is3d)  ?  (is3d = spec.is3d)  :  @assert(is3d == spec.is3d, "Mixing plot and splot commands is not allowed")
                 push!(plotcmd, spec.cmd)
             else
-                @assert isa(spec, GPPlotDataCommand)
+                @assert isa(spec, GPPlotWithData)
                 isnothing(is3d)  ?  (is3d = spec.is3d)  :  @assert(is3d == spec.is3d, "Mixing plot and splot commands is not allowed")
                 if isa(spec.data, DatasetText)
                     push!(plotcmd, "\$data$(i) " * spec.cmd)
@@ -388,7 +388,7 @@ end
 # --------------------------------------------------------------------
 function last_added_mid(gp::GPSession)
     for i in length(gp.specs):-1:1
-        isa(gp.specs[i], AbstractGPInputMid)  &&  (return gp.specs[i].mid)
+        isa(gp.specs[i], AbstractGPSpecMid)  &&  (return gp.specs[i].mid)
     end
     return 1
 end
