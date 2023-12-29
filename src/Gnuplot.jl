@@ -58,6 +58,7 @@ function __init__()
         (isdefined(Main, :PlutoRunner)) )
         options.gpviewer = false
     end
+    gpversion()
 end
 
 
@@ -73,10 +74,13 @@ Return the gnuplot application version.
 Raise an error if version is < 5.0 (required to use data blocks).
 """
 function gpversion()
-    ver = Gnuplot.GnuplotProcess.gpversion(options.cmd)
-     if ver < v"5.0"
-        error("gnuplot ver. >= 5.0 is required, but " * string(ver) * " was found.")
-     end
+    if !options.dry
+        ver = Gnuplot.GnuplotProcess.gpversion(options.cmd)
+        if ver < v"5.0"
+            @warn("gnuplot ver. >= 5.0 is required, but " * string(ver) * " was found.  Enabling dry sessions.")
+            options.dry = true
+        end
+    end
 end
 
 include("dataset.jl")
