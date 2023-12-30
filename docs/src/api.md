@@ -12,7 +12,6 @@ The list of **Gnuplot.jl** exported symbols is as follows:
 @gsp
 boxxy
 contourlines
-dataset_names
 dgrid3d
 gpexec
 gpmargins
@@ -21,12 +20,11 @@ gpvars
 hist
 hist_bins
 hist_weights
+line
 linetypes
 palette
 palette_levels
 palette_names
-recipe
-save
 session_names
 stats
 terminals
@@ -42,16 +40,18 @@ In order to call these functions you should add the `Gnuplot.` prefix to the fun
 
 ```@docs
 Gnuplot.Dataset
-Gnuplot.DatasetEmpty
 Gnuplot.DatasetText
 Gnuplot.DatasetBin
 Gnuplot.IsoContourLines
 Gnuplot.Options
 Gnuplot.Path2d
-Gnuplot.PlotElement
 Gnuplot.gpversion
 Gnuplot.quit
 Gnuplot.quitall
+Gnuplot.parseKeywords
+Gnuplot.parseSpecs
 Gnuplot.repl_init
+Gnuplot.save
+Gnuplot.savescript
 Gnuplot.version
 ```

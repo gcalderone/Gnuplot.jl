@@ -1,13 +1,14 @@
 # Gnuplot.jl
 ## A Julia interface to gnuplot.
 
-[![Build Status](https://travis-ci.org/gcalderone/Gnuplot.jl.svg?branch=master)](https://travis-ci.org/gcalderone/Gnuplot.jl)
 [![License](http://img.shields.io/badge/license-MIT-brightgreen.svg?style=flat)](LICENSE.md)
 [![DocumentationStatus](https://img.shields.io/badge/docs-stable-blue.svg?style=flat)](https://gcalderone.github.io/Gnuplot.jl/stable/index.html)
 
-
 **Gnuplot.jl** is a simple package able to send both data and commands from Julia to an underlying [gnuplot](http://gnuplot.sourceforge.net/) process.  Its main purpose it to provide a fast and powerful data visualization framework, using an extremely concise Julia syntax. It also has automatic display of plots in Jupyter, Juno and VS Code.
 
+> [!WARNING]
+> The code in version 1.6.0 underwent a signficant refactoring, and a few minor breaking changes had been introduced.
+> **Please have a look at ChangeLog.md !!**
 
 ## Installation
 
@@ -32,8 +33,8 @@ The following examples are supposed to be self-explaining.  See [documentation](
 ```julia
 x = 1.:20
 @gp x x.^2 "with lines title 'Parabola'"
-save(term="pngcairo size 480,360", output="examples/ex1.png")
-save("parabola.gp")  # => save a script file with both data and command to re-create the plot.
+Gnuplot.save("examples/ex1.png", term="pngcairo size 480,360")
+Gnuplot.savescript("examples/parabola.gp")  # => save a script file with both data and command to re-create the plot.
 ```
 ![ex1.png](examples/ex1.png)
 
@@ -50,7 +51,7 @@ approx = fill(0., length(x));
 @gp :- x sin.(x) approx .+=  x.^5/120   "w filledcurve t 'n=2' lt 3"
 @gp :- x sin.(x) approx .+= -x.^7/5040  "w filledcurve t 'n=3' lt 4"
 @gp :- x sin.(x)                        "w l t 'sin(x)' lw 2 lc rgb 'black'"
-save(term="pngcairo size 640,480", output="examples/ex2.png")
+Gnuplot.save("examples/ex2.png", term="pngcairo size 640,480")
 ```
 ![ex2.png](examples/ex2.png)
 
@@ -67,7 +68,7 @@ for i in 1:length(clines)
     @gp :- clines[i].data "w l t '$(clines[i].z)' lw $i lc rgb 'gray'" :-
 end
 @gsp :- 2 hist_bins(h, 1) hist_bins(h, 2) hist_weights(h) "w pm3d notit"
-save(term="pngcairo size 660,350 fontscale 0.8", output="examples/ex3.png")
+Gnuplot.save("examples/ex3.png", term="pngcairo size 660,350 fontscale 0.8")
 ```
 ![ex3.png](examples/ex3.png)
 

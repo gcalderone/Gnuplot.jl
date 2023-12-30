@@ -6,7 +6,7 @@ mkpath("assets")
 Gnuplot.options.term = "unknown"
 empty!(Gnuplot.options.init)
 push!( Gnuplot.options.init, linetypes(:Set1_5, lw=1.5, ps=1.5))
-saveas(file) = save(term="pngcairo size 550,350 fontscale 0.8", output="assets/$(file).png")
+saveas(file) = Gnuplot.save(term="pngcairo size 550,350 fontscale 0.8", "assets/$(file).png")
 ```
 
 # Display options
@@ -15,11 +15,9 @@ The display behaviour of **Gnuplot.jl** depends on the value of the `Gnuplot.opt
 
 - if `true` the plot is displayed in a gnuplot window, using one of the interactive terminals such as `wxt`, `qt` or `aqua`.  This is the default setting when running a Julia REPL session; The terminal options can be customized using `Gnuplot.options.term`;
 
-- if `false` the plot is displayed through the Julia [multimedia interface](https://docs.julialang.org/en/v1/base/io-network/#Multimedia-I/O-1), i.e. it is exported as either a `png`, `svg` or `html` file, and displayed in an external viewer.  This is the default setting when running a Jupyter, JupyterLab or Juno session.  The terminal options can be customized using the `Gnuplot.options.mime` dictionary.
+- if `false` the plot is displayed through the Julia [multimedia interface](https://docs.julialang.org/en/v1/base/io-network/#Multimedia-I/O-1), i.e. it is exported as either a `png`, `svg` or `html` file, and displayed in an external viewer.  This is the default setting when running a Jupyter, VSCode or Juno session.
 
-The `Gnuplot.options.gpviewer` flag is automatically set when the package is first loaded according to the runtime environment, however the user can change its value at any time to fit specific needs.  Further informations and examples for both options are available in this Jupyter [notebook](https://github.com/gcalderone/Gnuplot.jl/blob/gh-pages/v1.3.0/options/display.ipynb).
-
-
+The `Gnuplot.options.gpviewer` flag is automatically set when the package is first loaded according to the runtime environment, however the user can change its value at any time to fit specific needs.  Further informations and examples for both options are available in this Jupyter [notebook](https://github.com/gcalderone/Gnuplot.jl/blob/master/docs/display.ipynb).
 
 
 # Package options and initialization
@@ -38,15 +36,6 @@ The package options are stored in a global structure available in Julia as `Gnup
 Gnuplot.options.term = "wxt size 700,400";
 ```
 
-- `mime::Dict{MIME, String}`: dictionary of MIME types and corresponding gnuplot terminals.  Used to export images with either [`save()`](@ref) or `show()` (see [Display options](@ref)).  Default values are:
-  - `MIME"application/pdf" => "pdfcairo enhanced"`
-  - `MIME"image/jpeg"      => "jpeg enhanced"`
-  - `MIME"image/png"       => "pngcairo enhanced"`
-  - `MIME"image/svg+xml"   => "svg enhanced mouse standalone dynamic background rgb 'white'"`
-  - `MIME"text/html"       => "svg enhanced mouse standalone dynamic"`
-  - `MIME"text/plain"      => "dumb enhanced ansi"`
-
-
 - `init::Vector{String}`: commands to initialize the session when it is created or reset.  It can be used to, e.g., set a custom linetypes or palette:
 ```@repl abc
 push!(Gnuplot.options.init, linetypes(:Set1_5, lw=1.5, ps=1.5));
@@ -60,55 +49,53 @@ gpexec("set term wxt");                                    # hide
 Gnuplot.options.verbose = true;
 x = 1.:10;
 @gp x x.^2 "w l t 'Parabola'"
-save(term="pngcairo size 480,360 fontscale 0.8", output="output.png")
+Gnuplot.save("output.png", term="pngcairo size 480,360 fontscale 0.8")
 Gnuplot.options.verbose = false                            # hide
 push!(Gnuplot.options.init, linetypes(:Set1_5, lw=1.5));   # hide
 gpexec("set term unknown");                                # hide
 ```
-Each line reports the package name (`GNUPLOT`), the session name (`default`), the command or string being sent to gnuplot process, and the returned response (line starting with `->`).  Default value is `false`;
+Each line reports the package name (`GNUPLOT`), the session name (`default`), the command or string being sent to gnuplot process, and the returned response (line starting with `->`).  Default value for `verbose` is `false`;
 
 
 ## Package initialization
 
-If you use **Gnuplot.jl** frequently you may find convenient to automatically apply the package settings ([Options](@ref)) whenever the package is loaded.  A possibility is to use [Requires.jl](https://github.com/JuliaPackaging/Requires.jl) and put the following code in the `~/.julia/config/startup.jl` initialization file (further info [here](https://docs.julialang.org/en/v1/stdlib/REPL/)):
+If you use **Gnuplot.jl** frequently you may find convenient to automatically apply the package settings ([Options](@ref)) whenever the package is loaded.  A possibility is to use the [atreplinit](https://docs.julialang.org/en/v1/stdlib/REPL/#Base.atreplinit) function and within the `startup.jl` initialization file (further info [here](https://docs.julialang.org/en/v1/stdlib/REPL/)), e.g.:
 ```julia
-using Requires
-@require Gnuplot="dc211083-a33a-5b79-959f-2ff34033469d" begin
-        @info "Custom Gnuplot initialization"
-        # Uncomment the following if you don't have the gnuplot
-        # executable installed on your platform:
-        #Gnuplot.options.dry = true;
+atreplinit() do repl
+    try
+        @eval begin
+            using Gnuplot
 
-        # Set the proper path if the gnuplot executable is not
-        # available in your $PATH
-        #Gnuplot.options.cmd = "/path/to/gnuplot";
+            # Uncomment the following if you don't have gnuplot
+            # installed on your platform:
+            #Gnuplot.options.dry = true
 
-        # Force a specific display behaviour (see documentation).  If
-        # not given explicit Gnuplot.jl will choose the best option
-        # according to your runtime environment.
-        #Gnuplot.options.gpviewer = true
+            # Force a specific display behaviour (see documentation).  If
+            # not given explicit Gnuplot.jl will choose the best option
+            # according to your runtime environment.
+            #Gnuplot.options.gpviewer = true
 
-        # Set the default terminal for interacitve use
-        Gnuplot.options.term = "wxt size 700,400";
+            # Set the proper path if the gnuplot executable is not
+            # available in your $PATH
+            #Gnuplot.options.cmd = "/path/to/gnuplot"
 
-        # Set the terminal options for the exported MIME types:
-        #Gnuplot.options.mime[MIME"image/png"] = "";
-        #Gnuplot.options.mime[MIME"image/svg+xml"] = "svg enhanced standalone dynamic";
-        #Gnuplot.options.mime[MIME"text/html"] = "svg enhanced standalone mouse dynamic";
+            # Set the default terminal for interacitve use
+            # (only meaningful if Gnuplot.options.gpviewer = true)
+            if Gnuplot.options.gpviewer
+                Gnuplot.options.term = "wxt size 700,400 lw 1.4 enhanced"
+            end
 
-        # Set the terminal to plot in a terminal emulator:
-        # (try with `save(MIME"text/plain")`):
-        #Gnuplot.options.mime[MIME"text/plain"] = "sixelgd enhanced"; # requires vt340 emulation
+            # Set the default linetypes
+            empty!(Gnuplot.options.init)
+            push!(Gnuplot.options.init, Gnuplot.linetypes(:Set1_5, lw=1.5, ps=1.5))
 
-        # Set the default linetypes
-        empty!(Gnuplot.options.init);
-        push!(Gnuplot.options.init, Gnuplot.linetypes(:Set1_5, lw=1.5, ps=1.5));
-
-        # Initialize the gnuplot REPL using the provided `start_key`.
-        if Gnuplot.options.gpviewer;
-            Gnuplot.repl_init(start_key='>');
-        end;
+            # Initialize the gnuplot REPL
+            if Gnuplot.options.gpviewer
+                Gnuplot.repl_init(start_key='>')
+            end
+        end
+    catch err
+        @show err
+    end
 end
 ```
-
-The above code will be automatically executed when you first load the package with `using Gnuplot`.

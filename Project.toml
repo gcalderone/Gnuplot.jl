@@ -1,6 +1,6 @@
 name = "Gnuplot"
 uuid = "dc211083-a33a-5b79-959f-2ff34033469d"
-version = "1.5.0"
+version = "1.6.0"
 
 [deps]
 ColorSchemes = "35d6a980-a343-548e-a6ea-1d62b119f2f4"
@@ -19,8 +19,8 @@ ColorSchemes = "^3.12"
 ColorTypes = "^0.11"
 Colors = "^0.12"
 DataStructures = "^0.18"
+PrecompileTools = "^1.1"
 ReplMaker = "^0.2"
 StatsBase = "0.33,0.34"
 StructC14N = "^0.3"
-PrecompileTools = "^1.1"
 julia = "^1.9"

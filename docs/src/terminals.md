@@ -6,7 +6,7 @@ To use a specific terminal for interactive use you may either set it as initiali
 ```julia
 Gnuplot.options.term = "wxt"
 ```
-See official [gnuplot documentation](http://gnuplot.sourceforge.net/documentation.html) for further info on terminals and their options.
+See official [gnuplot documentation](http://gnuplot.info/docs_6.0/gnuplot6.html) for further info on terminals and their options.
 
 
 ## Interactive terminals (`wxt` and `qt`)
@@ -70,9 +70,9 @@ Gnuplot provides dozens of terminals able to export on files.  Examples are:
 
 All the above terminals support the `size` and `fontscale` options to quickly adjust the size of the rasterized image and the size of the font respectively.  E.g.:
 ```julia
-save(term="pngcairo size 480,360 fontscale 0.8", output="output.png")
+Gnuplot.save(term="pngcairo size 480,360 fontscale 0.8", "output.png")
 ```
-(see also [`save()`](@ref)).
+(see also [`Gnuplot.save()`](@ref)).
 
 Gnuplot is also able to export vector (i.e. non-raster) plots through the `svg` terminal.
 
@@ -93,7 +93,7 @@ approx = fill(0., length(x));
 @gp :- x sin.(x) approx .+=  x.^5/120   "w filledcurve t 'n=2' lt 3"
 @gp :- x sin.(x) approx .+= -x.^7/5040  "w filledcurve t 'n=3' lt 4"
 @gp :- x sin.(x)                        "w l t 'sin(x)' lw 2 lc rgb 'black'"
-save(term="cairolatex pdf input color dashed size 5in,3.3in", output="test.tex")
+Gnuplot.save(term="cairolatex pdf input color dashed size 5in,3.3in", "test.tex")
 ```
 !!! warning
     If you add a path in the `output=` keyword this will also be copied in the the `.tex` file, and may generate errors when compiling ``\LaTeX`` code.  The simplest way to solve this problem is to use just filenames, with no paths.

@@ -55,19 +55,19 @@ Moreover, in many gnuplot examples and documentation it is very common to use ab
 
 
 
-### 4 - If possible, follow the *commands* -> *data* + *plot specs* order
+### 4 - If possible, follow the *commands* -> *data* + *plot command* order
 
 The two following examples produce exactly the same plot:
 ```julia
 x = -10.:10
-@gp    "set grid" "set multiplot layout 2,1"
-@gp :- 1 x x.^2 "w l t 'f(x) = x^2"  # first plot
-@gp :- 2 x x.^3 "w l t 'f(x) = x^3"  # second plot
+@gp    "set grid" "set multiplot layout 2,1" :-
+@gp :- 1 x x.^2 "w l t 'f(x) = x^2" :- # first plot
+@gp :- 2 x x.^3 "w l t 'f(x) = x^3"    # second plot
 ```
 and
 ```julia
-@gp    2 x x.^3 "w l t 'f(x) = x^3"  # second plot
-@gp :- 1 x x.^2 "w l t 'f(x) = x^2"  # first plot
+@gp    2 x x.^3 "w l t 'f(x) = x^3" :- # second plot
+@gp :- 1 x x.^2 "w l t 'f(x) = x^2" :-  # first plot
 @gp :- "set grid" "set multiplot layout 2,1"
 ```
 However, the first form appears more *logical* and easy to follow.

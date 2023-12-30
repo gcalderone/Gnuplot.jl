@@ -1,194 +1,19 @@
 module Gnuplot
 
 using StatsBase, ColorSchemes, ColorTypes, Colors, StructC14N, DataStructures
-using REPL, ReplMaker
 
-import Base.reset
-import Base.write
-import Base.show
-
-export session_names, dataset_names, palette_names, linetypes, palette_levels, palette,
+export session_names, palette_names, linetypes, palette_levels, palette,
     terminal, terminals, test_terminal,
-    stats, @gp, @gsp, save, gpexec,
+    stats, @gp, @gsp, gpexec,
     hist_bins, hist_weights,
-    boxxy, contourlines, dgrid3d, hist, recipe, gpvars, gpmargins, gpranges
-
-
-# ╭───────────────────────────────────────────────────────────────────╮
-# │                        TYPE DEFINITIONS                           │
-# │                     User data representation                      │
-# ╰───────────────────────────────────────────────────────────────────╯
-# ---------------------------------------------------------------------
-"""
-    SessionID
-
-A structure identifying a specific session.  Used in the `show` interface.
-"""
-struct SessionID
-    sid::Symbol
-    dump::Bool
-end
-
+    boxxy, contourlines, dgrid3d, hist, gpvars, gpmargins, gpranges
 
 """
-    Dataset
+    Gnuplot.version()
 
-Abstract type for all dataset structures.
+Return the **Gnuplot.jl** package version.
 """
-abstract type Dataset end
-
-"""
-    DatasetEmpty
-
-An empty dataset.
-"""
-struct DatasetEmpty <: Dataset
-end
-
-"""
-    DatasetText
-
-A dataset whose data are stored as a text buffer.
-
-Transmission to gnuplot may be slow for large datasets, but no temporary file is involved, and the dataset can be saved directly into a gnuplot script.  Also, the constructor allows to build more flexible datasets (i.e. mixing arrays with different dimensions).
-
-Constructors are defined as follows:
-```julia
-DatasetText(data::Vector{String})
-DatasetText(data::Vararg{AbstractArray, N}) where N =
-```
-In the second form the type of elements of each array must be one of `Real`, `AbstractString` and `Missing`.
-"""
-mutable struct DatasetText <: Dataset
-    preview::Vector{String}
-    data::String
-    DatasetText(::Val{:inner}, preview, data) = new(preview, data)
-end
-
-"""
-    DatasetBin
-
-A dataset whose data are stored as a binary file.
-
-Ensure best performances for large datasets, but involve use of a temporary files.  When saving a script the file is stored in a directory with the same name as the main script file.
-
-Constructors are defined as follows:
-```julia
-DatasetBin(cols::Vararg{AbstractMatrix, N}) where N
-DatasetBin(cols::Vararg{AbstractVector, N}) where N
-```
-In both cases the element of the arrays must be a numeric type.
-"""
-mutable struct DatasetBin <: Dataset
-    file::String
-    source::String
-    DatasetBin(::Val{:inner}, file, source) = new(file, source)
-end
-
-# ---------------------------------------------------------------------
-"""
-    PlotElement
-
-Structure containing element(s) of a plot (commands, data, plot specifications) that can be used directly in `@gp` and `@gsp` calls.
-
-# Fields
-- `mid::Int`: multiplot ID (use 0 for single plots);
-- `is3d::Bool`: true if the data are supposed to be displayed in a 3D plot;
-- `cmds::Vector{String}`: commands to set plot properties;
-- `name::String`: name of the dataset (use "" to automatically generate a unique name);
-- `data::Dataset`: a dataset
-- `plot::Vector{String}`: plot specifications for the associated `Dataset`;
-
-The constructor is defined as follows:
-```julia
-PlotElement(;mid::Int=0, is3d::Bool=false,
-            cmds::Union{String, Vector{String}}=Vector{String}(),
-            name::String="",
-            data::Dataset=DatasetEmpty(),
-            plot::Union{String, Vector{String}}=Vector{String}(),
-            kwargs...)
-```
-No field is mandatory, i.e. even `Gnuplot.PlotElement()` provides a valid structure.
-The constructor also accept all the keywords accepted by `parseKeywords`.
-"""
-mutable struct PlotElement
-    mid::Int
-    is3d::Bool
-    cmds::Vector{String}
-    name::String
-    data::Dataset
-    plot::Vector{String}
-
-    function PlotElement(;mid::Int=0, is3d::Bool=false,
-                          cmds::Union{String, Vector{String}}=Vector{String}(),
-                          name::String="",
-                          data::Dataset=DatasetEmpty(),
-                          plot::Union{String, Vector{String}}=Vector{String}(),
-                          kwargs...)
-        c = isa(cmds, String)  ? [cmds] : cmds
-        push!(c, parseKeywords(; kwargs...))
-        new(mid, is3d, deepcopy(c), name, data,
-            isa(plot, String)  ? [plot] : deepcopy(plot))
-    end
-end
-
-
-function show(v::PlotElement)
-    if isa(v.data, DatasetText)
-        data = "DatasetText"
-    elseif isa(v.data, DatasetBin)
-        data = "DatasetBin: \n" * v.data.source
-    else
-        data = "DatasetEmpty"
-    end
-    plot = length(v.plot) > 0  ?  join(v.plot, "\n")  :  []
-    @info("PlotElement", mid=v.mid, is3d=v.is3d, cmds=join(v.cmds, "\n"),
-          name=v.name, data, plot=plot)
-end
-
-function show(v::Vector{PlotElement})
-    for p in v
-        show(p)
-        println()
-    end
-end
-
-
-# ╭───────────────────────────────────────────────────────────────────╮
-# │                        TYPE DEFINITIONS                           │
-# │                    Sessions data structures                       │
-# ╰───────────────────────────────────────────────────────────────────╯
-# ---------------------------------------------------------------------
-mutable struct SinglePlot
-    cmds::Vector{String}
-    elems::Vector{String}
-    is3d::Bool
-    SinglePlot() = new(Vector{String}(), Vector{String}(), false)
-end
-
-
-# ---------------------------------------------------------------------
-abstract type Session end
-
-mutable struct DrySession <: Session
-    sid::Symbol                         # session ID
-    datas::OrderedDict{String, Dataset} # data sets
-    plots::Vector{SinglePlot}           # commands and plot commands (one entry for each plot of the multiplot)
-    curmid::Int                         # current multiplot ID
-end
-
-
-# ---------------------------------------------------------------------
-mutable struct GPSession <: Session
-    sid::Symbol                         # session ID
-    datas::OrderedDict{String, Dataset} # data sets
-    plots::Vector{SinglePlot}           # commands and plot commands (one entry for each plot of the multiplot)
-    curmid::Int                         # current multiplot ID
-    pin::Base.Pipe;
-    perr::Base.Pipe;
-    proc::Base.Process;
-    channel::Channel{String};
-end
+version() = v"1.6.0"
 
 
 # ---------------------------------------------------------------------
@@ -201,587 +26,160 @@ Structure containing the package global options, accessible through `Gnuplot.opt
 - `dry::Bool`: whether to use *dry* sessions, i.e. without an underlying Gnuplot process (default: `false`)
 - `cmd::String`: command to start the Gnuplot process (default: `"gnuplot"`)
 - `default::Symbol`: default session name (default: `:default`)
-- `term::String`: default terminal for interactive use (default: empty string, i.e. use gnuplot settings);
-- `mime::Dict{DataType, String}`: dictionary of MIME types and corresponding gnuplot terminals.  Used to export images with either [`save()`](@ref) or `show()` (see [Display options](@ref));
+- `term::String`: default terminal for interactive use (default: empty string);
 - `gpviewer::Bool`: use a gnuplot terminal as main plotting device (if `true`) or an external viewer (if `false`);
 - `init::Vector{String}`: commands to initialize the session when it is created or reset (e.g., to set default palette);
 - `verbose::Bool`: verbosity flag (default: `false`)
 - `preferred_format::Symbol`: preferred format to send data to gnuplot.  Value must be one of:
    - `bin`: fastest solution for large datasets, but uses temporary files;
    - `text`: may be slow for large datasets, but no temporary file is involved;
-   - `auto` (default) automatically choose the best strategy.
+   - `auto` (default) use a heuristic to identify the best strategy.
 """
 Base.@kwdef mutable struct Options
     dry::Bool = false
     cmd::String = "gnuplot"
     default::Symbol = :default
     term::String = ""
-    mime::Dict{DataType, String} = Dict(
-        MIME"application/pdf" => "pdfcairo enhanced",
-        MIME"image/jpeg"      => "jpeg enhanced",
-        MIME"image/png"       => "pngcairo enhanced",
-        MIME"image/svg+xml"   => "svg enhanced mouse standalone dynamic background rgb 'white'",
-        MIME"text/html"       => "svg enhanced mouse standalone dynamic",  # canvas mousing
-        MIME"text/plain"      => "dumb enhanced ansi")
     gpviewer::Bool = false
     init::Vector{String} = Vector{String}()
     verbose::Bool = false
     preferred_format::Symbol = :auto
 end
-
-
-# ╭───────────────────────────────────────────────────────────────────╮
-# │           GLOBAL VARIABLES AND MODULE INITIALIZATION              │
-# ╰───────────────────────────────────────────────────────────────────╯
-const sessions = OrderedDict{Symbol, Session}()
 const options = Options()
+
 
 function __init__()
     # Check whether we are running in an IJulia, Juno, VSCode or Pluto session.
     # (copied from Gaston.jl).
-    options.gpviewer = !(
-        ((isdefined(Main, :IJulia)  &&  Main.IJulia.inited)  ||
-         (isdefined(Main, :Juno)    &&  Main.Juno.isactive()) ||
-         (isdefined(Main, :VSCodeServer)) ||
-         (isdefined(Main, :PlutoRunner)) )
-    )
-    if isdefined(Main, :VSCodeServer)
-        # VS Code shows "dynamic" plots with fixed and small size :-(
-        options.mime[MIME"image/svg+xml"] = replace(options.mime[MIME"image/svg+xml"], "dynamic" => "")
+    options.gpviewer = true
+    if ((isdefined(Main, :IJulia)  &&  Main.IJulia.inited)  ||
+        (isdefined(Main, :Juno)    &&  Main.Juno.isactive()) ||
+        (isdefined(Main, :VSCodeServer)) ||
+        (isdefined(Main, :PlutoRunner)) )
+        options.gpviewer = false
     end
-end
-
-
-# ╭───────────────────────────────────────────────────────────────────╮
-# │                         LOW LEVEL FUNCTIONS                       │
-# ╰───────────────────────────────────────────────────────────────────╯
-# ---------------------------------------------------------------------
-function parseKeywords(; kwargs...)
-    template = (xrange=NTuple{2, Real},
-                yrange=NTuple{2, Real},
-                zrange=NTuple{2, Real},
-                cbrange=NTuple{2, Real},
-                key=AbstractString,
-                title=AbstractString,
-                xlabel=AbstractString,
-                ylabel=AbstractString,
-                zlabel=AbstractString,
-                cblabel=AbstractString,
-                xlog=Bool,
-                ylog=Bool,
-                zlog=Bool,
-                cblog=Bool,
-                margins=Union{AbstractString,NamedTuple},
-                lmargin=Union{AbstractString,Real},
-                rmargin=Union{AbstractString,Real},
-                bmargin=Union{AbstractString,Real},
-                tmargin=Union{AbstractString,Real})
-
-    kw = canonicalize(template; kwargs...)
-    out = Vector{String}()
-    ismissing(kw.xrange ) || (push!(out, replace("set xrange  [" * join(kw.xrange , ":") * "]", "NaN"=>"*")))
-    ismissing(kw.yrange ) || (push!(out, replace("set yrange  [" * join(kw.yrange , ":") * "]", "NaN"=>"*")))
-    ismissing(kw.zrange ) || (push!(out, replace("set zrange  [" * join(kw.zrange , ":") * "]", "NaN"=>"*")))
-    ismissing(kw.cbrange) || (push!(out, replace("set cbrange [" * join(kw.cbrange, ":") * "]", "NaN"=>"*")))
-    ismissing(kw.key    ) || (push!(out, "set key " * kw.key  * ""))
-    ismissing(kw.title  ) || (push!(out, "set title   \"" * kw.title  * "\""))
-    ismissing(kw.xlabel ) || (push!(out, "set xlabel  \"" * kw.xlabel * "\""))
-    ismissing(kw.ylabel ) || (push!(out, "set ylabel  \"" * kw.ylabel * "\""))
-    ismissing(kw.zlabel ) || (push!(out, "set zlabel  \"" * kw.zlabel * "\""))
-    ismissing(kw.cblabel) || (push!(out, "set cblabel \"" * kw.cblabel * "\""))
-    ismissing(kw.xlog   ) || (push!(out, (kw.xlog  ?  ""  :  "un") * "set logscale x"))
-    ismissing(kw.ylog   ) || (push!(out, (kw.ylog  ?  ""  :  "un") * "set logscale y"))
-    ismissing(kw.zlog   ) || (push!(out, (kw.zlog  ?  ""  :  "un") * "set logscale z"))
-    ismissing(kw.cblog  ) || (push!(out, (kw.cblog ?  ""  :  "un") * "set logscale cb"))
-
-    if !ismissing(kw.margins)
-        if isa(kw.margins, AbstractString)
-            push!(out, "set margins $(kw.margins)")
-        else
-            push!(out, "set margins at screen $(kw.margins.l), at screen $(kw.margins.r), at screen $(kw.margins.b), at screen $(kw.margins.t)")
-        end
-    end
-    ismissing(kw.lmargin) ||  push!(out, (kw.lmargin == ""  ?  "unset lmargin"  :  "set lmargin at screen $(kw.lmargin)"))
-    ismissing(kw.rmargin) ||  push!(out, (kw.rmargin == ""  ?  "unset rmargin"  :  "set rmargin at screen $(kw.rmargin)"))
-    ismissing(kw.bmargin) ||  push!(out, (kw.bmargin == ""  ?  "unset bmargin"  :  "set bmargin at screen $(kw.bmargin)"))
-    ismissing(kw.tmargin) ||  push!(out, (kw.tmargin == ""  ?  "unset tmargin"  :  "set tmargin at screen $(kw.tmargin)"))
-
-    return join(out, ";\n")
+    gpversion()
 end
 
 
 # ---------------------------------------------------------------------
+include("GnuplotProcess.jl")
+using .GnuplotProcess
+
 """
-    arrays2datablock(args::Vararg{AbstractArray, N}) where N
+    Gnuplot.gpversion()
 
-Convert one (or more) arrays into a `Vector{String}`.
+Return the gnuplot application version.
 
-This function performs the conversion from Julia arrays to a textual representation suitable to be sent to gnuplot as an *inline data block*.
+Raise an error if version is < 5.0 (required to use data blocks).
 """
-function arrays2datablock(args::Vararg{AbstractArray, N}) where N
-    tostring(v::AbstractString) = "\"" * string(v) * "\""
-    tostring(v::Real) = string(v)
-    tostring(::Missing) = "?"
-    #tostring(c::ColorTypes.RGB) = string(Int(c.r*255)) * " " * string(Int(c.g*255)) * " " * string(Int(c.b*255))
-    @assert length(args) > 0
-
-    # Collect lengths and number of dims
-    lengths = Vector{Int}()
-    dims = Vector{Int}()
-    firstMultiDim = 0
-    for i in 1:length(args)
-        d = args[i]
-        @assert ndims(d) <= 3 "Array dimensions must be <= 3"
-        push!(lengths, length(d))
-        push!(dims   , ndims(d))
-        (firstMultiDim == 0)  &&  (ndims(d) > 1)  &&  (firstMultiDim = i)
-    end
-
-    accum = Vector{String}()
-
-    # All scalars
-    if minimum(dims) == 0
-        # @info "Case 0" # debug
-        @assert maximum(dims) == 0 "Input data are ambiguous: either use all scalar or arrays of floats"
-        v = ""
-        for iarg in 1:length(args)
-            d = args[iarg]
-            v *= " " * tostring(d)
-        end
-        push!(accum, v)
-        return accum
-    end
-
-    @assert all((dims .== 1)  .|  (dims .== maximum(dims))) "Array size are incompatible"
-
-    # All 1D
-    if firstMultiDim == 0
-        # @info "Case 1" # debug
-        @assert minimum(lengths) == maximum(lengths) "Array size are incompatible"
-        for i in 1:lengths[1]
-            v = ""
-            for iarg in 1:length(args)
-                d = args[iarg]
-                v *= " " * tostring(d[i])
-            end
-            push!(accum, v)
-        end
-        return accum
-    end
-
-    # Multidimensional, no independent 1D indices
-    if firstMultiDim == 1
-        # @info "Case 2" # debug
-        @assert minimum(lengths) == maximum(lengths) "Array size are incompatible"
-        i = 1
-        for CIndex in CartesianIndices(size(args[1]'))
-            indices = Tuple(CIndex)
-            (i > 1)  &&  (indices[end-1] == 1)  &&  (push!(accum, ""))  # blank line
-            if length(args) == 1
-                # Add independent indices (starting from zero, useful when plotting "with image")
-                v = join(string.(getindex.(Ref(Tuple(indices)), 1:ndims(args[1])) .- 1), " ")
-            else
-                # Do not add independent indices since there is no way to distinguish a "z" array from additional arrays
-                v = ""
-            end
-            for iarg in 1:length(args)
-                d = args[iarg]'
-                v *= " " * tostring(d[i])
-            end
-            i += 1
-            push!(accum, v)
-        end
-        return accum
-    end
-
-    # Multidimensional (independent indices provided in input)
-    if firstMultiDim >= 2
-        refLength = lengths[firstMultiDim]
-        @assert all(lengths[firstMultiDim:end] .== refLength) "Array size are incompatible"
-
-        if lengths[1] < refLength
-            # @info "Case 3" # debug
-            # Cartesian product of Independent variables
-            checkLength = prod(lengths[1:firstMultiDim-1])
-            @assert prod(lengths[1:firstMultiDim-1]) == refLength "Array size are incompatible"
-
-            i = 1
-            for CIndex in CartesianIndices(size(args[firstMultiDim]))
-                indices = Tuple(CIndex)
-                (i > 1)  &&  (indices[end-1] == 1)  &&  (push!(accum, ""))  # blank line
-                v = ""
-                for iarg in 1:firstMultiDim-1
-                    d = args[iarg]
-                    v *= " " * tostring(d[indices[iarg]])
-                end
-                for iarg in firstMultiDim:length(args)
-                    d = args[iarg]
-                    v *= " " * tostring(d[i])
-                end
-                i += 1
-                push!(accum, v)
-            end
-            return accum
-        else
-            # @info "Case 4" # debug
-            # All Independent variables have the same length as the main multidimensional data
-            @assert all(lengths[1:firstMultiDim-1] .== refLength) "Array size are incompatible"
-
-            i = 1
-            for CIndex in CartesianIndices(size(args[firstMultiDim]))
-                indices = Tuple(CIndex)
-                (i > 1)  &&  (indices[end-1] == 1)  &&  (push!(accum, ""))  # blank line
-                v = ""
-                for iarg in 1:length(args)
-                    d = args[iarg]
-                    v *= " " * tostring(d[i])
-                end
-                i += 1
-                push!(accum, v)
-            end
-            return accum
-        end
-    end
-
-    return nothing
-end
-
-
-# ╭───────────────────────────────────────────────────────────────────╮
-# │                SESSION CONSTRUCTORS AND getsession()              │
-# ╰───────────────────────────────────────────────────────────────────╯
-# ---------------------------------------------------------------------
-function DrySession(sid::Symbol)
-    (sid in keys(sessions))  &&  error("Gnuplot session $sid is already active")
-    out = DrySession(sid, OrderedDict{String, Dataset}(), [SinglePlot()], 1)
-    sessions[sid] = out
-    return out
-end
-
-
-# ---------------------------------------------------------------------
-
-function readTask(gp::GPSession)
-    pagerTokens() = ["Press return for more:"]
-
-    captureID = 0
-    function gpreadline()
-        line = ""
-        while true
-            c = read(gp.perr, Char)
-            (c == '\r')  &&  continue
-            (c == '\n')  &&  break
-            line *= c
-            for token in pagerTokens()  # handle pager interaction
-                if (length(line) == length(token))  &&  (line == token)
-                    # GNUPLOT_CAPTURE_END maybe lost when pager is
-                    # running: send it again.
-                    captureID += 1
-                    write(gp.pin, "\nprint 'GNUPLOT_CAPTURE_END $(captureID)'\n")
-                    line = ""
-                end
-            end
-        end
-        return line
-    end
-
-    try
-        saveOutput = false
-        while isopen(gp.perr)
-            line = gpreadline()
-
-            if line == "GNUPLOT_CAPTURE_BEGIN"
-                saveOutput = true
-            elseif line == "GNUPLOT_CAPTURE_END $(captureID)"
-                saveOutput = false
-                put!(gp.channel, "GNUPLOT_CAPTURE_END")
-                captureID = 0
-            elseif !isnothing(findfirst("GNUPLOT_CAPTURE_END", line))
-                ;# old GNUPLOT_CAPTURE_END, ignore it
-            else
-                if line != ""
-                    if options.verbose  ||  !saveOutput
-                        printstyled(color=:cyan, "GNUPLOT ($(gp.sid)) -> $line\n")
-                    end
-                end
-                (saveOutput)  &&  (put!(gp.channel, line))
-            end
-        end
-    catch err
-        if isopen(gp.perr)
-            @error "Error occurred in readTask for session $(gp.sid)"
-            @show(err)
-        else
-            put!(gp.channel, "GNUPLOT_CAPTURE_END")
-        end
-    end
-    if options.verbose
-        printstyled(color=:red, "GNUPLOT ($(gp.sid)) Process terminated\n")
-    end
-    delete!(sessions, gp.sid)
-end
-
-function GPSession(sid::Symbol)
-    session = DrySession(sid)
+function gpversion()
     if !options.dry
-        try
-            gpversion()
-        catch
-            @warn "Cound not start a gnuplot process with command \"$(options.cmd)\".  Enabling dry sessions..."
+        ver = Gnuplot.GnuplotProcess.gpversion(options.cmd)
+        if ver < v"5.0"
+            @warn("gnuplot ver. >= 5.0 is required, but " * string(ver) * " was found.  Enabling dry sessions.")
             options.dry = true
-            sessions[sid] = session
-            return session
         end
     end
+end
 
-    pin  = Base.Pipe()
-    pout = Base.Pipe()
-    perr = Base.Pipe()
-    proc = run(pipeline(`$(options.cmd)`, stdin=pin, stdout=pout, stderr=perr), wait=false)
-    chan = Channel{String}(32)
+include("dataset.jl")
+recipe() = error("No recipe defined")
+include("plotspecs.jl")
 
-    # Close unused sides of the pipes
-    Base.close(pout.in)
-    Base.close(perr.in)
-    Base.close(pin.out)
-    Base.start_reading(pout.out)
-    Base.start_reading(perr.out)
-
-    out = GPSession(getfield.(Ref(session), fieldnames(DrySession))...,
-                    pin, perr, proc, chan)
-    sessions[sid] = out
-
-    # Start reading tasks
-    @async readTask(out)
-    @async while !eof(pout) # see PR #51
-        write(stdout, readavailable(pout))
-    end
-
-    # Read gnuplot default terminal
-    if options.term == ""
-        options.term = terminal()
-    end
-
-    # The stderr of the gnuplot process goes to Julia which can parse
-    # UTF8 characters (regardless of the terminal).
-    gpexec("set encoding utf8")
-
-    return out
+struct GPSession{T}
+    sid::Symbol
+    process::T
+    specs::Vector{AbstractGPSpec}
+    GPSession(sid::Symbol)               = new{Nothing}(  sid, nothing, Vector{AbstractGPSpec}())
+    GPSession(sid::Symbol, p::GPProcess) = new{GPProcess}(sid, p      , Vector{AbstractGPSpec}())
 end
 
 
 # ---------------------------------------------------------------------
+const sessions = OrderedDict{Symbol, GPSession}()
 function getsession(sid::Symbol=options.default)
     if !(sid in keys(sessions))
         if options.dry
-            DrySession(sid)
+            sessions[sid] = GPSession(sid)
         else
-            GPSession(sid)
+            popt = GnuplotProcess.Options()
+            for f in fieldnames(typeof(options))
+                if f in fieldnames(typeof(popt))
+                    setproperty!(popt, f, getproperty(options, f))
+                end
+            end
+            sessions[sid] = GPSession(sid, GPProcess(sid, popt))
+
+            # Read gnuplot default terminal
+            if options.term == ""
+                options.term = terminal(sessions[sid])
+            end
         end
     end
     return sessions[sid]
 end
 
 
-function gp_write_table(args...; kw...)
-    @assert !Gnuplot.options.dry "Feature not available in *dry* mode."
-    tmpfile = Base.Filesystem.tempname()
-    sid = Symbol("j", Base.Libc.getpid())
-    gp = getsession(sid)
-    reset(gp)
-    gpexec(sid, "set term unknown")
-    driver(sid, "set table '$tmpfile'", args...; kw...)
-    gpexec(sid, "unset table")
-    quit(sid)
-    out = readlines(tmpfile)
-    rm(tmpfile)
-    return out
-end
+"""
+    session_names()
+
+Return a vector with all currently active sessions.
+"""
+session_names() = Symbol.(keys(sessions))
 
 
-# ╭───────────────────────────────────────────────────────────────────╮
-# │                       write() and writeread()                     │
-# ╰───────────────────────────────────────────────────────────────────╯
 # ---------------------------------------------------------------------
+import .GnuplotProcess: gpexec, gpvars, reset, quit, terminal, terminals
+"""
+    gpexec(sid::Symbol, command::String)
+    gpexec(command::String)
+
+Execute the gnuplot command `command` on the underlying gnuplot process of the `sid` session, and return the results as a `String`.  If a gnuplot error arises it is propagated as an `ErrorException`.
+
+If the `sid` argument is not provided, the default session is considered.
+
+## Examples:
+```julia-repl
+gpexec("print GPVAL_TERM")
+gpexec("plot sin(x)")
+```
+"""
+gpexec(gp::GPSession{Nothing}, s::AbstractString) = nothing
+function gpexec(gp::GPSession{GPProcess}, s::AbstractString)
+    gp.process.options.verbose = options.verbose
+    gpexec(gp.process, s)
+end
+gpexec(sid::Symbol, s::String) = gpexec(getsession(sid), s)
+gpexec(s::String) = gpexec(getsession(), s)
+
 
 """
-    write(gp, str)
+    gpvars(sid::Symbol)
+    gpvars()
 
-Send a string to gnuplot's STDIN.
-
-The commands sent through `write` are not stored in the current session (use `add_cmd` to save commands in the current session).
+Return a `NamedTuple` with all currently defined gnuplot variables.  If the `sid` argument is not provided, the default session is considered.
 """
-write(gp::DrySession, str::AbstractString) = nothing
-function write(gp::GPSession, str::AbstractString)
-    if options.verbose
-        printstyled(color=:light_yellow, "GNUPLOT ($(gp.sid)) $str\n")
-    end
-    w = write(gp.pin, strip(str) * "\n")
-    w <= 0  &&  error("Writing on gnuplot STDIN pipe returned $w")
-    flush(gp.pin)
-    return w
-end
+gpvars(gp::GPSession{Nothing}) = nothing
+gpvars(gp::GPSession{GPProcess}) = gpvars(gp.process)
+gpvars(sid::Symbol=options.default) = gpvars(getsession(sid))
 
 
-write(gp::DrySession, name::String, d::Dataset) = nothing
-write(gp::GPSession, name::String, d::DatasetBin) = nothing
-function write(gp::GPSession, name::String, d::DatasetText)
-    if options.verbose
-        printstyled(color=:light_black,      "GNUPLOT ($(gp.sid)) ", name, " << EOD\n")
-        printstyled(color=:light_black, join("GNUPLOT ($(gp.sid)) " .* d.preview, "\n") * "\n")
-        printstyled(color=:light_black,      "GNUPLOT ($(gp.sid)) ", "EOD\n")
-    end
-    out =  write(gp.pin, name * " << EOD\n")
-    out += write(gp.pin, d.data)
-    out += write(gp.pin, "\nEOD\n")
-    flush(gp.pin)
-    return out
-end
-
-
-# ---------------------------------------------------------------------
-writeread(gp::DrySession, str::AbstractString) = [""]
-function writeread(gp::GPSession, str::AbstractString)
-    verbose = options.verbose
-
-    options.verbose = false
-    write(gp, "print 'GNUPLOT_CAPTURE_BEGIN'")
-
-    options.verbose = verbose
-    write(gp, str)
-
-    options.verbose = false
-    write(gp, "print 'GNUPLOT_CAPTURE_END 0'")
-    options.verbose = verbose
-
-    out = Vector{String}()
-    while true
-        l = take!(gp.channel)
-        l == "GNUPLOT_CAPTURE_END"  &&  break
-        push!(out, l)
-    end
-    return out
-end
-
-
-# ╭───────────────────────────────────────────────────────────────────╮
-# │                       Dataset CONSTRUCTORS                        │
-# ╰───────────────────────────────────────────────────────────────────╯
-
-#=
-The following is dismissed since `binary matrix` do not allows to use
-keywords such as `rotate`.
-# ---------------------------------------------------------------------
-function write_binary(M::Matrix{T}) where T <: Real
-    x = collect(1:size(M)[1])
-    y = collect(1:size(M)[2])
-
-    MS = Float32.(zeros(length(x)+1, length(y)+1))
-    MS[1,1] = length(x)
-    MS[1,2:end] = y
-    MS[2:end,1] = x
-    MS[2:end,2:end] = M
-
-    (path, io) = mktemp()
-    write(io, MS)
-    close(io)
-    return (path, " '$path' binary matrix")
-end
-=#
-
-# ---------------------------------------------------------------------
-function DatasetBin(VM::Vararg{AbstractMatrix, N}) where N
-    for i in 2:N
-        @assert size(VM[i]) == size(VM[1])
-    end
-    s = size(VM[1])
-    (path, io) = mktemp()
-
-    for i in 1:s[1]
-        for j in 1:s[2]
-            for k in 1:N
-                write(io, Float32(VM[k][i,j]))
-            end
-        end
-    end
-    source = " '$path' binary array=(" * join(string.(reverse(s)), ", ") * ")"
-    # Note: can't add `using` here, otherwise we can't append `flipy`.
-    close(io)
-    return DatasetBin(Val(:inner), path, source)
-end
-
-
-# ---------------------------------------------------------------------
-function DatasetBin(cols::Vararg{AbstractVector, N}) where N
-    source = "binary record=$(length(cols[1])) format='"
-    types = Vector{DataType}()
-    #(length(cols) == 1)  &&  (source *= "%int")
-    for i in 1:length(cols)
-        @assert length(cols[1]) == length(cols[i])
-        if     isa(cols[i][1], Int32);   push!(types, Int32);   source *= "%int"
-        elseif isa(cols[i][1], Int);     push!(types, Int32);   source *= "%int"
-        elseif isa(cols[i][1], Float32); push!(types, Float32); source *= "%float"
-        elseif isa(cols[i][1], Float64); push!(types, Float32); source *= "%float"
-        elseif isa(cols[i][1], Char);    push!(types, Char);    source *= "%char"
-        else
-            error("Unsupported data on column $i: $(typeof(cols[i][1]))")
-        end
-    end
-    source *= "'"
-
-    (path, io) = mktemp()
-    source = " '$path' $source"
-    for row in 1:length(cols[1])
-        #(length(cols) == 1)  &&  (write(io, convert(Int32, row)))
-        for col in 1:length(cols)
-            write(io, convert(types[col], cols[col][row]))
-        end
-    end
-    close(io)
-
-    #=
-    The following is needed to cope with the following case:
-    x = randn(10001)
-    @gp x x x "w p lc pal"
-    =#
-    source *= " using " * join(1:N, ":") * " "
-    return DatasetBin(Val(:inner), path, source)
-end
-
-
-# ---------------------------------------------------------------------
-DatasetText(args::Vararg{AbstractArray, N}) where N =
-    DatasetText(arrays2datablock(args...))
-function DatasetText(data::Vector{String})
-    preview = (length(data) <= 4  ?  deepcopy(data)  :  [data[1:4]..., "..."])
-    d = DatasetText(Val(:inner), preview, join(data, "\n"))
-    return d
-end
-
-
-# ╭───────────────────────────────────────────────────────────────────╮
-# │              PRIVATE FUNCTIONS TO MANIPULATE SESSIONS             │
-# ╰───────────────────────────────────────────────────────────────────╯
-# ---------------------------------------------------------------------
-function reset(gp::Session)
+function reset(gp::GPSession{T}) where T
     delete_binaries(gp)
-    gp.datas = OrderedDict{String, Dataset}()
-    gp.plots = [SinglePlot()]
-    gp.curmid = 1
-    gpexec(gp, "unset multiplot")
-    gpexec(gp, "set output")
-    gpexec(gp, "reset session")
+    empty!(gp.specs)
+    (T == GnuplotProcess)  &&  reset(gp.process)
 
     if options.gpviewer
         # Use gnuplot viewer
         (options.term != "")  &&  gpexec(gp, "set term " * options.term)
 
         # Set window title (if not already set)
-        term = writeread(gp, "print GPVAL_TERM")[1]
+        term = gpexec(gp, "print GPVAL_TERM")
         if term in ("aqua", "x11", "qt", "wxt")
-            opts = writeread(gp, "print GPVAL_TERMOPTIONS")[1]
+            opts = gpexec(gp, "print GPVAL_TERMOPTIONS")
             if findfirst("title", opts) == nothing
-                writeread(gp, "set term $term $opts title 'Gnuplot.jl: $(gp.sid)'")
+                gpexec(gp, "set term $term $opts title 'Gnuplot.jl: $(gp.sid)'")
             end
         end
     else
@@ -791,625 +189,110 @@ function reset(gp::Session)
 
     # Note: the reason to keep Options.term and .init separate are:
     # - .term can be overriden by "unknown" (if options.gpviewer is false);
-    # - .init is dumped in scripts, while .term is not;
-    add_cmd.(Ref(gp), options.init)
+    # - .init is saved in scripts, while .term is not;
+    push!(gp, GPCommand(1, options.init))
     return nothing
 end
 
 
-# ---------------------------------------------------------------------
-function setmulti(gp::Session, mid::Int)
-    @assert mid >= 1 "Multiplot ID must be a >= 1"
-    while length(gp.plots) < mid
-        push!(gp.plots, SinglePlot())
-    end
-    gp.curmid = mid
-end
-
-
-# ---------------------------------------------------------------------
-newDatasetName(gp::Session) = string("\$data", length(gp.datas)+1)
-
-
-# ---------------------------------------------------------------------
-function useBinaryMethod(args...)
-    @assert options.preferred_format in [:auto, :bin, :text] "Unexpected value for `options.preferred_format`: $(options.preferred_format)"
-    binary = false
-    if options.preferred_format == :bin
-        binary = true
-    elseif options.preferred_format == :auto
-        if (length(args) == 1)  &&  isa(args[1], AbstractMatrix)
-            binary = true
-        elseif all(ndims.(args) .== 1)  &&  all(Base.:<:.(eltype.(args), Real))
-            s = sum(length.(args))
-            if s > 1e4
-                binary = true
-            end
-        end
-    end
-    return binary
-end
-
-
-# ---------------------------------------------------------------------
-function Dataset(accum)
-    if useBinaryMethod(accum...)
-        try
-            return DatasetBin(accum...)
-        catch err
-            isa(err, MethodError)  ||  rethrow()
-        end
-    end
-    return DatasetText(accum...)
-end
-
-
-# ---------------------------------------------------------------------
-function add_cmd(gp::Session, v::String)
-    (v != "")  &&  (push!(gp.plots[gp.curmid].cmds, v))
-    (length(gp.plots) == 1)  &&  (gpexec(gp, v))  # execute now to check against errors
-    return nothing
-end
-
-
-# ---------------------------------------------------------------------
-function add_plot(gp::Session, plotspec)
-    push!(gp.plots[gp.curmid].elems, plotspec)
-end
-
-
-# ---------------------------------------------------------------------
-function delete_binaries(gp::Session)
-    for (name, d) in gp.datas
-        if isa(d, DatasetBin)  &&  (d.file != "")
-            rm(d.file, force=true)
-        end
-    end
-end
-
-
-# ---------------------------------------------------------------------
-function quit(gp::DrySession)
-    delete_binaries(gp)
-    delete!(sessions, gp.sid)
-    return 0
-end
-
-function quit(gp::GPSession)
-    close(gp.pin)
-    close(gp.perr)
-    wait( gp.proc)
-    exitCode = gp.proc.exitcode
-    delete_binaries(gp)
-    delete!(sessions, gp.sid)
-    return exitCode
-end
-
-
-# --------------------------------------------------------------------
-function stats(gp::Session, name::String)
-    @info sid=gp.sid name=name source=gp.datas[name].source
-    println(gpexec(gp, "stats " * gp.datas[name].source))
-end
-stats(gp::Session) = for (name, d) in gp.datas
-    stats(gp, name)
-end
-
-
-# ╭───────────────────────────────────────────────────────────────────╮
-# │             gpexec(), execall(), amd savescript()                 │
-# ╰───────────────────────────────────────────────────────────────────╯
-# ---------------------------------------------------------------------
-gpexec(gp::DrySession, command::String) = ""
-function gpexec(gp::GPSession, command::String)
-    answer = Vector{String}()
-    push!(answer, writeread(gp, command)...)
-
-    verbose = options.verbose
-    options.verbose = false
-    errno = writeread(gp, "print GPVAL_ERRNO")
-    options.verbose = verbose
-    @assert length(errno) == 1
-    if errno[1] != "0"
-        @error "\n" * join(answer, "\n")
-        errmsg = writeread(gp, "print GPVAL_ERRMSG")
-        write(gp.pin, "reset error\n")
-        error("Gnuplot error: $errmsg")
-    end
-
-    return join(answer, "\n")
-end
-
-
-# ---------------------------------------------------------------------
-execall(gp::DrySession; term::AbstractString="", output::AbstractString="") = nothing
-function execall(gp::GPSession; term::AbstractString="", output::AbstractString="")
-    gpexec(gp, "reset")
-    if term != ""
-        former_term = writeread(gp, "print GPVAL_TERM")[1]
-        former_opts = writeread(gp, "print GPVAL_TERMOPTIONS")[1]
-        gpexec(gp, "unset multiplot")
-        gpexec(gp, "set term $term")
-    end
-    (output != "")  &&  gpexec(gp, "set output '$(replace(output, "'" => "''"))'")
-
-    # printstyled("Plotting with terminal: " * terminal() * "\n", color=:blue, bold=true)
-
-    for i in 1:length(gp.plots)
-        d = gp.plots[i]
-        for j in 1:length(d.cmds)
-            gpexec(gp, d.cmds[j])
-        end
-        if length(d.elems) > 0
-            s = (d.is3d  ?  "splot "  :  "plot ") * " \\\n  " *
-                join(d.elems, ", \\\n  ")
-            gpexec(gp, s)
-        end
-    end
-    gpexec(gp, "unset multiplot")
-    (output != "")  &&  gpexec(gp, "set output")
-    if term != ""
-        gpexec(gp, "set term $former_term $former_opts")
-    end
-    return nothing
-end
-
-
-# ---------------------------------------------------------------------
-function savescript(gp::Session, filename; term::AbstractString="", output::AbstractString="")
-    function copy_binary_files(gp, filename)
-        function data_dirname(path)
-            dir = dirname(path)
-            (dir == "")  &&  (dir = ".")
-            base = basename(path)
-            s = split(base, ".")
-            if length(s) > 1
-                base = join(s[1:end-1], ".")
-            end
-            base *= "_data/"
-            out = dir * "/" * base
-            return out
-        end
-
-        path_from = Vector{String}()
-        path_to   = Vector{String}()
-        datapath  = data_dirname(filename)
-        for (name, d) in gp.datas
-            if isa(d, DatasetBin)  &&  (d.file != "")
-                if (length(path_from) == 0)
-                    #isdir(datapath)  &&  rm(datapath, recursive=true)
-                    mkpath(datapath)
-                end
-                to = datapath * basename(d.file)
-                cp(d.file, to, force=true)
-                push!(path_from, d.file)
-                push!(path_to,   to)
-            end
-        end
-        return (path_from, path_to)
-    end
-    function redirect_elements(elems, path_from, path_to)
-        (length(path_from) == 0)  &&  (return elems)
-
-        out = deepcopy(elems)
-        for i in 1:length(out)
-            for j in 1:length(path_from)
-                tmp = replace(out[i], path_from[j] => path_to[j])
-                out[i] = tmp
-            end
-        end
-        return out
-    end
-
-    stream = open(filename, "w")
-
-    println(stream, "reset session")
-    if term != ""
-        println(stream, "set term $term")
-    end
-    (output != "")  &&  println(stream, "set output '$output'")
-
-    paths = copy_binary_files(gp, filename)
-    for (name, d) in gp.datas
-        if isa(d, DatasetText)
-            println(stream, name * " << EOD")
-            println(stream, d.data)
-            println(stream, "EOD")
-        end
-    end
-
-    for i in 1:length(gp.plots)
-        d = gp.plots[i]
-        for j in 1:length(d.cmds)
-            println(stream, d.cmds[j])
-        end
-        if length(d.elems) > 0
-            s = (d.is3d  ?  "splot "  :  "plot ") * " \\\n  " *
-                join(redirect_elements(d.elems, paths...), ", \\\n  ")
-            println(stream, s)
-        end
-    end
-    (length(gp.plots) > 1)  &&  println(stream, "unset multiplot")
-    println(stream, "set output")
-    close(stream)
-    return nothing
-end
-
-
-# ╭───────────────────────────────────────────────────────────────────╮
-# │                  parseArgument() amd driver()                     │
-# ╰───────────────────────────────────────────────────────────────────╯
-# ---------------------------------------------------------------------
-function parseArguments(_args...)
-    function parseCmd(s::String)
-        (isplot, is3d, cmd) = (false, false, s)
-        (length(s) >= 2)  &&  (s[1:2] ==  "p "    )  &&  ((isplot, is3d, cmd) = (true, false, strip(s[2:end])))
-        (length(s) >= 3)  &&  (s[1:3] ==  "pl "   )  &&  ((isplot, is3d, cmd) = (true, false, strip(s[3:end])))
-        (length(s) >= 4)  &&  (s[1:4] ==  "plo "  )  &&  ((isplot, is3d, cmd) = (true, false, strip(s[4:end])))
-        (length(s) >= 5)  &&  (s[1:5] ==  "plot " )  &&  ((isplot, is3d, cmd) = (true, false, strip(s[5:end])))
-        (length(s) >= 2)  &&  (s[1:2] ==  "s "    )  &&  ((isplot, is3d, cmd) = (true, true , strip(s[2:end])))
-        (length(s) >= 3)  &&  (s[1:3] ==  "sp "   )  &&  ((isplot, is3d, cmd) = (true, true , strip(s[3:end])))
-        (length(s) >= 4)  &&  (s[1:4] ==  "spl "  )  &&  ((isplot, is3d, cmd) = (true, true , strip(s[4:end])))
-        (length(s) >= 5)  &&  (s[1:5] ==  "splo " )  &&  ((isplot, is3d, cmd) = (true, true , strip(s[5:end])))
-        (length(s) >= 6)  &&  (s[1:6] ==  "splot ")  &&  ((isplot, is3d, cmd) = (true, true , strip(s[6:end])))
-        return (isplot, is3d, string(cmd))
-    end
-
-    # First pass: check for session names and `:-`
-    sid = nothing
-    args = Vector{Any}([_args...])
-    pos = 1
-    while pos <= length(args)
-        arg = args[pos]
-        if  (typeof(arg) == Symbol)  &&
-            (arg != :-)
-            @assert isnothing(sid) "Only one session at a time can be addressed"
-            sid = arg
-            deleteat!(args, pos)
-            continue
-        end
-        pos += 1
-    end
-    isnothing(sid)  &&  (sid = options.default)
-
-    if length(args) == 0
-        doReset = false
-    else
-        doReset = true
-    end
-    doDump = true
-    pos = 1
-    while pos <= length(args)
-        arg = args[pos]
-        if typeof(arg) == Symbol
-            @assert arg == :-
-            if pos == 1
-                doReset = false
-            elseif pos == length(args)
-                doDump  = false
-            else
-                @warn "Symbol `:-` has a meaning only if it is at first or last position in argument list."
-            end
-            deleteat!(args, pos)
-            continue
-        end
-        pos += 1
-    end
-
-    # Second pass: check data types, run implicit recipes and splat
-    # Vector{PlotElement}
-    pos = 1
-    while pos <= length(args)
-        arg = args[pos]
-        if isa(arg, Symbol)                          # session ID (already handled)
-            deleteat!(args, pos)
-            continue
-        elseif isa(arg, Int)                         # ==> multiplot index
-            @assert arg > 0 "Multiplot index must be a positive integer"
-        elseif isa(arg, AbstractString)              # ==> a plotspec or a command
-            deleteat!(args, pos)
-            insert!(args, pos, string(strip(arg)))
-        elseif isa(arg, Tuple)  &&                   # ==> a keyword/value pair
-            length(arg) == 2    &&
-                isa(arg[1], Symbol)             ;
-            # Delay until fourth pass to avoid misinterpreting a
-            # keyword as a plotspec. E.g.: @gp x x.^2 ylog=true
-        elseif isa(arg, Pair)                        # ==> a named dataset
-            @assert typeof(arg[1]) == String "Dataset name must be a string"
-            @assert arg[1][1] == '$' "Dataset name must start with a dollar sign"
-            deleteat!(args, pos)
-            for i in length(arg[2]):-1:1
-                insert!(args, pos, arg[2][i])
-            end
-            insert!(args, pos, string(strip(arg[1])) => nothing)
-        elseif isa(arg, AbstractArray) &&            # ==> a dataset column
-            ((nonmissingtype(eltype(arg)) <: Real)    ||
-             (nonmissingtype(eltype(arg)) <: AbstractString))  ;
-        elseif isa(arg, Real)                        # ==> a dataset column with only one row
-            args[pos] = [arg]
-        elseif isa(arg, Dataset)                ;    # ==> a Dataset object
-        elseif hasmethod(recipe, tuple(typeof(arg))) # ==> implicit recipe
-            # @info which(recipe, tuple(typeof(arg)))  # debug
-            deleteat!(args, pos)
-            pe = recipe(arg)
-            if isa(pe, PlotElement)
-                insert!(args, pos, pe)
-            elseif isa(pe, Vector{PlotElement})
-                for i in 1:length(pe)
-                    insert!(args, pos, pe[i])
-                end
-            else
-                error("Recipe must return a PlotElement or Vector{PlotElement}")
-            end
-            continue
-        elseif isa(arg, Vector{PlotElement})         # ==> explicit recipe (vector)
-            deleteat!(args, pos)
-            for i in length(arg):-1:1
-                insert!(args, pos, arg[i])
-            end
-        elseif isa(arg, PlotElement)            ;    # ==> explicit recipe (scalar)
-        else
-            error("Unexpected argument with type " * string(typeof(arg)))
-        end
-
-        pos += 1
-    end
-
-    # Third pass: convert data into Dataset objects
-    pos = 1
-    accum = Vector{AbstractArray}()
-    while pos <= length(args)
-        arg = args[pos]
-        taken = false
-
-        if isa(arg, AbstractArray)
-            if nonmissingtype(eltype(arg)) != eltype(arg)
-                @assert nonmissingtype(eltype(arg)) <: AbstractFloat "Missing values are supported only on arrays of floats"
-                arg = replace(arg, missing => NaN)
-            end
-            tt = eltype(arg)
-
-            # Try to convert into Int, Float64 and String
-            if (tt  <: Integer)  &&  !(tt <: Int)
-                arg = convert(Array{Int}, arg)
-            elseif (tt  <: AbstractFloat)  &&  !(tt <: Float64)
-                arg = convert(Array{Float64}, arg)
-            elseif (tt  <: AbstractString)  &&  !(tt <: String)
-                arg = convert(Array{String}, arg)
-            end
-
-            tt = eltype(arg)
-            if  (tt <: Real)  ||
-                (tt <: AbstractString)
-                push!(accum, arg)
-                deleteat!(args, pos)
-                taken = true
-            end
-        end
-
-        if !taken  ||  (pos > length(args))
-            if length(accum) > 0
-                mm = extrema(length.(accum))
-                if mm[1] == 0   # empty Dataset
-                    @assert mm[1] == mm[2] "At least one input array is empty, while other(s) are not"
-                    d = DatasetEmpty()
-                else
-                    d = Dataset(accum)
-                end
-                insert!(args, pos, d)
-                empty!(accum)
-            end
-
-            pos += 1
-        end
-    end
-
-    # Fourth pass: collect PlotElement objects
-    mid = 0
-    name = ""
-    cmds = Vector{String}()
-    elems = Vector{PlotElement}()
-    pos = 1
-    while pos <= length(args)
-        arg = args[pos]
-
-        if isa(arg, Int)                         # ==> multiplot index
-            if length(cmds) > 0
-                push!(elems, PlotElement(mid=mid, cmds=cmds))
-                empty!(cmds)
-            end
-            mid = arg
-            name = ""
-            empty!(cmds)
-        elseif isa(arg, Tuple)  &&               # ==> a keyword/value pair
-            length(arg) == 2    &&
-                isa(arg[1], Symbol)
-            push!(cmds, parseKeywords(; [arg]...))
-        elseif isa(arg, String)                  # ==> a plotspec or a command
-            (isPlot, is3d, s) = parseCmd(arg)
-            if isPlot
-                push!(elems, PlotElement(mid=mid, is3d=is3d, cmds=cmds, plot=s))
-                empty!(cmds)
-            else
-                push!(cmds, s)
-            end
-            name = ""
-        elseif isa(arg, Pair)                    # ==> dataset name
-            name = arg[1]
-        elseif isa(arg, Dataset)                 # ==> A Dataset
-            spec = Vector{String}()
-            if name == ""  # only unnamed data sets have an associated plot spec
-                spec = ""
-                if (pos < length(args))  &&
-                    isa(args[pos+1], String)
-                    spec = args[pos+1]
-                    deleteat!(args, pos+1)
-                end
-            end
-            if !isa(arg, DatasetEmpty)
-                push!(elems, PlotElement(mid=mid, cmds=cmds, name=name, data=arg, plot=spec))
-            end
-            name = ""
-            empty!(cmds)
-        elseif isa(arg, PlotElement)
-            if length(cmds) > 0
-                push!(elems, PlotElement(mid=mid, cmds=cmds))
-                empty!(cmds)
-            end
-            name = ""
-            (mid != 0)  &&  (arg.mid = mid)
-            push!(elems, arg)
-        else
-            error("Unexpected argument with type " * string(typeof(arg)))
-        end
-        pos += 1
-    end
-    if length(cmds) > 0
-        push!(elems, PlotElement(mid=mid, cmds=cmds))
-        empty!(cmds)
-    end
-
-    return (sid, doReset, doDump, elems)
-end
-
-
-function driver(_args...; is3d=false)
-    function dropDuplicatedUsing(source, spec)
-        # Ensure there is no duplicated `using` clause
-        m0 = match(r"(.*) using 1", source)
-        if !isnothing(m0)
-            for r in [r"u +[\d,\(]",
-                      r"us +[\d,\(]",
-                      r"usi +[\d,\(]",
-                      r"usin +[\d,\(]",
-                      r"using +[\d,\(]"]
-                m = match(r, spec)
-                if !isnothing(m)
-                    source = string(m0.captures[1])
-                    break
-                end
-            end
-        end
-        return source
-    end
-
-    (sid, doReset, doDump, elems) = parseArguments(_args...)
-    gp = getsession(sid)
-    doReset  &&  reset(gp)
-
-    # Set curent multiplot ID and sort elements
-    for elem in elems
-        if elem.mid == 0
-            elem.mid = gp.curmid
-        end
-    end
-    elems = elems[sortperm(getfield.(elems, :mid))]
-    # show(elems)  # debug
-
-    # Set dataset names and send them to gnuplot process
-    for elem in elems
-        (elem.name == "")  &&  (elem.name = newDatasetName(gp))
-        if  !isa(elem.data, DatasetEmpty)  &&
-            !haskey(gp.datas, elem.name)
-            gp.datas[elem.name] = elem.data
-            write(gp, elem.name, elem.data)
-        end
-    end
-
-    # Add commands and plot specifications
-    for elem in elems
-        (elem.mid > 0)  &&  setmulti(gp, elem.mid)
-        gp.plots[gp.curmid].is3d = (is3d | elem.is3d)
-
-        for cmd in elem.cmds
-            add_cmd(gp, cmd)
-        end
-
-        if !isa(elem.data, DatasetEmpty)
-            for spec in elem.plot
-                if isa(elem.data, DatasetBin)
-                    source = dropDuplicatedUsing(elem.data.source, spec)
-                    add_plot(gp, source * " " * spec)
-                else
-                    add_plot(gp, elem.name * " " * spec)
-                end
-            end
-        else
-            for spec in elem.plot
-                for (name, data) in gp.datas
-                    if isa(data, DatasetBin)
-                        source = dropDuplicatedUsing(elem.data.source, spec)
-                        spec = replace(spec, name => source)
-                    end
-                end
-                add_plot(gp, spec)
-            end
-        end
-    end
-
-    if options.gpviewer  &&  doDump
-        execall(gp)
-    end
-    return SessionID(gp.sid, doDump)
-end
-
-
-# ╭───────────────────────────────────────────────────────────────────╮
-# │        NON-EXPORTED FUNCTIONS MEANT TO BE INVOKED BY USERS        │
-# ╰───────────────────────────────────────────────────────────────────╯
-"""
-    Gnuplot.version()
-
-Return the **Gnuplot.jl** package version.
-"""
-version() = v"1.5.0"
-
-# ---------------------------------------------------------------------
-"""
-    Gnuplot.gpversion()
-
-Return the gnuplot application version.
-
-Raise an error if version is < 5.0 (required to use data blocks).
-"""
-function gpversion()
-    options.dry  &&  (return v"0.0.0")
-    icmd = `$(options.cmd) --version`
-
-    proc = open(`$icmd`, read=true)
-    s = String(read(proc))
-    if !success(proc)
-        error("An error occurred while running: " * string(icmd))
-    end
-
-    s = split(s, " ")
-    ver = ""
-    for token in s
-        try
-            ver = VersionNumber("$token")
-            break
-        catch
-        end
-    end
-
-    if ver < v"5.0"
-        error("gnuplot ver. >= 5.0 is required, but " * string(ver) * " was found.")
-    end
-    return ver
-end
-
-
-# ---------------------------------------------------------------------
 """
     Gnuplot.quit(sid::Symbol)
 
 Quit the session identified by `sid` and the associated gnuplot process (if any).
 """
-function quit(sid::Symbol)
-    (sid in keys(sessions))  ||  (return 0)
-    return quit(sessions[sid])
+quit(sid::Symbol=options.default) = quit(getsession(sid))
+function quit(gp::GPSession{T}) where T
+    delete_binaries(gp)
+    exitcode = (T == GPProcess)  ?   quit(gp.process)  :  0
+    delete!(sessions, gp.sid)
+    return exitcode
 end
 
+
+"""
+    terminal(sid::Symbol)
+    terminal()
+
+Return a `String` with the current gnuplot terminal (and its options) of the process associated to session `sid`, or to the default session (if `sid` is not provided).
+"""
+terminal(gp::GPSession{Nothing}) = "unknown"
+terminal(gp::GPSession{GPProcess}) = terminal(gp.process)
+terminal(sid::Symbol=options.default) = terminal(getsession(sid))
+
+"""
+    terminals()
+
+Return a `Vector{String}` with the names of all the available gnuplot terminals.
+"""
+terminals(gp::GPSession{Nothing}) = error("Unknown terminals for a dry session")
+terminals(gp::GPSession{GPProcess}) = terminals(gp.process)
+terminals(sid::Symbol=options.default) = terminals(getsession(sid))
+
+
+# ---------------------------------------------------------------------
+function datasets(gp::GPSession)
+    out = []
+    for i in 1:length(gp.specs)
+        spec = gp.specs[i]
+        if isa(spec, GPCommand)
+            push!(out, (nothing, nothing, nothing))
+        elseif isa(spec, GPNamedDataset)
+            push!(out, (spec.name, spec.name, spec.data))
+        elseif isa(spec, GPPlotCommand)
+            push!(out, (nothing, nothing, nothing))
+        else
+            @assert isa(spec, GPPlotWithData)
+            name = "\$data$i"
+            if isa(spec.data, DatasetText)
+                source = name
+            else
+                @assert isa(spec.data, DatasetBin)
+                source = spec.data.source
+            end
+            push!(out, (name, source, spec.data))
+        end
+    end
+    return out
+end
+
+
+# ---------------------------------------------------------------------
+import Base.push!, Base.append!
+function push!(gp::GPSession{Nothing}, spec::AbstractGPSpec)
+    push!(gp.specs, spec)
+    nothing
+end
+
+function push!(gp::GPSession{GPProcess}, spec::AbstractGPSpec)
+    push!(gp.specs, spec)
+    name, source, data = datasets(gp)[end]
+    if isa(data, DatasetText)
+        if options.verbose
+            printstyled(color=:light_black,      "GNUPLOT ($(gp.sid)) "  , name, " << EOD\n")
+            printstyled(color=:light_black, join("GNUPLOT ($(gp.sid)) " .* spec.data.preview, "\n") * "\n")
+            printstyled(color=:light_black,      "GNUPLOT ($(gp.sid)) ", "EOD\n")
+        end
+        write(gp.process.pin, name * " << EOD\n")
+        write(gp.process.pin, spec.data.data)
+        write(gp.process.pin, "\nEOD\n")
+        flush(gp.process.pin)
+    end
+    nothing
+end
+append!(gp::GPSession, specs::Vector{AbstractGPSpec}) = push!.(Ref(gp), specs)
+
+
+# ---------------------------------------------------------------------
+function delete_binaries(gp::GPSession)
+    for (name, source, data) in datasets(gp)
+        if isa(data, DatasetBin)  &&  (data.file != "")
+            rm(data.file, force=true)
+        end
+    end
+end
+
+
+# ---------------------------------------------------------------------
 """
     Gnuplot.quitall()
 
@@ -1423,93 +306,172 @@ function quitall()
 end
 
 
+# ---------------------------------------------------------------------
+function collect_commands(gp::GPSession{T}; term::AbstractString="", output::AbstractString="", redirect_path=nothing) where T
+    # function dropDuplicatedUsing(source, spec)
+    #     # Ensure there is no duplicated `using` clause
+    #     m0 = match(r"(.*) using 1", source)
+    #     if !isnothing(m0)
+    #         for r in [r"u +[\d,\(]",
+    #                   r"us +[\d,\(]",
+    #                   r"usi +[\d,\(]",
+    #                   r"usin +[\d,\(]",
+    #                   r"using +[\d,\(]"]
+    #             m = match(r, spec)
+    #             if !isnothing(m)
+    #                 source = string(m0.captures[1])
+    #                 break
+    #             end
+    #         end
+    #     end
+    #     return source
+    # end
+
+    out = Vector{String}()
+    push!(out, "reset")
+    if (term != "")  &&  (T == GPProcess)
+        former_term = terminal(gp)
+        push!(out, "unset multiplot")
+        push!(out, "set term $term")
+    end
+    (output != "")  &&  push!(out, "set output '$(replace(output, "'" => "''"))'")
+
+    mids = getfield.(filter(x -> (:mid in fieldnames(typeof(x))), gp.specs), :mid)
+    (length(mids) == 0)  &&  (mids = [1])
+    @assert all(1 .<= mids)
+
+    for mid in 1:maximum(mids)
+        plotcmd = Vector{String}()
+        is3d = nothing
+        for i in 1:length(gp.specs)
+            spec = gp.specs[i]
+            isa(spec, AbstractGPSpecMid)  &&  (spec.mid != mid)  &&  continue
+
+            if isa(spec, GPCommand)
+                push!(out, spec.cmd)
+            elseif isa(spec, GPNamedDataset)
+                ; # nothing to do
+            elseif isa(spec, GPPlotCommand)
+                isnothing(is3d)  ?  (is3d = spec.is3d)  :  @assert(is3d == spec.is3d, "Mixing plot and splot commands is not allowed")
+                push!(plotcmd, spec.cmd)
+            else
+                @assert isa(spec, GPPlotWithData)
+                isnothing(is3d)  ?  (is3d = spec.is3d)  :  @assert(is3d == spec.is3d, "Mixing plot and splot commands is not allowed")
+                if isa(spec.data, DatasetText)
+                    push!(plotcmd, "\$data$(i) " * spec.cmd)
+                else
+                    @assert isa(spec.data, DatasetBin)
+                    if isnothing(redirect_path)
+                        push!(plotcmd, spec.data.source * " " * spec.cmd)
+                    else
+                        s = replace(spec.data.source, spec.data.file => joinpath(redirect_path, basename(spec.data.file)))
+                        push!(plotcmd, s * " " * spec.cmd)
+                    end
+                end
+            end
+            #TODO elseif isa(spec.data, DatasetBin)  gp.datasources[i] = dropDuplicatedUsing.(spec.data.source, spec.plot)
+        end
+
+        if length(plotcmd) == 0
+            if maximum(mids) > 1
+                push!(out, "set multiplot next")
+            end
+        else
+            push!(out, (is3d  ?  "splot "  :  "plot ") * join(plotcmd, ", "))
+        end
+    end
+    push!(out, "unset multiplot")
+    (output != "")  &&  push!(out, "set output")
+    if term != ""  &&  (T == GPProcess)
+        push!(out, "set term $former_term")
+    end
+    return out
+end
 
 
-# ╭───────────────────────────────────────────────────────────────────╮
-# │                       EXPORTED FUNCTIONS                          │
-# ╰───────────────────────────────────────────────────────────────────╯
 # --------------------------------------------------------------------
-"""
-    gpexec(sid::Symbol, command::String)
-    gpexec(command::String)
+function last_added_mid(gp::GPSession)
+    for i in length(gp.specs):-1:1
+        isa(gp.specs[i], AbstractGPSpecMid)  &&  (return gp.specs[i].mid)
+    end
+    return 1
+end
 
-Execute the gnuplot command `command` on the underlying gnuplot process of the `sid` session, and return the results as a `Vector{String}`.  If a gnuplot error arises it is propagated as an `ErrorException`.
-
-If the `sid` argument is not provided, the default session is considered.
-
-## Examples:
-```julia-repl
-gpexec("print GPVAL_TERM")
-gpexec("plot sin(x)")
-```
-"""
-gpexec(sid::Symbol, s::String) = gpexec(getsession(sid), s)
-gpexec(s::String) = gpexec(getsession(), s)
-
-
-# --------------------------------------------------------------------
 """
     @gp args...
 
-The `@gp` macro, and its companion `@gsp` for 3D plots, allows to send data and commands to the gnuplot using an extremely concise syntax.  The macros accepts any number of arguments, with the following meaning:
+The `@gp` macro, and its companion `@gsp` for 3D plots, are used to add plot specs to a session and optionally update a plot.  It accepts all arguments accepted by `Gnuplot.parseSpecs` and `Gnuplot.parseKeywords`, plus the following optional ones:
+- a leading literal `:-`: avoids resetting the session before adding new plot specs;
 
-- one, or a group of consecutive, array(s) of either `Real` or `String` build up a dataset.  The different arrays are accessible as columns 1, 2, etc. from the `gnuplot` process.  The number of required input arrays depends on the chosen plot style (see `gnuplot` documentation);
+- a literal symbol (as first argument, or immediately after the `:-` symbol): name of the gnuplot session to address.  If not given the default session is used;
 
-- a string occurring before a dataset is interpreted as a `gnuplot` command (e.g. `set grid`);
+- a trailing literal `:-`: avoids immediately updating the plot.
 
-- a string occurring immediately after a dataset is interpreted as a *plot element* for the dataset, by which you can specify `using` clause, `with` clause, line styles, etc..  All keywords may be abbreviated following gnuplot conventions.  Moreover, "plot" and "splot" can be abbreviated to "p" and "s" respectively;
+The leading and trailing `:-` symbols are used to add specs to a gnuplot session using multiple statements rather than a single one.
 
-- the special symbol `:-` allows to split one long statement into multiple (shorter) ones.  If given as first argument it avoids starting a new plot.  If it given as last argument it avoids immediately running all commands to create the final plot;
+## Example:
+```julia
+# Reset default session and generate new plot
+@gp [-1,1] [-1,1] "w l t 'Main diagonal'"  [-1,1] [1,-1] "w l t 'Antidiagonal'" [0] [0] "w p t 'Origin'"
 
-- any other symbol is interpreted as a session ID;
-
-- an `Int` (>= 1) is interpreted as the plot destination in a multi-plot session (this specification applies to subsequent arguments, not previous ones);
-
-- an input in the form `"\\\$name"=>(array1, array2, etc...)` is interpreted as a named dataset.  Note that the dataset name must always start with a "`\$`";
-
-- an input in the form `keyword=value` is interpreted as a keyword/value pair.  The accepted keywords and their corresponding gnuplot commands are as follows:
-  - `xrange=[low, high]` => `"set xrange [low:high]`;
-  - `yrange=[low, high]` => `"set yrange [low:high]`;
-  - `zrange=[low, high]` => `"set zrange [low:high]`;
-  - `cbrange=[low, high]`=> `"set cbrange[low:high]`;
-  - `key="..."`  => `"set key ..."`;
-  - `title="..."`  => `"set title \"...\""`;
-  - `xlabel="..."` => `"set xlabel \"...\""`;
-  - `ylabel="..."` => `"set ylabel \"...\""`;
-  - `zlabel="..."` => `"set zlabel \"...\""`;
-  - `cblabel="..."` => `"set cblabel \"...\""`;
-  - `xlog=true`   => `set logscale x`;
-  - `ylog=true`   => `set logscale y`;
-  - `zlog=true`   => `set logscale z`.
-  - `cblog=true`  => `set logscale cb`;
-  - `margins=...` => `set margins ...`;
-  - `lmargin=...` => `set lmargin ...`;
-  - `rmargin=...` => `set rmargin ...`;
-  - `bmargin=...` => `set bmargin ...`;
-  - `tmargin=...` => `set tmargin ...`;
-
-All Keyword names can be abbreviated as long as the resulting name is unambiguous.  E.g. you can use `xr=[1,10]` in place of `xrange=[1,10]`.
-
-- a `PlotElement` object is expanded in its fields and processed as one of the previous arguments;
-
-- any other data type is processed through an implicit recipe. If a suitable recipe do not exists an error is raised.
+# Break above statement in three separate ones, and address the :foo session:
+@gp    :foo [-1,1] [-1,1] "w l t 'Main diagonal'" :-  # reset :foo session, do not update the plot
+@gp :- :foo [-1,1] [1,-1] "w l t 'Antidiagonal'"  :-  # add spec to the :foo session, do not update the plot
+@gp :- :foo [0] [0] "w p t 'Origin'"                  # add spec to the :foo session, update the plot
+```
 """
 macro gp(args...)
-    out = Expr(:call)
-    push!(out.args, :(Gnuplot.driver))
-    for iarg in 1:length(args)
-        arg = args[iarg]
-        if (isa(arg, Expr)  &&  (arg.head == :(=)))
-            sym = string(arg.args[1])
-            val = arg.args[2]
-            push!(out.args, :((Symbol($sym),$val)))
-        else
-            push!(out.args, arg)
+    first = 1
+    is3d = false
+    if first <= length(args)  &&  isa(args[first], Bool)  &&  args[first]
+        is3d = true
+        first += 1
+    end
+    doReset = true
+    if first <= length(args)  &&  isa(args[first], QuoteNode)  &&  (args[first] == QuoteNode(:-))
+        doReset = false
+        first += 1
+    end
+    sid = nothing
+    if (first <= length(args))  &&  isa(args[first], QuoteNode)
+        sid = args[first]
+        first += 1
+    else
+        sid = :(Gnuplot.options.default)
+    end
+    doExec = true
+    last = length(args)
+    if (last >= 1)  &&  (last <= length(args))  &&  isa(args[last] , QuoteNode)  &&  (args[last] == QuoteNode(:-))
+        doExec = false
+        last -= 1
+    end
+
+    if first <= last
+        specs = Expr(:call, :(Gnuplot.parseSpecs))
+        for i in first:last
+            arg = args[i]
+            if (isa(arg, Expr)  &&  (arg.head == :(=)))  # forward keywords
+                push!(specs.args, Expr(:kw, arg.args[1], arg.args[2]))
+            else
+                push!(specs.args, arg)
+            end
         end
+        push!(specs.args, Expr(:kw, :default_mid, :(Gnuplot.last_added_mid(gp))))
+        push!(specs.args, Expr(:kw, :is3d, is3d))
+    else
+        doReset = false
+        specs = nothing
+    end
+    out = Expr(:block)
+    if doReset  ||  doExec  ||  !isnothing(specs)
+        push!(out.args,                       :(local gp = Gnuplot.getsession($sid)))
+        doReset  &&           push!(out.args, :(Gnuplot.reset(gp)))
+        isnothing(specs)  ||  push!(out.args, :(Gnuplot.append!(gp, $specs)))
+        doExec            &&  push!(out.args, :(Gnuplot.options.gpviewer  &&  gpexec.(Ref(gp), Gnuplot.collect_commands(gp))))
+        push!(out.args, doExec  ?             :(gp)  :  :(nothing))
     end
     return esc(out)
 end
-
 
 """
     @gsp args...
@@ -1518,900 +480,107 @@ This macro accepts the same syntax as [`@gp`](@ref), but produces a 3D plot inst
 """
 macro gsp(args...)
     out = Expr(:macrocall, Symbol("@gp"), LineNumberNode(1, nothing))
-    push!(out.args, args...)
-    push!(out.args, Expr(:kw, :is3d, true))
+    push!(out.args, true)
+    append!(out.args, args)
     return esc(out)
-end
-
-
-# --------------------------------------------------------------------
-"""
-    save([sid::Symbol]; term="", output="")
-    save([sid::Symbol,] mime::Type{T}; output="") where T <: MIME
-    save([sid::Symbol,] script_filename::String, ;term="", output="")
-
-Export a (multi-)plot into the external file name provided in the `output=` keyword.  The gnuplot terminal to use is provided through the `term=` keyword or the `mime` argument.  In the latter case the proper terminal is set according to the `Gnuplot.options.mime` dictionary.
-
-If the `script_filename` argument is provided a *gnuplot script* will be written in place of the output image.  The latter can then be used in a pure gnuplot session (Julia is no longer needed) to generate exactly the same original plot.
-
-If the `sid` argument is provided the operation applies to the corresponding session, otherwise the default session is considered.
-
-Example:
-```julia
-@gp hist(randn(1000))
-save(MIME"text/plain")
-save(term="pngcairo", output="output.png")
-save("script.gp")
-```
-"""
-save(           ; kw...) = execall(getsession()   ; kw...)
-save(sid::Symbol; kw...) = execall(getsession(sid); kw...)
-save(             file::AbstractString; kw...) = savescript(getsession()   , file, kw...)
-save(sid::Symbol, file::AbstractString; kw...) = savescript(getsession(sid), file, kw...)
-
-save(mime::Type{T}; kw...) where T <: MIME = save(options.default, mime; kw...)
-function save(sid::Symbol, mime::Type{T}; kw...) where T <: MIME
-    if mime in keys(options.mime)
-        term = strip(options.mime[mime])
-        if term != ""
-            return save(sid; term=term, kw...)
-        end
-    end
-    @error "No terminal is defined for $mime.  Check `Gnuplot.options.mime` dictionary."
-end
-
-
-# ╭───────────────────────────────────────────────────────────────────╮
-# │                     Interfacing Julia's show                      │
-# ╰───────────────────────────────────────────────────────────────────╯
-# --------------------------------------------------------------------
-
-function show(obj::SessionID)
-    gp = getsession(obj.sid)
-    @info "Gnuplot session" sid=gp.sid datasets=length(gp.datas) plots=length(gp.plots)
-    nothing
-end
-show(io::IO, gp::SessionID) = nothing
-
-
-function showable(mime::Type{T}, gp::SessionID) where T <: MIME
-    if gp.dump  &&  !options.gpviewer
-        if mime in keys(options.mime)
-            term = strip(options.mime[mime])
-            if term != ""
-                return true
-            end
-        end
-    end
-    return false
-end
-
-function internal_show(io::IO, mime::Type{T}, gp::SessionID) where T <: MIME
-    if showable(mime, gp)
-        term = strip(options.mime[mime])
-        file = tempname()
-        save(gp.sid, term=term, output=file)
-        write(io, read(file))
-        rm(file; force=true)
-    end
-    nothing
-end
-
-show(io::IO, mime::MIME"image/svg+xml", gp::SessionID) = internal_show(io, typeof(mime), gp)
-show(io::IO, mime::MIME"image/png"    , gp::SessionID) = internal_show(io, typeof(mime), gp)
-show(io::IO, mime::MIME"text/html"    , gp::SessionID) = internal_show(io, typeof(mime), gp)
-
-
-# ╭───────────────────────────────────────────────────────────────────╮
-# │                     HIGH LEVEL FACILITIES                         │
-# ╰───────────────────────────────────────────────────────────────────╯
-# --------------------------------------------------------------------
-function splash(outputfile="")
-    quit(:splash)
-    gp = getsession(:splash)
-    if outputfile == ""
-        # Try to set a reasonably modern terminal.  Setting the size
-        # is necessary for the text to be properly sized.  The
-        # `noenhanced` option is required to display the "@" character
-        # (alternatively use "\\\\@", but it doesn't work on all
-        # terminals).
-        terms = terminals()
-        if "wxt" in terms
-            gpexec(gp, "set term wxt  noenhanced size 600,300")
-        elseif "qt" in terms
-            gpexec(gp, "set term qt   noenhanced size 600,300")
-        elseif "aqua" in terms
-            gpexec(gp, "set term aqua noenhanced size 600,300")
-        else
-            @warn "None of the `wxt`, `qt` and `aqua` terminals are available.  Output may look strange..."
-        end
-    else
-        gpexec(gp, "set term unknown")
-    end
-    @gp :- :splash "set margin 0"  "set border 0" "unset tics" :-
-    @gp :- :splash xr=[-0.3,1.7] yr=[-0.3,1.1] :-
-    @gp :- :splash "set origin 0,0" "set size 1,1" :-
-    @gp :- :splash "set label 1 at graph 1,1 right offset character -1,-1 font 'Verdana,20' tc rgb '#4d64ae' ' Ver: " * string(version()) * "' " :-
-    @gp :- :splash "set arrow 1 from graph 0.05, 0.15 to graph 0.95, 0.15 size 0.2,20,60  noborder  lw 9 lc rgb '#4d64ae'" :-
-    @gp :- :splash "set arrow 2 from graph 0.15, 0.05 to graph 0.15, 0.95 size 0.2,20,60  noborder  lw 9 lc rgb '#4d64ae'" :-
-    @gp :- :splash ["0.35 0.65 @ 13253682", "0.85 0.65 g 3774278", "1.3 0.65 p 9591203"] "w labels notit font 'Mono,160' tc rgb var"
-    (outputfile == "")  ||  save(:splash, term="pngcairo transparent noenhanced size 600,300", output=outputfile)
-    nothing
-end
-
-
-# --------------------------------------------------------------------
-"""
-    dataset_names(sid::Symbol)
-    dataset_names()
-
-Return a vector with all dataset names for the `sid` session.  If `sid` is not provided the default session is considered.
-"""
-dataset_names(sid::Symbol) = string.(keys(getsession(sid).datas))
-dataset_names() = dataset_names(options.default)
-
-# --------------------------------------------------------------------
-"""
-    session_names()
-
-Return a vector with all currently active sessions.
-"""
-session_names() = Symbol.(keys(sessions))
-
-# --------------------------------------------------------------------
-"""
-    stats(sid::Symbol,name::String)
-    stats(name::String)
-    stats(sid::Symbol)
-    stats()
-
-Print a statistical summary for the `name` dataset, belonging to `sid` session.  If `name` is not provdied a summary is printed for each dataset in the session.  If `sid` is not provided the default session is considered.
-
-This function is actually a wrapper for the gnuplot command `stats`.
-"""
-stats(sid::Symbol, name::String) = stats(getsession(sid), name)
-stats(name::String) = stats(options.default, name)
-stats(sid::Symbol) = stats(getsession(sid))
-stats() = for (sid, d) in sessions
-    stats(sid)
 end
 
 
 # ---------------------------------------------------------------------
 """
-    palette_names()
+    savescript([sid::Symbol,] filename::String)
 
-Return a vector with all available color schemes for the [`palette`](@ref) and [`linetypes`](@ref) function.
-"""
-palette_names() = Symbol.(keys(ColorSchemes.colorschemes))
+Save a gnuplot script in `filename`, to be used in a separate gnuplot session (Julia is no longer needed) to generate exactly the same plot.
 
+If the `sid` argument is provided the operation applies to the corresponding session, otherwise the default session is considered.
 
-"""
-    linetypes(cmap::ColorScheme; lw=1, ps=1, dashed=false, rev=false)
-    linetypes(s::Symbol; lw=1, ps=1, dashed=false, rev=false)
-
-Convert a `ColorScheme` object into a string containing the gnuplot commands to set up *linetype* colors.
-
-If the argument is a `Symbol` it is interpreted as the name of one of the predefined schemes in [ColorSchemes](https://juliagraphics.github.io/ColorSchemes.jl/stable/basics/#Pre-defined-schemes-1).
-
-If `rev=true` the line colors are reversed.  If a numeric or string value is provided through the `lw` and `ps` keywords thay are used to set the line width and the point size respectively.  If `dashed` is true the linetypes with index greater than 1 will be displayed with dashed pattern.
-"""
-linetypes(s::Symbol; kwargs...) = linetypes(colorschemes[s]; kwargs...)
-function linetypes(cmap::ColorScheme; lw=1, ps=1, dashed=false, rev=false)
-    out = Vector{String}()
-    push!(out, "unset for [i=1:256] linetype i")
-    for i in 1:length(cmap.colors)
-        if rev
-            color = cmap.colors[end - i + 1]
-        else
-            color = cmap.colors[i]
-        end
-        dt = (dashed  ?  "$i"  :  "solid")
-        push!(out, "set linetype $i lc rgb '#" * Colors.hex(color) * "' lw $lw dt $dt pt $i ps $ps")
-    end
-    return join(out, "\n") * "\nset linetype cycle " * string(length(cmap.colors)) * "\n"
-end
-
-
-"""
-    palette_levels(cmap::ColorScheme; rev=false, smooth=false)
-    palette_levels(s::Symbol; rev=false, smooth=false)
-
-Convert a `ColorScheme` object into a `Tuple{Vector{Float64}, Vector{String}, Int}` containing:
-- the numeric levels (between 0 and 1 included) corresponding to colors in the palette;
-- the corresponding colors (as hex strings);
-- the total number of different colors in the palette.
-
-If the argument is a `Symbol` it is interpreted as the name of one of the predefined schemes in [ColorSchemes](https://juliagraphics.github.io/ColorSchemes.jl/stable/basics/#Pre-defined-schemes-1).
-
-If `rev=true` the palette is reversed.  If `smooth=true` the palette is interpolated in 256 levels.
-"""
-palette_levels(s::Symbol; kwargs...) = palette_levels(colorschemes[s]; kwargs...)
-function palette_levels(cmap::ColorScheme; rev=false, smooth=false)
-    levels = OrderedDict{Float64, String}()
-    for x in LinRange(0, 1, (smooth  ?  256  : length(cmap.colors)))
-        if rev
-            color = get(cmap, 1-x)
-        else
-            color = get(cmap, x)
-        end
-        levels[x] = "#" * Colors.hex(color)
-    end
-    return (collect(keys(levels)), collect(values(levels)), length(cmap.colors))
-end
-
-
-"""
-    palette(cmap::ColorScheme; rev=false, smooth=false)
-    palette(s::Symbol; rev=false, smooth=false)
-
-Convert a `ColorScheme` object into a string containing the gnuplot commands to set up the corresponding palette.
-
-If the argument is a `Symbol` it is interpreted as the name of one of the predefined schemes in [ColorSchemes](https://juliagraphics.github.io/ColorSchemes.jl/stable/basics/#Pre-defined-schemes-1).
-
-If `rev=true` the palette is reversed.  If `smooth=true` the palette is interpolated in 256 levels.
-"""
-function palette(values::Vector{Float64}, levels::Vector{String}, ncolors::Int)
-    str = string.(values) .* " '" .* levels .* "'"
-    return "set palette defined (" * join(str, ", ") * ")\nset palette maxcol $(ncolors)\n"
-end
-palette(s::Symbol; kwargs...) = palette(colorschemes[s]; kwargs...)
-palette(cmap::ColorScheme; kwargs...) =
-    palette(palette_levels(cmap; kwargs...)...)
-
-
-# --------------------------------------------------------------------
-"""
-    terminals()
-
-Return a `Vector{String}` with the names of all the available gnuplot terminals.
-"""
-terminals() = string.(split(strip(gpexec("print GPVAL_TERMINALS")), " "))
-
-
-# --------------------------------------------------------------------
-"""
-    terminal(sid::Symbol)
-    terminal()
-
-Return a `String` with the current gnuplot terminal (and its options) of the process associated to session `sid`, or to the default session (if `sid` is not provided).
-"""
-terminal(sid::Symbol=options.default) = gpexec(getsession(sid), "print GPVAL_TERM") * " " * gpexec(getsession(sid), "print GPVAL_TERMOPTIONS")
-
-
-# --------------------------------------------------------------------
-"""
-    test_terminal(term=nothing; linetypes=nothing, palette=nothing)
-
-Run the `test` and `test palette` commands on a gnuplot terminal.
-
-If no `term` is given it will use the default terminal. If `lt` and `pal` are given they are used as input to the [`linetypes`](@ref) and [`palette`](@ref) function repsetcively to load the associated color scheme.
-
-# Examples
+## Example:
 ```julia
-test_terminal()
-test_terminal("wxt", lt=:rust, pal=:viridis)
+@gp hist(randn(1000))
+Gnuplot.savescript("my_script.gp")
 ```
 """
-function test_terminal(term=nothing; lt=nothing, pal=nothing)
-    quit(:test_term)
-    quit(:test_palette)
-    if !isnothing(term)
-        gpexec(:test_term    , "set term $term")
-        gpexec(:test_palette , "set term $term")
-    end
-    s = (isnothing(lt)  ?  ""  :  linetypes(lt))
-    gpexec(:test_term    , "$s; test")
-    s = (isnothing(pal)  ?  ""  :  palette(pal))
-    gpexec(:test_palette , "$s; test palette")
-end
-
-
-# --------------------------------------------------------------------
-function hist_range(v::Vector{T}; range=[NaN,NaN], bs=NaN, nbins=0) where T <: Real
-    ivalid = findall(isfinite.(v))
-    if nbins > 0
-        isnan(range[1])  &&  (range[1] = minimum(v[ivalid]))
-        isnan(range[2])  &&  (range[2] = maximum(v[ivalid]))
-        rr = Base.range(range[1], range[2], nbins+1)
-        @assert length(rr)  == nbins+1
-        @assert minimum(rr) == range[1]
-        @assert maximum(rr) == range[2]
-    elseif isfinite(bs)
-        isnan(range[1])  &&  (range[1] = minimum(v[ivalid]) - bs/2)
-        isnan(range[2])  &&  (range[2] = maximum(v[ivalid]) + bs/2)
-        rr = range[1]:bs:range[2]
-        if maximum(rr) < range[2]
-            rr = range[1]:bs:(range[2] + bs)
-        end
-        @assert minimum(rr) <= range[1]
-        @assert maximum(rr) >= range[2]
-    else
-        rr = hist_range(v, range=range, nbins=Int(ceil(log2(length(v)))) + 1)  # Sturges's formula
-    end
-    return rr
-end
-
-
-"""
-    hist_bins(h::StatsBase.Histogram, axis=1)
-
-Returns the coordinates of each bin along the specified axis.
-Note: the returned coordinate location depends on the dimensionality of the histogram:
-- 1D: coordinates are on the left side of the bins;
-- 2D: coordinates are on the center of the bins;
-"""
-hist_bins(h::StatsBase.Histogram{T, 1, R}) where {T, R} = [h.edges[1][1]; h.edges[1]]
-hist_bins(h::StatsBase.Histogram{T, 2, R}, axis::Int) where {T, R} =
-    collect(h.edges[axis][1:end-1] .+ h.edges[axis][2:end]) ./ 2
-
-"""
-    hist_weights(h::StatsBase.Histogram)
-
-Returns the weights of each bin in a histogram.
-"""
-hist_weights(h::StatsBase.Histogram{T, 1, R}) where {T, R} = [zero(T); h.weights; zero(T)]
-hist_weights(h::StatsBase.Histogram{T, 2, R}) where {T, R} = h.weights
-
-
-
-"""
-    hist(v::Vector{T}; range=extrema(v), bs=NaN, nbins=0) where T <: Real
-
-Calculates the histogram of the values in `v`.
-
-# Arguments
-- `v`: a vector of values to compute the histogra;
-- `range`: values of the left edge of the first bin and of the right edge of the last bin;
-- `bs`: size of histogram bins;
-- `nbins`: number of bins in the histogram;
-
-If `nbins` is given `bs` is ignored.
-Internally, `hist` invokes `StatsBase.fit(Histogram...)` and returns the same data type (see [here](https://juliastats.org/StatsBase.jl/stable/empirical/#Histograms)).  The only difference is that `hist` also accounts for entries on outer edges so that the sum of histogram counts is equal to the length of input vector.  As a consequence, the `closed=` keyword is no longer meaningful. Consider the following example:
-```
-julia> using StatsBase
-julia> v = collect(1:5);
-julia> h1 = fit(Histogram, v, 1:5, closed=:left)
-julia> h2 = hist(v, range=[1,5], bs=1)
-julia> print(h1.weights)
-[1, 1, 1, 1]
-julia> print(h2.weights)
-[1, 1, 1, 2]
-julia> @assert length(v) == sum(h1.weights)  # this raises an error!
-julia> @assert length(v) == sum(h2.weights)  # this is fine!
-```
-
-# Example
-```julia
-v = randn(1000)
-h = hist(v, range=[-3.5, 3.5], bs=0.5)
-@gp h  # preview
-
-# Custom appearence
-@gp    hist_bins(h) hist_weights(h) "w steps lw 3"
-@gp :- hist_bins(h) hist_weights(h) "w fillsteps" "set style fill transparent solid 0.5"
-@gp :- hist_bins(h) hist_weights(h) "w lp lw 3"
-```
-"""
-function hist(v::Vector{T}; w=Vector{T}(), kws...) where T <: Real
-    rr = hist_range(v; kws...)
-    if length(w) == 0
-        hh = fit(Histogram, v,             rr, closed=:left)
-    else
-        @assert length(w) == length(v)
-        hh = fit(Histogram, v, weights(w), rr, closed=:left)
-    end
-
-    # Ensure entries equal to range[2] are accounted for (i.e., ignore the closed= specification)
-    i = findall(v .== maximum(hh.edges[1]))
-    if length(i) > 0
-        if length(w) == 0
-            hh.weights[end] += length(i)
-        else
-            hh.weights[end] += sum(w[i])
-        end
-    end
-    return hh
-end
-
-
-"""
-    hist(v1::Vector{T1 <: Real}, v2::Vector{T2 <: Real}; range1=[NaN,NaN], bs1=NaN, nbins1=0, range2=[NaN,NaN], bs2=NaN, nbins2=0)
-
-Calculates the 2D histogram of the values in `v1` and `v2`.
-
-# Arguments
-- `v1`: a vector of values along the first dimension;
-- `v2`: a vector of values along the second dimension;
-- `range1`: values of the left edge of the first bin and of the right edge of the last bin, along the first dimension;
-- `range1`: values of the left edge of the first bin and of the right edge of the last bin, along the second dimension;
-- `bs1`: size of histogram bins along the first dimension;
-- `bs2`: size of histogram bins along the second dimension;
-- `nbins1`: number of bins along the first dimension;
-- `nbins2`: number of bins along the second dimension;
-
-If `nbins1` (`nbins2`) is given `bs1` (`bs2`) is ignored.
-Internally, `hist` invokes `StatsBase.fit(Histogram...)` and returns the same data type (see [here](https://juliastats.org/StatsBase.jl/stable/empirical/#Histograms)).  See help for `hist` in 1D for a discussion on the differences.
-
-# Example
-```julia
-v1 = randn(1000)
-v2 = randn(1000)
-h = hist(v1, v2, bs1=0.5, bs2=0.5)
-@gp h  # preview
-@gp "set size ratio -1" "set autoscale fix" hist_bins(h, 1) hist_bins(h, 2) hist_weights(h) "w image notit"
-```
-"""
-function hist(v1::Vector{T}, v2::Vector{T};
-              w=Vector{T}(),
-              range1=[NaN,NaN], bs1=NaN, nbins1=0,
-              range2=[NaN,NaN], bs2=NaN, nbins2=0) where {T <: Real}
-    rr1 = hist_range(v1; range=range1, bs=bs1, nbins=nbins1)
-    rr2 = hist_range(v2; range=range2, bs=bs2, nbins=nbins2)
-    if length(w) == 0
-        hh = fit(Histogram, (v1, v2),             (rr1, rr2), closed=:left)
-    else
-        @assert length(v1) == length(v2) == length(w)
-        hh = fit(Histogram, (v1, v2), weights(w), (rr1, rr2), closed=:left)
-    end
-
-    # Ensure entries equal to range[2] are accounted for (i.e., ignore the closed= specification)
-    ii = findall((v1 .== maximum(hh.edges[1]))  .|
-                 (v2 .== maximum(hh.edges[2])))
-    for i1 in 1:(length(hh.edges[1])-1)
-        for i2 in 1:(length(hh.edges[2])-1)
-            j = ii[findall((hh.edges[1][i1] .<= v1[ii] .<= hh.edges[1][i1+1])  .&
-                           (hh.edges[2][i2] .<= v2[ii] .<= hh.edges[2][i2+1]))]
-            if length(j) > 0
-                if length(w) == 0
-                    hh.weights[end, i2] += length(j)
-                else
-                    hh.weights[end, i2] += sum(w[j])
-                end
-            end
-        end
-    end
-    return hh
-end
-
-# Allow missing values in input
-function hist(v::Vector{Union{Missing,T}}; kw...) where T <: Real
-    ii = findall(.!ismissing.(v))
-    @info "Neglecting missing values ($(length(v) - length(ii)))"
-    hist(convert(Vector{T}, v[ii]); kw...)
-end
-
-function hist(v1::Vector{Union{Missing,T1}}, v2::Vector{T2}; kw...) where {T1 <: Real, T2 <: Real}
-    ii = findall(.!ismissing.(v1)  .&
-                 .!ismissing.(v2)  )
-    @info "Neglecting missing values ($(length(v1) - length(ii)))"
-    hist(convert(Vector{T1}, v1[ii]), convert(Vector{T2}, v2[ii]), kw...)
-end
-
-function hist(v1::Vector{T1}, v2::Vector{Union{Missing, T2}}; kw...) where {T1 <: Real, T2 <: Real}
-    ii = findall(.!ismissing.(v1)  .&
-                 .!ismissing.(v2)  )
-    @info "Neglecting missing values ($(length(v1) - length(ii)))"
-    hist(convert(Vector{T1}, v1[ii]), convert(Vector{T2}, v2[ii]), kw...)
-end
-
-function hist(v1::Vector{Union{Missing,T1}}, v2::Vector{Union{Missing,T2}}; kw...) where {T1 <: Real, T2 <: Real}
-    ii = findall(.!ismissing.(v1)  .&
-                 .!ismissing.(v2)  )
-    @info "Neglecting missing values ($(length(v1) - length(ii)))"
-    hist(convert(Vector{T1}, v1[ii]), convert(Vector{T2}, v2[ii]), kw...)
-end
-
-
-
-# --------------------------------------------------------------------
-"""
-    boxxy(x, y; xmin=NaN, ymin=NaN, xmax=NaN, ymax=NaN, cartesian=false)
-    boxxy(h::StatsBase.Histogram)
-"""
-boxxy(h::StatsBase.Histogram{T, 2, R}) where {T, R} = boxxy(hist_bins(h, 1), hist_bins(h, 2), hist_weights(h), cartesian=true)
-function boxxy(x, y, aux...; xmin=NaN, ymin=NaN, xmax=NaN, ymax=NaN, cartesian=false)
-    function box(v; vmin=NaN, vmax=NaN)
-        vlow  = Vector{Float64}(undef, length(v))
-        vhigh = Vector{Float64}(undef, length(v))
-        for i in 2:length(v)-1
-            vlow[i]  = (v[i-1] + v[i]) / 2
-            vhigh[i] = (v[i+1] + v[i]) / 2
-        end
-        vlow[1]    = v[ 1 ] - (v[ 2 ] - v[ 1 ]  ) / 2
-        vlow[end]  = v[end] - (v[end] - v[end-1]) / 2
-        vhigh[1]   = v[ 1 ] + (v[ 2 ] - v[ 1 ]  ) / 2
-        vhigh[end] = v[end] + (v[end] - v[end-1]) / 2
-
-        isfinite(vmin)  &&  (vlow[  1 ] = vmin)
-        isfinite(vmax)  &&  (vhigh[end] = vmax)
-        return (vlow, vhigh)
-    end
-    @assert issorted(x)
-    @assert issorted(y)
-    xlow, xhigh = box(x, vmin=xmin, vmax=xmax)
-    ylow, yhigh = box(y, vmin=ymin, vmax=ymax)
-    if !cartesian
-        return Dataset(x, y, xlow, xhigh, ylow, yhigh, aux...)
-    end
-    i = repeat(1:length(x), outer=length(y))
-    j = repeat(1:length(y), inner=length(x))
-    return Dataset([x[i], y[j], xlow[i], xhigh[i], ylow[j], yhigh[j], aux...])
-end
-
-
-# --------------------------------------------------------------------
-"""
-    Path2d
-
-A path in 2D.
-
-# Fields
-- `x::Vector{Float64}`
-- `y::Vector{Float64}`
-"""
-struct Path2d
-    x::Vector{Float64}
-    y::Vector{Float64}
-    Path2d() = new(Vector{Float64}(), Vector{Float64}())
-end
-
-
-"""
-    IsoContourLines
-
-Coordinates of all contour lines of a given level.
-
-# Fields
- - `paths::Vector{Path2d}`: vector of [`Path2d`](@ref) objects, one for each continuous path;
- - `data::Vector{String}`: vector with string representation of all paths (ready to be sent to gnuplot);
- - `z::Float64`: level of the contour lines.
-"""
-struct IsoContourLines
-    paths::Vector{Path2d}
-    data::Dataset
-    z::Float64
-    prob::Float64
-end
-function IsoContourLines(paths::Vector{Path2d}, z)
-    @assert length(z) == 1
-    # Prepare Dataset object
-    data = Vector{String}()
-    for i in 1:length(paths)
-        append!(data, arrays2datablock(paths[i].x, paths[i].y, z .* fill(1., length(paths[i].x))))
-        push!(data, "")
-        push!(data, "")
-    end
-    return IsoContourLines(paths, DatasetText(data), z, NaN)
-end
-
-
-"""
-    contourlines(x, y, z, cntrparam="level auto 4")
-    contourlines(x, y, z, fractions)
-    contourlines(h::StatsBase.Histogram, ...)
-
-Compute paths of contour lines for 2D data, and return a vector of [`IsoContourLines`](@ref) object.
-
-!!! note
-    This feature is not available in *dry* mode and will raise an error if used.
-
-# Arguments:
-- `x`, `y` (as `AbstractVector{Float64}`): Coordinates;
-- `z::AbstractMatrix{Float64}`: the levels on which iso-contour lines are to be calculated;
-- `cntrparam::String`: settings to compute contour line paths (see gnuplot documentation for `cntrparam`);
-- `fractions::Vector{Float64}`: compute contour lines encompassing these fractions of total counts;
-- `h::StatsBase.Histogram`: use 2D histogram bins and counts to compute contour lines.
-
-
-# Example
-```julia
-x = randn(10^5);
-y = randn(10^5);
-h = hist(x, y, nbins1=20, nbins2=20);
-clines = contourlines(h, "levels discrete 500, 1500, 2500");
-
-# Use implicit recipe
-@gp clines
-
-# ...or use IsoContourLines fields:
-@gp "set size ratio -1"
-for i in 1:length(clines)
-    @gp :- clines[i].data "w l t '\$(clines[i].z)' lw \$i dt \$i"
-end
-
-# Calculate probability within 0 < r < σ
-p(σ) = round(1 - exp(-(σ^2) / 2), sigdigits=3)
-
-# Draw contour lines at 1, 2 and 3 σ
-clines = contourlines(h, p.(1:3));
-@gp palette(:beach, smooth=true, rev=true) "set grid front" "set size ratio -1" h clines
-```
-"""
-contourlines(h::StatsBase.Histogram{T, 2, R}, args...) where {T, R} = contourlines(hist_bins(h, 1), hist_bins(h, 2), hist_weights(h) .* 1., args...)
-function contourlines(x::AbstractVector{Float64}, y::AbstractVector{Float64}, z::AbstractMatrix{Float64},
-                      fraction::Vector{Float64})
-    @assert minimum(fraction) > 0
-    @assert maximum(fraction) < 1
-    @assert length(fraction) >= 1
-    sorted_fraction = sort(fraction, rev=true)
-
-    i = sortperm(z[:], rev=true)
-    topfrac = cumsum(z[i]) ./ sum(z)
-    selection = Int[]
-    for f in sorted_fraction
-        push!(selection, minimum(findall(topfrac .>= f)))
-    end
-    levels = z[i[selection]]
-    clines = contourlines(x, y, z, "levels discrete " * join(string.(levels), ", "))
-    @assert issorted(getfield.(clines, :z))
-
-    if  length(clines) == length(fraction)
-        out = [IsoContourLines(clines[i].paths, clines[i].data, clines[i].z,
-                               sorted_fraction[i]) for i in 1:length(clines)]
-        return out
-    end
-    return clines
-end
-
-function contourlines(x::AbstractVector{Float64}, y::AbstractVector{Float64}, z::AbstractMatrix{Float64},
-                      cntrparam="level auto 4")
-    lines = gp_write_table("set contour base", "unset surface",
-                           "set cntrparam $cntrparam", x, y, z, is3d=true)
-    level = NaN
-    path = Path2d()
-    paths = Vector{Path2d}()
-    levels = Vector{Float64}()
-    for l in lines
-        l = strip(l)
-        if (l == "")  ||
-            !isnothing(findfirst("# Contour ", l))
-            if length(path.x) > 2
-                push!(paths, path)
-                push!(levels, level)
-            end
-            path = Path2d()
-
-            if l != ""
-                level = Meta.parse(strip(split(l, ':')[2]))
-            end
-            continue
-        end
-        (l[1] == '#')  &&  continue
-
-        n = Meta.parse.(split(l))
-        @assert length(n) == 3
-        push!(path.x, n[1])
-        push!(path.y, n[2])
-    end
-    if length(path.x) > 2
-        push!(paths, path)
-        push!(levels, level)
-    end
-    @assert length(paths) > 0
-    i = sortperm(levels)
-    paths  = paths[ i]
-    levels = levels[i]
-
-    # Join paths with the same level
-    out = Vector{IsoContourLines}()
-    for zlevel in unique(levels)
-        i = findall(levels .== zlevel)
-        push!(out, IsoContourLines(paths[i], zlevel))
-    end
-    return out
-end
-
-
-# --------------------------------------------------------------------
-"""
-    dgrid3d(x, y, z, opts=""; extra=true)
-
-Interpolate non-uniformly spaced 2D data onto a regular grid.
-
-!!! note
-    This feature is not available in *dry* mode and will raise an error if used.
-
-# Arguments:
-- `x`, `y`, `z` (as `AbstractVector{Float64}`): coordinates and values of the function to interpolate;
-- `opts`: interpolation settings (see gnuplot documentation for `dgrid3d`);
-- `extra`: if `true` (default) compute inerpolated values in all regions, even those which are poorly constrained by input data (namely, extrapolated values).  If `false` set these values to `NaN`.
-
-# Return values:
-A tuple with `x` and `y` coordinates on the regular grid (as `Vector{Float64}`), and `z` containing interpolated values (as `Matrix{Float64}`).
-
-# Example
-```julia
-x = (rand(200) .- 0.5) .* 3;
-y = (rand(200) .- 0.5) .* 3;
-z = exp.(-(x.^2 .+ y.^2));
-
-# Interpolate on a 20x30 regular grid with splines
-gx, gy, gz = dgrid3d(x, y, z, "20,30 splines")
-
-@gsp "set size ratio -1" "set xyplane at 0" xlab="X" ylab="Y" :-
-@gsp :-  x  y  z "w p t 'Scattered data' lc pal"
-@gsp :- gx gy gz "w l t 'Interpolation on a grid' lc pal"
-```
-!!! warn
-    The `splines` algorithm may be very slow on large datasets.  An alternative option is to use a smoothing kernel, such as `gauss`:
-
-```julia
-x = randn(2000) .* 0.5;
-y = randn(2000) .* 0.5;
-rsq = x.^2 + y.^2;
-z = exp.(-rsq) .* sin.(y) .* cos.(2 * rsq);
-
-@gsp "set size ratio -1" palette(:balance, smooth=true) "set view map" "set pm3d" :-
-@gsp :- "set multiplot layout 1,3" xr=[-2,2] yr=[-2,2] :-
-@gsp :- 1 tit="Scattered data"  x  y  z "w p notit lc pal"
-
-# Show extrapolated values
-gx, gy, gz = dgrid3d(x, y, z, "40,40 gauss 0.1,0.1")
-@gsp :- 2 tit="Interpolation on a grid\\\\n(extrapolated values are shown)"  gx gy gz "w l notit lc pal"
-
-# Hide exrapolated values
-gx, gy, gz = dgrid3d(x, y, z, "40,40 gauss 0.1,0.1", extra=false)
-@gsp :- 3 tit="Interpolation on a grid\\\\n(extrapolated values are hidden)" gx gy gz "w l notit lc pal"
-```
-"""
-function dgrid3d(x::AbstractVector{Float64},
-                 y::AbstractVector{Float64},
-                 z::AbstractVector{Float64},
-                 opts::String="";
-                 extra=true)
-    c = Gnuplot.gp_write_table("set dgrid3d $opts", x, y, z, is3d=true)
-    gx = Vector{Float64}()
-    gy = Vector{Float64}()
-    gz = Vector{Float64}()
-    ix = 0
-    iy = 0
-    for l in c
-        l = string(strip(l))
-        if l == "# x y z type"
-            ix += 1
-            iy = 1
-        else
-            (l == "" )     &&  continue
-            (l[1] == '#')  &&  continue
-            n = Meta.parse.(split(l)[1:3])
-            (iy == 1)  &&  push!(gx, n[1])
-            (ix == 1)  &&  push!(gy, n[2])
-            if n[3] == :NaN
-                push!(gz, NaN)
-            else
-                push!(gz, n[3])
-            end
-            iy += 1
-        end
-    end
-    gz = collect(reshape(gz, length(gy), length(gx))')
-    if !extra
-        dx = abs(gx[2]-gx[1]) / 2
-        dy = abs(gy[2]-gy[1]) / 2
-        for ix in 1:length(gx)
-            for iy in 1:length(gy)
-                n = length(findall(((gx[ix] - dx) .< x .< (gx[ix] + dx))  .&
-                                   ((gy[iy] - dy) .< y .< (gy[iy] + dy))))
-                (n == 0)  &&  (gz[ix, iy] = NaN)
-            end
-        end
-    end
-    return (gx, gy, gz)
-end
-
-
-
-# ╭───────────────────────────────────────────────────────────────────╮
-# │                        GNUPLOT REPL                               │
-# ╰───────────────────────────────────────────────────────────────────╯
-# --------------------------------------------------------------------
-"""
-    Gnuplot.init_repl(; start_key='>')
-
-Install a hook to replace the common Julia REPL with a gnuplot one.  The key to start the REPL is the one provided in `start_key` (default: `>`).
-
-Note: the gnuplot REPL operates only on the default session.
-"""
-function repl_init(; start_key='>')
-    function repl_exec(s)
-        for s in writeread(getsession(), s)
-            println(s)
-        end
-        nothing
-    end
-
-    function repl_isvalid(s)
-        input = strip(String(take!(copy(REPL.LineEdit.buffer(s)))))
-        (length(input) == 0)  ||  (input[end] != '\\')
-    end
-
-    initrepl(repl_exec,
-             prompt_text="gnuplot> ",
-             prompt_color = :blue,
-             start_key=start_key,
-             mode_name="Gnuplot",
-             completion_provider=REPL.LineEdit.EmptyCompletionProvider(),
-             valid_input_checker=repl_isvalid)
-end
-
-
-
-# ╭───────────────────────────────────────────────────────────────────╮
-# │                  ACCESS GNUPLOT VARIABLES                         │
-# ╰───────────────────────────────────────────────────────────────────╯
-# --------------------------------------------------------------------
-"""
-    gpvars(sid::Symbol)
-    gpvars()
-
-Return a `NamedTuple` with all currently defined gnuplot variables.  If the `sid` argument is not provided, the default session is considered.
-"""
-gpvars() = gpvars(options.default)
-function gpvars(sid::Symbol)
+savescript(file::AbstractString) = savescript(options.default, file)
+function savescript(sid::Symbol, filename::AbstractString)
     gp = getsession(sid)
-    vars = string.(strip.(split(gpexec("show var all"), '\n')))
+    stream = open(filename, "w")
+    println(stream, "reset session")
 
-    out = Dict{Symbol, Union{String, Real}}()
-    for v in vars
-        if length(v) > 6
-            if v[1:6] == "GPVAL_"
-                v = v[7:end]
-            end
-        end
-        s = string.(strip.(split(v, '=')))
-        if length(s) == 2
-            key = Symbol(s[1])
-            if s[2][1] == '"'
-                out[key] = s[2][2:prevind(s[2], end, 1)]
-            else
-                try
-                    out[key] = Meta.parse(s[2])
-                catch
-                    out[key] = s[2]
-                end
-            end
+    # Path for binary files associated to the output script
+    s = split(basename(filename), ".")
+    if length(s) > 1
+        deleteat!(s, length(s))
+    end
+    s[end] *= "_data"
+    path_bin = joinpath(dirname(filename), join(s, "."))
+    isabspath(path_bin)  ||  (path_bin=joinpath(".", path_bin))
+
+    # Write named datasets / copy binary files
+    for (name, source, data) in datasets(gp)
+        if isa(data, DatasetText)
+            println(stream, name * " << EOD")
+            println(stream, data.data)
+            println(stream, "EOD")
+        elseif isa(data, DatasetBin)  &&  (data.file != "")
+            mkpath(path_bin)
+            cp(data.file, joinpath(path_bin, basename(data.file)), force=true)
         end
     end
-    return (; zip(keys(out), values(out))...)
+    for s in collect_commands(gp, redirect_path=path_bin)
+        println(stream, s)
+    end
+    close(stream)
+    return filename
 end
 
 
 # --------------------------------------------------------------------
 """
-    gpmargins(sid::Symbol)
-    gpmargins()
+    save([sid::Symbol,] filename:String; term="")
 
-Return a `NamedTuple` with keys `l`, `r`, `b` and `t` containing respectively the left, rigth, bottom and top margins of the current plot (in screen coordinates).
+Export a plot into `filename` using the terminal provided via the `term=` keyword.
+
+If the `sid` argument is provided the operation applies to the corresponding session, otherwise the default session is considered.
+
+## Example:
+```julia
+@gp hist(randn(1000))
+Gnuplot.save("output.png", term="pngcairo")
+```
 """
-gpmargins() = gpmargins(options.default)
-function gpmargins(sid::Symbol)
-    vars = gpvars()
-    l = vars.TERM_XMIN / (vars.TERM_XSIZE / vars.TERM_SCALE)
-    r = vars.TERM_XMAX / (vars.TERM_XSIZE / vars.TERM_SCALE)
-    b = vars.TERM_YMIN / (vars.TERM_YSIZE / vars.TERM_SCALE)
-    t = vars.TERM_YMAX / (vars.TERM_YSIZE / vars.TERM_SCALE)
-    return (l=l, r=r, b=b, t=t)
+save(file::AbstractString; term::AbstractString="") = save(options.default, file, term=term)
+function save(sid::Symbol, file::AbstractString; term::AbstractString="")
+    gp = getsession(sid)
+    # gpexec.(Ref(gp), collect_commands(gp; term=term * "; set title '$term'", output=file)) # use this to detect which MIME is used for display
+    gpexec.(Ref(gp), collect_commands(gp; term=term, output=file))
+    return file
 end
 
-"""
-    gpranges(sid::Symbol)
-    gpranges()
 
-Return a `NamedTuple` with keys `x`, `y`, `z` and `cb` containing respectively the current plot ranges for the X, Y, Z and color box axis.
-"""
-gpranges() = gpranges(options.default)
-function gpranges(sid::Symbol)
-    vars = gpvars()
-    x = [vars.X_MIN, vars.X_MAX]
-    y = [vars.Y_MIN, vars.Y_MAX]
-    z = [vars.Z_MIN, vars.Z_MAX]
-    c = [vars.CB_MIN, vars.CB_MAX]
-    return (x=x, y=y, z=z, cb=c)
+# --------------------------------------------------------------------
+import Base.show
+
+show(io::IO, d::T) where T <: Dataset = write(io, string(T))
+
+function _show(io::IO, gp::GPSession, term::String)
+    options.gpviewer  &&  return nothing
+    filename = save(gp.sid, tempname(), term=term)
+    write(io, read(filename))
+    rm(filename; force=true)
+    nothing
 end
+show(io::IO, ::MIME"application/pdf", gp::GPSession) = _show(io, gp, "pdfcairo enhanced")
+show(io::IO, ::MIME"image/jpeg"     , gp::GPSession) = _show(io, gp, "jpeg enhanced")
+show(io::IO, ::MIME"image/png"      , gp::GPSession) = _show(io, gp, "pngcairo enhanced")
+show(io::IO, ::MIME"image/svg+xml"  , gp::GPSession) = _show(io, gp, "svg enhanced mouse standalone background rgb 'white'")  #  dynamic
+show(io::IO, ::MIME"text/html"      , gp::GPSession) = _show(io, gp, "svg enhanced mouse standalone dynamic")  # canvas mousing
+show(io::IO, ::MIME"text/plain"     , gp::GPSession) = _show(io, gp, "dumb enhanced ansi")
 
+
+include("histogram.jl")
+include("utils.jl")
 include("recipes.jl")
-
+include("repl.jl")
 
 
 using PrecompileTools

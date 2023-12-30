@@ -1,13 +1,35 @@
+# Version 1.6.0
+
+This release features a thorough refactor which allowed to simplify the code while maintaining the same functionalities.
+A few minor changes may, however, break your code.  Specifically:
+  * Real numbers in @gp and @gsp are no longer interpreted as vectors with one element (replace them wiyh, e.g. `[0.]`);
+
+  * Multiplot ID can only be specified once in a `@gp` or `@gsp` call, and it must appear before other plot specs;
+
+  * Mixing plot and splot commands is now detected as an error;
+ 
+  * Scripts are now saved using `Gnuplot.savescript` (rather than `Gnuplot.save`);
+
+  * `Gnuplot.save` is no longer exported to avoid collision with other packages;
+
+  * In `Gnuplot.save`, `output=` is no longer a keyword, but the required first argument;
+
+  * The `Options` structure no longer has a `mime` field: to customize terminal for a specific MIME a new method should be implemented;
+ 
+
+This release also features the first built-in explitict recipe: `line()`.
+
+
+  
 # Version 1.5.0
 - New features:
 	* using PrecompileTools to reduce time-to-first-plot in Julia v1.9;
 
 	* The `hist` function is now a simple wrapper to
       `StatsBase.fit(Histogram...)`;
-	  
-	* The output of `hist` can be passed to `hist_bins` and
-      `hist_weights` functions to obtain ready-to-plot arrays;
-		
+
+	* The output of `hist` can be passed to `hist_bins` and `hist_weights` functions to obtain ready-to-plot arrays;
+
 Note: Julia version >= 1.9 is now required!
 
 # Version 1.4.1

@@ -6,25 +6,25 @@ mkpath("assets")
 Gnuplot.options.term = "unknown"
 empty!(Gnuplot.options.init)
 push!( Gnuplot.options.init, linetypes(:Set1_5, lw=1.5, ps=1.5))
-saveas(file) = save(term="pngcairo size 550,350 fontscale 0.8", output="assets/$(file).png")
+saveas(file) = Gnuplot.save(term="pngcairo size 550,350 fontscale 0.8", "assets/$(file).png")
 ```
 
 
 # Plot recipes
 
-A plot *recipe* is a quicklook visualization procedure aimed at reducing the amount of repetitive code to generate a plot.  More specifically, a recipe is a function that convert data from the "Julia world" into a form suitable to be ingested in **Gnuplot.jl**, namely a scalar (or a vector of) [`Gnuplot.PlotElement`](@ref) object(s).  The latter contain informations on how to create a plot, or a part of it, and can be used directly as arguments in a `@gp` or `@gsp` call.
+A plot *recipe* is a quicklook visualization procedure aimed at reducing the amount of repetitive code to generate a plot.  More specifically, a recipe is a function that convert the plot specs from the "Julia world" into a form suitable to be ingested in gnuplot, namely a `Vector{<: AbstractGPSpec})` (see also [Gnuplot.jl internals](@ref)).  The latter contain informations on how to create a plot, or a part of it, and can be used directly as arguments in a `@gp` or `@gsp` call.
 
 There are two kinds of recipes:
 
 - *explicit* recipe: a function which is explicitly invoked by the user.  It can have any name and accept any number of arguments and keywords.  It is typically used when the visualization of a data type requires some extra information, beside data itself (e.g. to plot data from a `DataFrame` object, see [Simple explicit recipe](@ref));
 
-- *implicit* recipe: a function which is automatically called by **Gnuplot.jl**.  It must extend the [`recipe()`](@ref) function, and accept exactly one mandatory argument.  It is typically used when the visualization is completely determined by the data type itself (e.g. the visualization of a `Matrix{ColorTypes.RGB}` object as an image, see [Image recipes](@ref));
+- *implicit* recipe: a function which is automatically called by **Gnuplot.jl**.  It must extend the `Gnuplot.recipe()` function, and accept exactly one mandatory argument.  It is typically used when the visualization is completely determined by the data type itself (e.g. the visualization of a `Matrix{ColorTypes.RGB}` object as an image, see [Image recipes](@ref));
 
-An implicit recipe is invoked whenever the data type of an argument to `@gp` or `@gsp` is not among the allowed ones (see [`@gp()`](@ref) documentation).  If a suitable recipe do not exists an error is raised.  On the other hand, an explicit recipe needs to be invoked by the user, and the output passed directly to `@gp` or `@gsp`.
+An implicit recipe is invoked whenever the data type of an argument to `@gp` or `@gsp` is not among the allowed ones (see [`Gnuplot.parseSpecs`](@ref) documentation).  If a suitable recipe do not exists an error is raised.  On the other hand, an explicit recipe needs to be invoked by the user, and the output passed directly to `@gp` or `@gsp`.
 
 Although recipes provides very efficient tools for data exploration, their use typically hide the details of plot generation.  As a consequence they provide less flexibility than the approaches described in [Basic usage](@ref) and [Advanced usage](@ref).
 
-Currently, the **Gnuplot.jl** package provides no built-in explicit recipe.  The implicit recipes are implemented in [recipes.jl](https://github.com/gcalderone/Gnuplot.jl/blob/master/src/recipes.jl).
+Currently, the **Gnuplot.jl** package provides only one explicit recipe ([`line()`](@ref)) and a few implicit ones.  All recipes are implemented in [recipes.jl](https://github.com/gcalderone/Gnuplot.jl/blob/master/src/recipes.jl).
 
 
 
@@ -33,31 +33,28 @@ Currently, the **Gnuplot.jl** package provides no built-in explicit recipe.  The
 To generate a plot using the data contained in a `DataFrame` object we need, beside the data itself, the name of the columns to use for the X and Y coordinates.  The following example shows how to implement an explicit recipe to plot a `DataFrame` object:
 ```@example abc
 using RDatasets, DataFrames, Gnuplot
-import Gnuplot: PlotElement, DatasetText
 
 function plotdf(df::DataFrame, colx::Symbol, coly::Symbol; group=nothing)
     if isnothing(group)
-        return PlotElement(data=DatasetText(df[:, colx], df[:, coly]),
-                           plot="w p notit",
-                           xlab=string(colx), ylab=string(coly))
+        return Gnuplot.parseSpecs(df[:, colx], df[:, coly], "w p notit",
+                                  xlab=string(colx), ylab=string(coly))
     end
 
-    out = Vector{Gnuplot.PlotElement}()
-    push!(out, PlotElement(;xlab=string(colx), ylab=string(coly)))
+    out = Vector{Gnuplot.AbstractGPSpec}()
+	append!(out, Gnuplot.parseSpecs(xlab=string(colx), ylab=string(coly)))
     for g in sort(unique(df[:, group]))
         i = findall(df[:, group] .== g)
         if length(i) > 0
-            push!(out, PlotElement(data=DatasetText(df[i, colx], df[i, coly]),
-                                   plot="w p t '$g'"))
+            append!(out, Gnuplot.parseSpecs(df[i, colx], df[i, coly], "w p t '$g'"))
         end
     end
     return out
 end
 
-# Load a DataFrame and convert it to a PlotElement
+# Load a DataFrame and plot two of its columns
 iris = dataset("datasets", "iris")
 @gp plotdf(iris, :SepalLength, :SepalWidth, group=:Species)
-saveas("recipes001") # hide
+saveas("recipes001"); nothing # hide
 ```
 ![](assets/recipes001.png)
 
@@ -67,29 +64,25 @@ saveas("recipes001") # hide
 The following is a slightly more complex example illustrating how to generate a corner plot:
 ```@example abc
 using RDatasets, DataFrames, Gnuplot
-import Gnuplot: PlotElement, DatasetBin
 
 function cornerplot(df::DataFrame; nbins=5, margins="0.1, 0.9, 0.15, 0.9", spacing=0.01, ticscale=1)
     numeric_cols = findall([eltype(df[:, i]) <: Real for i in 1:ncol(df)])
-    out = Vector{PlotElement}()
-    push!(out, PlotElement(cmds="set multiplot layout $(length(numeric_cols)), $(length(numeric_cols)) margins $margins spacing $spacing columnsfirst downward"))
-    push!(out, PlotElement(name="\$null", data=DatasetText([10,10])))
+    out = Vector{Gnuplot.AbstractGPSpec}()
+    append!(out, Gnuplot.parseSpecs("set multiplot layout $(length(numeric_cols)), $(length(numeric_cols)) margins $margins spacing $spacing columnsfirst downward"))
     id = 1
     for ix in numeric_cols
         for iy in numeric_cols
-            push!(out, PlotElement(mid=id, xlab="", ylab="", cmds=["set xtics format ''", "set ytics format ''", "set tics scale $ticscale"]))
-            (iy == maximum(numeric_cols))  &&  push!(out, PlotElement(mid=id, xlab=names(df)[ix], cmds="set xtics format '% h'"))
-            (ix == minimum(numeric_cols))  &&  push!(out, PlotElement(mid=id, ylab=names(df)[iy]))
+			append!(out, Gnuplot.parseSpecs(id, xlab="", ylab="", "set xtics format ''", "set ytics format ''", "set tics scale $ticscale"))
+            (iy == maximum(numeric_cols))  &&  append!(out, Gnuplot.parseSpecs(id, xlab=names(df)[ix], "set xtics format '% h'"))
+            (ix == minimum(numeric_cols))  &&  append!(out, Gnuplot.parseSpecs(id, ylab=names(df)[iy]))
 
-            xr = [extrema(df[:, ix])...]
-            yr = [extrema(df[:, iy])...]
+            xr = extrema(df[:, ix])
+            yr = extrema(df[:, iy])
             if ix == iy
                 h = hist(df[:, ix], range=xr, nbins=nbins)
-                push!(out, PlotElement(mid=id, cmds="unset ytics", xr=xr, yr=[NaN,NaN], data=DatasetBin(hist_bins(h), hist_weights(h)), plot="w steps notit lc rgb 'black'"))
+                append!(out, Gnuplot.parseSpecs(id, "unset ytics", xr=xr, yr=[NaN,NaN], hist_bins(h), hist_weights(h), "w steps notit lc rgb 'black'"))
             elseif ix < iy
-                push!(out, PlotElement(mid=id,                     xr=xr, yr=yr       , data=DatasetBin(df[:, ix], df[:, iy]), plot="w p notit"))
-            else
-                push!(out, PlotElement(mid=id, cmds="set multiplot next"))
+                append!(out, Gnuplot.parseSpecs(id,                xr=xr, yr=yr       , df[:, ix], df[:, iy], "w p notit"))
             end
             id += 1
         end
@@ -100,7 +93,7 @@ end
 # Load a DataFrame and generate a cornerplot
 iris = dataset("datasets", "iris")
 @gp cornerplot(iris)
-saveas("recipes001_1") # hide
+saveas("recipes001_1"); nothing # hide
 ```
 ![](assets/recipes001_1.png)
 
@@ -111,7 +104,7 @@ The object returned by the [`hist()`](@ref) function can be readily visualized b
 ```@example abc
 x = randn(1000);
 @gp hist(x)
-saveas("recipes002") # hide
+saveas("recipes002"); nothing # hide
 ```
 ![](assets/recipes002.png)
 
@@ -120,7 +113,7 @@ saveas("recipes002") # hide
 x = randn(10_000);
 y = randn(10_000);
 @gp hist(x, y)
-saveas("recipes002a") # hide
+saveas("recipes002a"); nothing # hide
 ```
 ![](assets/recipes002a.png)
 
@@ -133,7 +126,7 @@ y = randn(10_000);
 h = hist(x, y)
 clines = contourlines(h, "levels discrete 10, 30, 60, 90");
 @gp clines
-saveas("recipes002b") # hide
+saveas("recipes002b"); nothing # hide
 ```
 ![](assets/recipes002b.png)
 
@@ -153,7 +146,7 @@ To use these recipes simply pass an image to `@gp`, e.g.:
 using TestImages
 img = testimage("lighthouse");
 @gp img
-saveas("recipes007b") # hide
+saveas("recipes007b"); nothing # hide
 ```
 ![](assets/recipes007b.png)
 
@@ -167,8 +160,8 @@ end
 with only one mandatory argument.  In order to exploit the optional keyword we can explicitly invoke the recipe as follows:
 ```@example abc
 img = testimage("walkbridge");
-@gp palette(:gray1) recipe(img, "flipy rot=15deg")
-saveas("recipes007c") # hide
+@gp palette(:gray1) Gnuplot.recipe(img, "flipy rot=15deg")
+saveas("recipes007c"); nothing # hide
 ```
 ![](assets/recipes007c.png)
 
