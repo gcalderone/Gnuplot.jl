@@ -8,7 +8,7 @@
 
 > [!WARNING]
 > The code in version 1.6.0 underwent a signficant refactoring, and a few minor breaking changes had been introduced.
-> **Please have a look at ChangeLog.md**
+> **Please have a look at ChangeLog.md !!**
 
 ## Installation
 
