@@ -5,7 +5,7 @@ abstract type AbstractGPSpecMid <: AbstractGPSpec end
 
 mutable struct GPCommand <: AbstractGPSpecMid
     mid::Int
-    const cmd::String
+    cmd::String
     GPCommand(mid::Int, cmd::AbstractString) = new(mid, deepcopy(string(cmd)))
     GPCommand(mid::Int, cmds::Vector{<: AbstractString}) = new(mid, join(string.(cmds), ";\n"))
 end
