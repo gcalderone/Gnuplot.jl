@@ -106,6 +106,29 @@ saveas("basic005"); nothing # hide
 ```
 ![](assets/basic005.png)
 
+
+#### Reuse last dataset to add labels on the parabola
+The last dataset can be reused with `plot ''`, optionally followed by a [`using` clause](http://gnuplot.info/docs_6.0/loc9076.html):
+```@example abc
+x = 1:20
+@gp  x  x.^2  "with lp tit 'Parabola'" "plot '' using 1:2:2 w labels right offset -1,0.5 notit"
+saveas("basic005a"); nothing # hide
+```
+![](assets/basic005a.png)
+
+
+#### Specify labels as strings
+Labels can be provided as a `Vector{String}`:
+```@example abc
+x = (0.:5) .+ 0.5
+labels = "P {/Symbol " .* string.('a' .+ (0:length(x)-1)) .* "}_0"
+@gp x x.^2 labels "w lp notit" "p '' w labels right offset 1,1 notit"
+saveas("basic005b"); nothing # hide
+```
+![](assets/basic005b.png)
+
+
+
 ---
 #### Multiple datasets, logarithmic axis, labels and colors, etc.
 ```@example abc
