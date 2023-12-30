@@ -5,7 +5,9 @@ try
 catch
     Gnuplot.options.dry = true
 end
-Gnuplot.options.gpviewer = true
+
+# Test the default, i.e. false
+#Gnuplot.options.gpviewer = true
 
 x = [1, 2, 3]
 y = [4, 5, 6]
@@ -109,6 +111,24 @@ dummy = terminals()
 
 # Force unknown on Travis CI
 Gnuplot.options.term = "unknown"
+
+if Gnuplot.options.gpviewer == false
+    # Wrap @gp and @gsp macrocalls in display() to ensure that the whole
+    # plot is sent to the gnuplot process during testing. In interactive
+    # sessions display() is called by the REPL.
+    macro gp(args...)
+        gpcall = :(Gnuplot.@gp)
+        push!(gpcall.args, args...)
+        out = :(display($gpcall))
+        return esc(out)
+    end
+    macro gsp(args...)
+        gpcall = :(Gnuplot.@gsp)
+        push!(gpcall.args, args...)
+        out = :(display($gpcall))
+        return esc(out)
+    end
+end
 
 @gp 1:9
 @info "using terminal: " terminal()

@@ -25,7 +25,7 @@ The **Gnuplot.jl** package allows easy and fast use of [gnuplot](http://gnuplot.
 
 - export to a huge number of formats such as `pdf`, `png`, `gif`, ``\LaTeX``, `svg`, etc. (actually all those supported by gnuplot);
 
-- compatibility with Jupyter and Juno;
+- compatibility with Jupyter, VS Code, Pluto, Juno, Weave.jl, etc.
 
 - save sessions into gnuplot scripts, to enable easy plot customization and reproducibility.
 

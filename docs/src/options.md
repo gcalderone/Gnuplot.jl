@@ -13,13 +13,11 @@ saveas(file) = save(term="pngcairo size 550,350 fontscale 0.8", output="assets/$
 
 The display behaviour of **Gnuplot.jl** depends on the value of the `Gnuplot.options.gpviewer` flag:
 
-- if `true` the plot is displayed in a gnuplot window, using one of the interactive terminals such as `wxt`, `qt` or `aqua`.  This is the default setting when running a Julia REPL session; The terminal options can be customized using `Gnuplot.options.term`;
+- if `false` (the default) the plot is displayed through the Julia [multimedia interface](https://docs.julialang.org/en/v1/base/io-network/#Multimedia-I/O-1), i.e. depending on the current environment, it is displayed either in a gnuplot window (REPL) or exported as either a `png`, `svg` or `html` file, and displayed in an external viewer (IDE, notebook). The terminal options for the gnuplot window can be customized using `Gnuplot.options.term`; options for exporting can be customized using the `Gnuplot.options.mime` dictionary.
 
-- if `false` the plot is displayed through the Julia [multimedia interface](https://docs.julialang.org/en/v1/base/io-network/#Multimedia-I/O-1), i.e. it is exported as either a `png`, `svg` or `html` file, and displayed in an external viewer.  This is the default setting when running a Jupyter, JupyterLab or Juno session.  The terminal options can be customized using the `Gnuplot.options.mime` dictionary.
+- if `true` the plot is always displayed in a gnuplot window, using one of the interactive terminals such as `wxt`, `qt` or `aqua`.  The terminal options can be customized using `Gnuplot.options.term`;
 
-The `Gnuplot.options.gpviewer` flag is automatically set when the package is first loaded according to the runtime environment, however the user can change its value at any time to fit specific needs.  Further informations and examples for both options are available in this Jupyter [notebook](https://github.com/gcalderone/Gnuplot.jl/blob/gh-pages/v1.3.0/options/display.ipynb).
-
-
+Further information and examples for both options are available in this Jupyter [notebook](https://github.com/gcalderone/Gnuplot.jl/blob/gh-pages/v1.3.0/options/display.ipynb).
 
 
 # Package options and initialization
