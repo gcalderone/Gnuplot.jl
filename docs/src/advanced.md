@@ -156,7 +156,7 @@ saveas("advanced012"); nothing # hide
 
 ## Multiple sessions
 
-**Gnuplot.jl** can handle multiple sessions, i.e. multiple gnuplot processes running simultaneously.  Each session is identified by an ID (`sid::Symbol`, in the documentation).
+**Gnuplot.jl** can handle multiple sessions, i.e. multiple gnuplot processes running simultaneously.  Each session is identified by an Session ID (or `sid`).
 
 In order to redirect commands to a specific session simply insert a symbol into your `@gp` or `@gsp` call, e.g.:
 ```@example abc
@@ -315,7 +315,7 @@ gx, gy, gz = dgrid3d(x, y, z, "40,40 gauss 0.1,0.1")
 # Hide exrapolated values
 gx, gy, gz = dgrid3d(x, y, z, "40,40 gauss 0.1,0.1", extra=false)
 @gsp :- 3 tit="Interpolation on a grid\\n(extrapolated values are hidden)" gx gy gz "w l notit lc pal"
-Gnuplot.save(term="pngcairo size 1000,400 fontscale 1.0", "assets/advanced015b.png"); nothing # hide
+Gnuplot.save("assets/advanced015b.png", term="pngcairo size 1000,400 fontscale 1.0"); nothing # hide
 ```
 ![](assets/advanced015b.png)
 
@@ -340,7 +340,7 @@ end
 ```
 Here the `frame` variable is used as multiplot index. The animation can be saved in a GIF file with:
 ```@example abc
-Gnuplot.save(term="gif animate size 480,360 delay 5", "assets/animation.gif")
+Gnuplot.save("assets/animation.gif", term="gif animate size 480,360 delay 5")
 ```
 ![](assets/animation.gif)
 

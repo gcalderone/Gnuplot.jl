@@ -23,20 +23,22 @@ saveas("basic000"); nothing # hide
 
 The plots are displayed either in an interactive window (if running in the Julia REPL), as an inline image (if running in Jupyter) or in the plot pane (if running in Juno).  See [Display options](@ref) for further informations.
 
+Both the [`@gp`](@ref) and [`@gsp`](@ref) macros accept any number of plot specifications (or *plot specs*), whose meaning is as follows:
 
-Both the [`@gp`](@ref) and [`@gsp`](@ref) macros accept any number of arguments, whose meaning is interpreted as follows:
+- one, or a group of consecutive, array(s) of either `Real` or `String` build up a dataset.  The different arrays are accessible as columns 1, 2, etc. from the `gnuplot` process.  The number of required input arrays depends on the chosen plot style (see `gnuplot` documentation);
 
-- one, or a group of consecutive, array(s) build up a dataset.  The different arrays are accessible as columns 1, 2, etc. from the gnuplot process.  The number of required input arrays depends on the chosen plot style (see gnuplot documentation);
+- a string occurring before a dataset is interpreted as a `gnuplot` command (e.g. `set grid`).  If the string begins with "plot" or "splot" it is interpreted as the corresponding gnuplot commands (note: "plot" and "splot" can be abbreviated to "p" and "s" respectively, or "pl" and "spl", etc.);
 
-- a string occurring before a dataset is interpreted as a gnuplot command (e.g. `set grid`);
+- a string occurring immediately after a dataset is interpreted as a plot command for the dataset, by which you can specify `using` clause, `with` clause, line styles, etc..  All keywords may be abbreviated following gnuplot conventions.
 
-- a string occurring immediately after a dataset is interpreted as a *plot element* for the dataset, by which you can specify `using` clause, `with` clause, line styles, etc.;
+- an input in the form `"\\\$name"=>(array1, array2, etc...)` is interpreted as a named dataset.  Note that the dataset name must always start with a "`\$`";
 
-- the special symbol `:-`, whose meaning is to avoid starting a new plot (if given as first argument), or to avoid immediately running all commands to create the final plot (if given as last argument).  Its purpose is to allow splitting one long statement into multiple (shorter) ones.
+- the literal symbol `:-` allows to avoid starting a new plot (if given as first argument), or to avoid immediately updating the plot (if given as last argument).  Its purpose is to split one long statement into multiple (shorter) ones.
 
 The above list shows all the fundamental concepts to follow the examples presented below.  The [`@gp`](@ref) and [`@gsp`](@ref) macros also accepts further arguments, but their use will be discussed in [Advanced usage](@ref).
 
 [^1]: a previous knowledge of [gnuplot](http://gnuplot.sourceforge.net/documentation.html) usage is, nevertheless, required.
+
 
 ## [2D plots](@id plots2d)
 
@@ -122,7 +124,8 @@ saveas("basic006"); nothing # hide
 
 ---
 ## Keywords for common commands
-In order to avoid typing long, and very frequently used gnuplot commands, **Gnuplot.jl** provides a few keywords which can be used in both `@gp` and `@sgp` calls:
+
+In order to avoid typing long, and very frequently used gnuplot commands, **Gnuplot.jl** provides a few keywords which can be used in both `@gp` and `@sgp` calls (see [`Gnuplot.parseKeywords`](@ref) for a complete list):
  - `xrange=[low, high]` => `"set xrange [low:high]`;
  - `yrange=[low, high]` => `"set yrange [low:high]`;
  - `zrange=[low, high]` => `"set zrange [low:high]`;
@@ -142,7 +145,7 @@ In order to avoid typing long, and very frequently used gnuplot commands, **Gnup
  - `bmargin=...` => `set bmargin ...`;
  - `tmargin=...` => `set tmargin ...`;
 
-All such keywords can be abbreviated to unambiguous names.
+All keywords can be abbreviated to unambiguous names.
 
 By using the above keywords the first lines of the previous example:
 ```julia
@@ -265,7 +268,7 @@ terminals()
 
 Once you choose the proper terminal (i.e. format of the exported file), use the [`Gnuplot.save()`](@ref) function to export.  As an example, all the plots in this page have been saved with:
 ```julia
-Gnuplot.save(term="pngcairo size 550,350 fontscale 0.8", "assets/output.png")
+Gnuplot.save("filename.png" term="pngcairo size 550,350 fontscale 0.8")
 ```
 Note that you can pass both the terminal name and its options via the `term=` keyword.  See [Gnuplot terminals](@ref) for further info on the terminals.
 
@@ -338,4 +341,4 @@ to generate a plot identical to the original one.
 
 The purpose of gnuplot scripts is to allow sharing all data, alongside a plot, in order to foster collaboration among scientists and replicability of results.  Moreover, a script can be used at any time to change the details of a plot, without the need to re-run the Julia code used to generate it the first time.
 
-Finally, the scripts are the only possible output when [Dry sessions](@ref) are used (i.e. when gnuplot is not available in the user platform.
+Finally, the scripts are the only possible output when [Dry sessions](@ref) are used (i.e. when gnuplot is not available in the user platform).

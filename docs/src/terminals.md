@@ -6,7 +6,7 @@ To use a specific terminal for interactive use you may either set it as initiali
 ```julia
 Gnuplot.options.term = "wxt"
 ```
-See official [gnuplot documentation](http://gnuplot.sourceforge.net/documentation.html) for further info on terminals and their options.
+See official [gnuplot documentation](http://gnuplot.info/docs_6.0/gnuplot6.html) for further info on terminals and their options.
 
 
 ## Interactive terminals (`wxt` and `qt`)

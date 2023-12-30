@@ -12,19 +12,19 @@ saveas(file) = Gnuplot.save(term="pngcairo size 550,350 fontscale 0.8", "assets/
 
 # Plot recipes
 
-A plot *recipe* is a quicklook visualization procedure aimed at reducing the amount of repetitive code to generate a plot.  More specifically, a recipe is a function that convert data from the "Julia world" into a form suitable to be ingested in gnuplot, namely a scalar (or a vector of) `Gnuplot.PlotElement` TODO object(s).  The latter contain informations on how to create a plot, or a part of it, and can be used directly as arguments in a `@gp` or `@gsp` call.
+A plot *recipe* is a quicklook visualization procedure aimed at reducing the amount of repetitive code to generate a plot.  More specifically, a recipe is a function that convert the plot specs from the "Julia world" into a form suitable to be ingested in gnuplot, namely a `Vector{<: AbstractGPSpec})` (see also [Gnuplot.jl internals](@ref)).  The latter contain informations on how to create a plot, or a part of it, and can be used directly as arguments in a `@gp` or `@gsp` call.
 
 There are two kinds of recipes:
 
 - *explicit* recipe: a function which is explicitly invoked by the user.  It can have any name and accept any number of arguments and keywords.  It is typically used when the visualization of a data type requires some extra information, beside data itself (e.g. to plot data from a `DataFrame` object, see [Simple explicit recipe](@ref));
 
-- *implicit* recipe: a function which is automatically called by **Gnuplot.jl**.  It must extend the `recipe()` TODO function, and accept exactly one mandatory argument.  It is typically used when the visualization is completely determined by the data type itself (e.g. the visualization of a `Matrix{ColorTypes.RGB}` object as an image, see [Image recipes](@ref));
+- *implicit* recipe: a function which is automatically called by **Gnuplot.jl**.  It must extend the `Gnuplot.recipe()` function, and accept exactly one mandatory argument.  It is typically used when the visualization is completely determined by the data type itself (e.g. the visualization of a `Matrix{ColorTypes.RGB}` object as an image, see [Image recipes](@ref));
 
-An implicit recipe is invoked whenever the data type of an argument to `@gp` or `@gsp` is not among the allowed ones (see [`@gp()`](@ref) documentation).  If a suitable recipe do not exists an error is raised.  On the other hand, an explicit recipe needs to be invoked by the user, and the output passed directly to `@gp` or `@gsp`.
+An implicit recipe is invoked whenever the data type of an argument to `@gp` or `@gsp` is not among the allowed ones (see [`Gnuplot.parseSpecs`](@ref) documentation).  If a suitable recipe do not exists an error is raised.  On the other hand, an explicit recipe needs to be invoked by the user, and the output passed directly to `@gp` or `@gsp`.
 
 Although recipes provides very efficient tools for data exploration, their use typically hide the details of plot generation.  As a consequence they provide less flexibility than the approaches described in [Basic usage](@ref) and [Advanced usage](@ref).
 
-Currently, the **Gnuplot.jl** package provides no built-in explicit recipe.  The implicit recipes are implemented in [recipes.jl](https://github.com/gcalderone/Gnuplot.jl/blob/master/src/recipes.jl).
+Currently, the **Gnuplot.jl** package provides only one explicit recipe ([`line()`](@ref)) and a few implicit ones.  All recipes are implemented in [recipes.jl](https://github.com/gcalderone/Gnuplot.jl/blob/master/src/recipes.jl).
 
 
 
