@@ -76,8 +76,8 @@ function cornerplot(df::DataFrame; nbins=5, margins="0.1, 0.9, 0.15, 0.9", spaci
             (iy == maximum(numeric_cols))  &&  append!(out, Gnuplot.parseSpecs(id, xlab=names(df)[ix], "set xtics format '% h'"))
             (ix == minimum(numeric_cols))  &&  append!(out, Gnuplot.parseSpecs(id, ylab=names(df)[iy]))
 
-            xr = [extrema(df[:, ix])...]
-            yr = [extrema(df[:, iy])...]
+            xr = extrema(df[:, ix])
+            yr = extrema(df[:, iy])
             if ix == iy
                 h = hist(df[:, ix], range=xr, nbins=nbins)
                 append!(out, Gnuplot.parseSpecs(id, "unset ytics", xr=xr, yr=[NaN,NaN], hist_bins(h), hist_weights(h), "w steps notit lc rgb 'black'"))

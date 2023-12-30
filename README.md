@@ -1,13 +1,13 @@
 # Gnuplot.jl
 ## A Julia interface to gnuplot.
 
-[![Build Status](https://travis-ci.org/gcalderone/Gnuplot.jl.svg?branch=master)](https://travis-ci.org/gcalderone/Gnuplot.jl)
 [![License](http://img.shields.io/badge/license-MIT-brightgreen.svg?style=flat)](LICENSE.md)
 [![DocumentationStatus](https://img.shields.io/badge/docs-stable-blue.svg?style=flat)](https://gcalderone.github.io/Gnuplot.jl/stable/index.html)
 
-
 **Gnuplot.jl** is a simple package able to send both data and commands from Julia to an underlying [gnuplot](http://gnuplot.sourceforge.net/) process.  Its main purpose it to provide a fast and powerful data visualization framework, using an extremely concise Julia syntax. It also has automatic display of plots in Jupyter, Juno and VS Code.
 
+[!WARNING] 
+> The code in version 1.6.0 underwent a signficant code refactoring, and a few minor breaking changes had been introduces.  Please have a look at ChangeLog.md!
 
 ## Installation
 

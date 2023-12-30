@@ -1,16 +1,25 @@
-# Version 2.0.0
-- New explitict recipe: `line`
+# Version 1.6.0
 
-- Breaking changes:
-  * dataset_names() is no longer available;
-  * Real numbers in @gp and @gsp are no longer interpreted as vectors with one element.  Use, e.g., `[0.]`;
-  * Multiplot ID can only be specified once in a `parseSpec` call, and it must be present before other plot specs;
+This release features a thorough refactor which allowed to simplify the code while maintaining the same functionalities.
+A few minor changes may, however, break your code.  Specifically:
+  * Real numbers in @gp and @gsp are no longer interpreted as vectors with one element (replace them wiyh, e.g. `[0.]`);
+
+  * Multiplot ID can only be specified once in a `@gp` or `@gsp` call, and it must appear before other plot specs;
+
   * Mixing plot and splot commands is now detected as an error;
-  * `Gnuplot.save` and `Gnuplot.recipe` are no longer exported;
-  * scripts are now saved using `Gnuplot.savescript` rather than `Gnuplot.save`;
-  * `output=` is no longer a keyword in `Gnuplot.save`, but a required argument;
+ 
+  * Scripts are now saved using `Gnuplot.savescript` (rather than `Gnuplot.save`);
+
+  * `Gnuplot.save` is no longer exported to avoid collision with other packages;
+
+  * In `Gnuplot.save`, `output=` is no longer a keyword, but the required first argument;
+
   * The `Options` structure no longer has a `mime` field: to customize terminal for a specific MIME a new method should be implemented;
-  * Several internal functions has been renamed
+ 
+
+This release also features the first built-in explitict recipe: `line()`.
+
+
   
 # Version 1.5.0
 - New features:

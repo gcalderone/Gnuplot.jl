@@ -70,7 +70,7 @@ Recycling data from the previous example we can plot both data and best fit mode
 @gp :- 1 "p $name w errorbars t 'Data'"
 @gp :-   "p $name u 1:(f(\$1)) w l t 'Best fit model'"
 @gp :- 2 "p $name u 1:((f(\$1)-\$2) / \$3):(1) w errorbars t 'Resid. [{/Symbol s}]'"
-@gp :-   [extrema(x)...] [0,0] "w l notit dt 2 lc rgb 'black'" # reference line
+@gp :-   line(x, 0, "w l notit dt 2 lc rgb 'black'") # reference line
 saveas("advanced011"); nothing # hide
 ```
 ![](assets/advanced011.png)
@@ -82,7 +82,7 @@ Note that the order of the plots is not relevant, i.e. we would get the same res
 @gp :- name=>(x, y, err)
 @gp :- "set multiplot layout 2,1"
 @gp :- 2 "p $name u 1:((f(\$1)-\$2) / \$3):(1) w errorbars t 'Resid. [{/Symbol s}]'"
-@gp :-   [extrema(x)...] [0,0] "w l notit dt 2 lc rgb 'black'" # reference line
+@gp :-   line(x, 0, "w l notit dt 2 lc rgb 'black'") # reference line
 @gp :- 1 "p $name w errorbars t 'Data'"
 @gp :-   "p $name u 1:(f(\$1)) w l t 'Best fit model'"
 ```

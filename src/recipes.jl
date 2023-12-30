@@ -13,8 +13,8 @@ Explicit recipe to plot a line parallel to one axis.
 """
 line(x::Real, y::NTuple{2, Real}, spec::String="w l notit") = Gnuplot.parseSpecs(Gnuplot.DatasetText(x .* [1,1], [y...]), spec)
 line(x::NTuple{2, Real}, y::Real, spec::String="w l notit") = Gnuplot.parseSpecs(Gnuplot.DatasetText([x...], y .* [1,1]), spec)
-line(x::Real, y::Vector{<: Real}, spec::String="w l notit") = line(x, extrema(y), spec)
-line(x::Vector{<: Real}, y::Real, spec::String="w l notit") = line(extrema(x), y, spec)
+line(x::Real, y::AbstractVector{<: Real}, spec::String="w l notit") = line(x, extrema(y), spec)
+line(x::AbstractVector{<: Real}, y::Real, spec::String="w l notit") = line(extrema(x), y, spec)
 
 
 # --------------------------------------------------------------------
