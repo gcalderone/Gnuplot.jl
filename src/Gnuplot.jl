@@ -13,7 +13,7 @@ export session_names, palette_names, linetypes, palette_levels, palette,
 
 Return the **Gnuplot.jl** package version.
 """
-version() = v"1.6.0"
+version() = v"1.6.1"
 
 
 # ---------------------------------------------------------------------
