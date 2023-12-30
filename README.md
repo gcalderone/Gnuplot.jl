@@ -1,6 +1,7 @@
 # Gnuplot.jl
 ## A Julia interface to gnuplot.
 
+[![CI](https://github.com/gcalderone/Gnuplot.jl/actions/workflows/ci.yml/badge.svg)](https://github.com/gcalderone/Gnuplot.jl/actions/workflows/ci.yml)
 [![License](http://img.shields.io/badge/license-MIT-brightgreen.svg?style=flat)](LICENSE.md)
 [![DocumentationStatus](https://img.shields.io/badge/docs-stable-blue.svg?style=flat)](https://gcalderone.github.io/Gnuplot.jl/stable/index.html)
 
