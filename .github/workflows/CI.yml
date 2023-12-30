@@ -10,25 +10,16 @@ on:
 jobs:
   Test:
     name: Test
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: 15
-    strategy:
-      fail-fast: false
-      matrix:
-        version:
-          - '1.5' # Oldest supported version in Project.toml
-          - '1' # Latest stable release
-        os:
-          - ubuntu-latest
-
+    runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-      - run: sudo apt install gnuplot
+      - uses: actions/checkout@v3
+      - run: sudo apt-get -y install gnuplot
       # Check whether gnuplot is correctly installed and print version.
       - run: gnuplot --version
-      - uses: julia-actions/setup-julia@v1
+      - uses: julia-actions/setup-julia@latest
         with:
-          version: ${{ matrix.version }}
+          version: 1.9
+          arch: x64
       - uses: julia-actions/cache@v1
       - uses: julia-actions/julia-buildpkg@latest
-      - uses: julia-actions/julia-runtest@v1
+      - uses: julia-actions/julia-runtest@latest
