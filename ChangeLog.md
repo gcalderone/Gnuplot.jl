@@ -1,3 +1,7 @@
+# Version 1.6.1
+	* Bugfix: avoid automatic sending of "set multiplot next" whenever a plot slot has no associated plot commands;
+
+
 # Version 1.6.0
 
 This release features a thorough refactor which allowed to simplify the code while maintaining the same functionalities.

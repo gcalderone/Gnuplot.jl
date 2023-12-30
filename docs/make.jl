@@ -1,3 +1,4 @@
+# Run with: julia --startup-file=no make.jl
 using Documenter, Gnuplot
 
 makedocs(sitename="Gnuplot.jl",

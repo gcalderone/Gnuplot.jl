@@ -376,11 +376,7 @@ function collect_commands(gp::GPSession{T}; term::AbstractString="", output::Abs
             #TODO elseif isa(spec.data, DatasetBin)  gp.datasources[i] = dropDuplicatedUsing.(spec.data.source, spec.plot)
         end
 
-        if length(plotcmd) == 0
-            if maximum(mids) > 1
-                push!(out, "set multiplot next")
-            end
-        else
+        if length(plotcmd) > 0
             push!(out, (is3d  ?  "splot "  :  "plot ") * join(plotcmd, ", "))
         end
     end

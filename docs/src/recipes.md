@@ -72,7 +72,7 @@ function cornerplot(df::DataFrame; nbins=5, margins="0.1, 0.9, 0.15, 0.9", spaci
     id = 1
     for ix in numeric_cols
         for iy in numeric_cols
-			append!(out, Gnuplot.parseSpecs(id, xlab="", ylab="", "set xtics format ''", "set ytics format ''", "set tics scale $ticscale"))
+            append!(out, Gnuplot.parseSpecs(id, xlab="", ylab="", "set xtics format ''", "set ytics format ''", "set tics scale $ticscale"))
             (iy == maximum(numeric_cols))  &&  append!(out, Gnuplot.parseSpecs(id, xlab=names(df)[ix], "set xtics format '% h'"))
             (ix == minimum(numeric_cols))  &&  append!(out, Gnuplot.parseSpecs(id, ylab=names(df)[iy]))
 
@@ -83,6 +83,8 @@ function cornerplot(df::DataFrame; nbins=5, margins="0.1, 0.9, 0.15, 0.9", spaci
                 append!(out, Gnuplot.parseSpecs(id, "unset ytics", xr=xr, yr=[NaN,NaN], hist_bins(h), hist_weights(h), "w steps notit lc rgb 'black'"))
             elseif ix < iy
                 append!(out, Gnuplot.parseSpecs(id,                xr=xr, yr=yr       , df[:, ix], df[:, iy], "w p notit"))
+            else
+                append!(out, Gnuplot.parseSpecs(id, "set multiplot next"))  # skip slot
             end
             id += 1
         end
