@@ -174,6 +174,7 @@ function parseSpecs(_args...; default_mid=1, is3d=false, kws...)
         elseif isa(arg, AbstractArray) &&            # ==> a dataset column
             ((nonmissingtype(eltype(arg)) <: Real)    ||
             (nonmissingtype(eltype(arg)) <: AbstractString));
+            @assert length(arg) > 0 "Empty arrays are not allowed"
         elseif isa(arg, Dataset)                ;    # ==> a Dataset object
         elseif hasmethod(recipe, tuple(typeof(arg))) # ==> implicit recipe
             # @info which(recipe, tuple(typeof(arg)))  # debug

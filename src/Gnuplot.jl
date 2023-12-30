@@ -75,9 +75,13 @@ Raise an error if version is < 5.0 (required to use data blocks).
 """
 function gpversion()
     if !options.dry
-        ver = Gnuplot.GnuplotProcess.gpversion(options.cmd)
-        if ver < v"5.0"
-            @warn("gnuplot ver. >= 5.0 is required, but " * string(ver) * " was found.  Enabling dry sessions.")
+        try
+            ver = Gnuplot.GnuplotProcess.gpversion(options.cmd)
+            @assert ver >= v"5.0" "gnuplot ver. >= 5.0 is required, but " * string(ver) * " was found."
+        catch err
+            show(err)
+            println()
+            @warn "Enabling dry sessions"
             options.dry = true
         end
     end

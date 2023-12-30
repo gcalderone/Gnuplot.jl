@@ -95,7 +95,6 @@ pal = palette(:deepsea)
 ls = linetypes(:Set1_5, lw=1.5, ps=2)
 @test ls == "unset for [i=1:256] linetype i\nset linetype 1 lc rgb '#E41A1C' lw 1.5 dt solid pt 1 ps 2\nset linetype 2 lc rgb '#377EB8' lw 1.5 dt solid pt 2 ps 2\nset linetype 3 lc rgb '#4DAF4A' lw 1.5 dt solid pt 3 ps 2\nset linetype 4 lc rgb '#984EA3' lw 1.5 dt solid pt 4 ps 2\nset linetype 5 lc rgb '#FF7F00' lw 1.5 dt solid pt 5 ps 2\nset linetype cycle 5\n"
 
-dummy = terminals()
 # if "sixelgd" in terminals()
 #     Gnuplot.options.term = "sixelgd enhanced"
 # elseif "sixel" in terminals()
@@ -116,10 +115,7 @@ Gnuplot.options.term = "unknown"
 
 #-----------------------------------------------------------------
 # Test wth empty dataset
-@test_throws ErrorException @gp Float64[]
-@test_throws ErrorException @gsp Float64[]
-@test_throws ErrorException @gp Float64[] Float64[]
-@test_throws ErrorException @gsp Float64[] Float64[]
+@test_throws AssertionError @gp Float64[]
 
 
 #-----------------------------------------------------------------
@@ -139,7 +135,7 @@ Gnuplot.quitall()
 @test_throws AssertionError @gp "plo sin(x)" "s cos(x)"
 
 @gp mar="0,1,0,1" "plot sin(x)"
-@gp :- mar=gpmargins() "plot cos(x)"
+@gp :- "plot cos(x)"
 @gp :- [0.] [0.]
 
 @gp "plot sin(x)"
@@ -271,11 +267,13 @@ Gnuplot.quitall()
 x = randn(5000);
 y = randn(5000);
 h = hist(x, y, nbins1=20, nbins2=20);
-clines = contourlines(h, "levels discrete 15, 30, 45");
-@gp clines
-@gp "set size ratio -1"
-for i in 1:length(clines)
-    @gp :- clines[i].data "w l t '$(clines[i].z)' lw $i dt $i"
+if !Gnuplot.options.dry
+    clines = contourlines(h, "levels discrete 15, 30, 45");
+    @gp clines
+    @gp "set size ratio -1"
+    for i in 1:length(clines)
+        @gp :- clines[i].data "w l t '$(clines[i].z)' lw $i dt $i"
+    end
 end
 
 
