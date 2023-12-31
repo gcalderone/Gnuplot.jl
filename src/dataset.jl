@@ -202,13 +202,17 @@ end
 =#
 
 # ---------------------------------------------------------------------
+# using Base.Threads
 function DatasetBin(VM::Vararg{AbstractMatrix, N}) where N
     for i in 2:N
         @assert size(VM[i]) == size(VM[1])
     end
     s = size(VM[1])
+    # path = tempname()
+    # run(`mkfifo $path`)
+    # Base.Threads.@spawn begin
+    # io = open(path, "w")
     (path, io) = mktemp()
-
     for i in 1:s[1]
         for j in 1:s[2]
             for k in 1:N
@@ -216,9 +220,10 @@ function DatasetBin(VM::Vararg{AbstractMatrix, N}) where N
             end
         end
     end
+    close(io)
+    # end # use "volatile" keyword
     source = " '$path' binary array=(" * join(string.(reverse(s)), ", ") * ")"
     # Note: can't add `using` here, otherwise we can't append `flipy`.
-    close(io)
     return DatasetBin(Val(:inner), path, source)
 end
 
@@ -252,11 +257,15 @@ function DatasetBin(cols::Vararg{AbstractVector, N}) where N
     close(io)
 
     #=
-    The following is needed to cope with the following case:
+    The following using clause is needed to cope with the following case:
     x = randn(10001)
-    @gp x x x "w p lc pal"
+    @gp  x x x "w p lc pal"  # Error: Not enough columns for variable color
+    @gsp x x x "w p lc pal"  # this works regardless of the using clause
+
+    But adding this clause here implies we should check for duplicated
+    using clause in collect_commands()
     =#
-    source *= " using " * join(1:N, ":") * " "
+    source *= " using " * join(1:N, ":")
     return DatasetBin(Val(:inner), path, source)
 end
 

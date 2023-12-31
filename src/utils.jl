@@ -117,7 +117,7 @@ function palette_levels(cmap::ColorScheme; rev=false, smooth=false)
         end
         levels[x] = "#" * Colors.hex(color)
     end
-    return (collect(keys(levels)), collect(values(levels)), length(cmap.colors))
+    return (collect(keys(levels)), collect(values(levels)), (smooth  ?  256  : length(cmap.colors)))
 end
 
 
@@ -138,6 +138,20 @@ end
 palette(s::Symbol; kwargs...) = palette(colorschemes[s]; kwargs...)
 palette(cmap::ColorScheme; kwargs...) =
     palette(palette_levels(cmap; kwargs...)...)
+
+
+# ---------------------------------------------------------------------
+"""
+    show_specs(sid::Symbol)
+    show_specs()
+
+Prints a brief overview of all stored plot specs for the `sid` session.  If `sid` is not provided the default session is considered.
+"""
+function show_specs(sid::Symbol=options.default)
+    gp = getsession(sid)
+    @info "Session id: $sid"
+    display(gp.specs)
+end
 
 
 # --------------------------------------------------------------------

@@ -26,6 +26,7 @@ palette
 palette_levels
 palette_names
 session_names
+show_specs
 stats
 terminals
 terminal

@@ -4,7 +4,7 @@ using StatsBase, ColorSchemes, ColorTypes, Colors, StructC14N, DataStructures
 
 export session_names, palette_names, linetypes, palette_levels, palette,
     terminal, terminals, test_terminal,
-    stats, @gp, @gsp, gpexec,
+    show_specs, stats, @gp, @gsp, gpexec,
     hist_bins, hist_weights,
     boxxy, contourlines, dgrid3d, hist, gpvars, gpmargins, gpranges
 
@@ -13,7 +13,7 @@ export session_names, palette_names, linetypes, palette_levels, palette,
 
 Return the **Gnuplot.jl** package version.
 """
-version() = v"1.6.1"
+version() = v"1.6.2"
 
 
 # ---------------------------------------------------------------------
@@ -312,25 +312,6 @@ end
 
 # ---------------------------------------------------------------------
 function collect_commands(gp::GPSession{T}; term::AbstractString="", output::AbstractString="", redirect_path=nothing) where T
-    # function dropDuplicatedUsing(source, spec)
-    #     # Ensure there is no duplicated `using` clause
-    #     m0 = match(r"(.*) using 1", source)
-    #     if !isnothing(m0)
-    #         for r in [r"u +[\d,\(]",
-    #                   r"us +[\d,\(]",
-    #                   r"usi +[\d,\(]",
-    #                   r"usin +[\d,\(]",
-    #                   r"using +[\d,\(]"]
-    #             m = match(r, spec)
-    #             if !isnothing(m)
-    #                 source = string(m0.captures[1])
-    #                 break
-    #             end
-    #         end
-    #     end
-    #     return source
-    # end
-
     out = Vector{String}()
     push!(out, "reset")
     if (term != "")  &&  (T == GPProcess)
@@ -365,15 +346,34 @@ function collect_commands(gp::GPSession{T}; term::AbstractString="", output::Abs
                     push!(plotcmd, "\$data$(i) " * spec.cmd)
                 else
                     @assert isa(spec.data, DatasetBin)
+                    source = spec.data.source
+                    cmd = spec.cmd
+                    # Check if there is a `using` clause in the spec
+                    for r in [r"u +[\d,\(]",
+                              r"us +[\d,\(]",
+                              r"usi +[\d,\(]",
+                              r"usin +[\d,\(]",
+                              r"using +[\d,\(]"]
+                        m = match(r, cmd)
+                        if !isnothing(m)
+                            # Check if the clause is also present in source
+                            m = match(r"(.*) using 1", source)
+                            if !isnothing(m)
+                                # Drop the using clause in source, keep the one in the spec
+                                source = string(m.captures[1])
+                                break
+                            end
+                        end
+                    end
+
                     if isnothing(redirect_path)
-                        push!(plotcmd, spec.data.source * " " * spec.cmd)
+                        push!(plotcmd, source * " " * cmd)
                     else
-                        s = replace(spec.data.source, spec.data.file => joinpath(redirect_path, basename(spec.data.file)))
-                        push!(plotcmd, s * " " * spec.cmd)
+                        s = replace(source, spec.data.file => joinpath(redirect_path, basename(spec.data.file)))
+                        push!(plotcmd, s * " " * cmd)
                     end
                 end
             end
-            #TODO elseif isa(spec.data, DatasetBin)  gp.datasources[i] = dropDuplicatedUsing.(spec.data.source, spec.plot)
         end
 
         if length(plotcmd) > 0
@@ -560,7 +560,8 @@ end
 # --------------------------------------------------------------------
 import Base.show
 
-show(io::IO, d::T) where T <: Dataset = write(io, string(T))
+show(io::IO, d::DatasetBin) = write(io, "DatasetBin(\"$(d.source)\")")
+show(io::IO, d::DatasetText) = write(io, "DatasetText")
 
 function _show(io::IO, gp::GPSession, term::String)
     options.gpviewer  &&  return nothing

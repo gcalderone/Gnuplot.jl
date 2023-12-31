@@ -1,7 +1,8 @@
 # --------------------------------------------------------------------
 export line
 """
-    line(x, y, spec)
+    line(scalar_x, vector_y, spec)
+    line(vector_x, scalar_y, spec)
 
 Explicit recipe to plot a line parallel to one axis.
 

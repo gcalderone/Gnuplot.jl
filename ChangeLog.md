@@ -1,3 +1,8 @@
+# Version 1.6.2 (development)
+	* New function: `show_specs()`
+
+	* Bugfix: `@gp x x x "w p lc pal"` when using the binary data format used to raise an error because of a missing `using` clause.  Now the `using` clause is added any time the binary format is used, and a check is made to avoid duplicated clauses in case the user adds a custom one.
+
 # Version 1.6.1
 	* Bugfix: avoid automatic sending of "set multiplot next" whenever a plot slot has no associated plot commands;
 
@@ -20,7 +25,6 @@ A few minor changes may, however, break your code.  Specifically:
 
   * The `Options` structure no longer has a `mime` field: to customize terminal for a specific MIME a new method should be implemented;
  
-
 This release also features the first built-in explitict recipe: `line()`.
 
 
