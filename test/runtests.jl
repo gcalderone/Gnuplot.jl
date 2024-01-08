@@ -117,6 +117,9 @@ Gnuplot.options.term = "unknown"
 # Test wth empty dataset
 @test_throws AssertionError @gp Float64[]
 
+#-----------------------------------------------------------------
+x = randn(10001)
+@gp  x x x "w p lc pal"
 
 #-----------------------------------------------------------------
 x = collect(1.:100);
