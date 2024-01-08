@@ -77,6 +77,7 @@ function gpversion()
     if !options.dry
         try
             ver = Gnuplot.GnuplotProcess.gpversion(options.cmd)
+            return ver
             @assert ver >= v"5.0" "gnuplot ver. >= 5.0 is required, but " * string(ver) * " was found."
         catch err
             show(err)
