@@ -1,7 +1,10 @@
 # Version 1.6.2 (development)
-	* New function: `show_specs()`
+	* New function: `show_specs()`;
 
-	* Bugfix: `@gp x x x "w p lc pal"` when using the binary data format used to raise an error because of a missing `using` clause.  Now the `using` clause is added any time the binary format is used, and a check is made to avoid duplicated clauses in case the user adds a custom one.
+	* Bugfix: `@gp x x x "w p lc pal"` when using the binary data format used to raise an error because of a missing `using` clause.  Now the `using` clause is added any time the binary format is used, and a check is made to avoid duplicated clauses in case the user adds a custom one;
+
+	* Bugfix: forcing a blank between GPVAL_TERM and GPVAL_TERM when reading default terminal (fixes #62);
+
 
 # Version 1.6.1
 	* Bugfix: avoid automatic sending of "set multiplot next" whenever a plot slot has no associated plot commands;
