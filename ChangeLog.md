@@ -1,13 +1,13 @@
-# Version 1.6.2 (development)
-	* New function: `show_specs()`;
+# Version 1.6.2
+* New function: `show_specs()`;
 
-	* Bugfix: `@gp x x x "w p lc pal"` when using the binary data format used to raise an error because of a missing `using` clause.  Now the `using` clause is added any time the binary format is used, and a check is made to avoid duplicated clauses in case the user adds a custom one;
+* Bugfix: `@gp x x x "w p lc pal"` when using the binary data format used to raise an error because of a missing `using` clause.  Now the `using` clause is added any time the binary format is used, and a check is made to avoid duplicated clauses in case the user adds a custom one;
 
-	* Bugfix: forcing a blank between the GPVAL_TERM and GPVAL_TERMOPTTIONS values when reading default terminal (fixes #62);
+* Bugfix: forcing a blank between the GPVAL_TERM and GPVAL_TERMOPTTIONS values when reading default terminal (fixes #62);
 
 
 # Version 1.6.1
-	* Bugfix: avoid automatic sending of "set multiplot next" whenever a plot slot has no associated plot commands;
+* Bugfix: avoid automatic sending of "set multiplot next" whenever a plot slot has no associated plot commands;
 
 
 # Version 1.6.0
@@ -19,7 +19,7 @@ A few minor changes may, however, break your code.  Specifically:
   * Multiplot ID can only be specified once in a `@gp` or `@gsp` call, and it must appear before other plot specs;
 
   * Mixing plot and splot commands is now detected as an error;
- 
+
   * Scripts are now saved using `Gnuplot.savescript` (rather than `Gnuplot.save`);
 
   * `Gnuplot.save` is no longer exported to avoid collision with other packages;
@@ -27,11 +27,11 @@ A few minor changes may, however, break your code.  Specifically:
   * In `Gnuplot.save`, `output=` is no longer a keyword, but the required first argument;
 
   * The `Options` structure no longer has a `mime` field: to customize terminal for a specific MIME a new method should be implemented;
- 
+
 This release also features the first built-in explitict recipe: `line()`.
 
 
-  
+
 # Version 1.5.0
 - New features:
 	* using PrecompileTools to reduce time-to-first-plot in Julia v1.9;
