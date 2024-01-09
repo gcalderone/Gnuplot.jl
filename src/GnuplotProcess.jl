@@ -206,7 +206,7 @@ end
 
 
 # --------------------------------------------------------------------
-terminal(gp::GPProcess) = gpexec(gp, "print GPVAL_TERM, ' ', GPVAL_TERMOPTIONS")
+terminal(gp::GPProcess) = gpexec(gp, "print GPVAL_TERM") * " " * gpexec(gp, "print GPVAL_TERMOPTIONS")
 terminals(gp::GPProcess) = string.(split(strip(gpexec(gp, "print GPVAL_TERMINALS")), " "))
 
 

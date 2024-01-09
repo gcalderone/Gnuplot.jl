@@ -79,5 +79,5 @@ The main gallery of examples is maintained in a separate repository:
 https://lazarusa.github.io/gnuplot-examples/
 
 Since **Gnuplot.jl** is just a transparent interface (not a wrapper) it exposes all capabilities of the underlying gnuplot process, hence pure-gnuplot examples also applies to **Gnuplot.jl**.  Further examples are available here:
-- http://gnuplot.sourceforge.net/demo_5.2/
+- https://gnuplot.sourceforge.net/demo_6.0/
 - http://www.gnuplotting.org/

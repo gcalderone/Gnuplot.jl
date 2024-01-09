@@ -32,7 +32,7 @@ in place of
 ```julia
 @gp ... "set xrange [-1:5]" ...
 ```
-This help reducing the number of strings, as well as the associated interpolating characters (`$`), and results in a more concise syntax.
+This helps in reducing the number of strings, as well as the associated interpolating characters (`$`), and results in a more concise syntax.
 
 
 ### 3 - Use abbreviations for commands and keywords:
