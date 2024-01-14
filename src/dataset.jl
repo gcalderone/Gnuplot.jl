@@ -235,10 +235,10 @@ function DatasetBin(cols::Vararg{AbstractVector, N}) where N
     #(length(cols) == 1)  &&  (source *= "%int")
     for i in 1:length(cols)
         @assert length(cols[1]) == length(cols[i])
-        if     isa(cols[i][1], Int32);   push!(types, Int32);   source *= "%int"
-        elseif isa(cols[i][1], Int);     push!(types, Int32);   source *= "%int"
-        elseif isa(cols[i][1], Float32); push!(types, Float32); source *= "%float"
-        elseif isa(cols[i][1], Float64); push!(types, Float32); source *= "%float"
+        if     isa(cols[i][1], Int32);   push!(types, Int32);   source *= "%int32"
+        elseif isa(cols[i][1], Int);     push!(types, Int64);   source *= "%int64"
+        elseif isa(cols[i][1], Float32); push!(types, Float32); source *= "%float32"
+        elseif isa(cols[i][1], Float64); push!(types, Float64); source *= "%float64"
         elseif isa(cols[i][1], Char);    push!(types, Char);    source *= "%char"
         else
             error("Unsupported data on column $i: $(typeof(cols[i][1]))")
