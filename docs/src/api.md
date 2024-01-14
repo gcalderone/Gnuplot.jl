@@ -28,9 +28,11 @@ palette_names
 session_names
 show_specs
 stats
+tcm
 terminals
 terminal
 test_terminal
+v2argb
 ```
 
 

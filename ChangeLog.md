@@ -1,3 +1,11 @@
+# Version 1.6.3
+* Bugfix: using machine independent data size when writing binary files.  Also, avoid casting Int64 to Int32;
+
+* New functions: `tcm()` and `v2argb()`;
+
+* New examples in documentation: "
+
+
 # Version 1.6.2
 * New function: `show_specs()`;
 

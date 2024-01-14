@@ -164,7 +164,16 @@ In order to redirect commands to a specific session simply insert a symbol into 
 @gp :GP2 "plot sin(x)"    # opens secondo window
 @gp :- :GP1 "plot cos(x)" # add a plot on first window
 ```
-The session ID can appear in every position in the argument list, but only one ID can be present in each call.  If the session ID is not specified the `:default` session is used.
+The session ID must appear as first argument, or immediately afetr `:-`.  If the session ID is not specified the value stored in `Gnuplot.options.default` will be used.
+
+!!! warn
+    Starting from version `1.6.0` the session name must be provided as a literal `Symbol`.  If you need to address a session using a variable you should update `Gnuplot.options.default`, as in the following example:
+```@example abc
+for sid in [:one, :two, :three]
+    Gnuplot.options.default = sid
+    @gp title=string(sid) rand(100) "w p notit"
+end	
+```	
 
 The names of all current sessions can be retrieved with [`session_names()`](@ref):
 ```@repl abc
@@ -343,6 +352,59 @@ Here the `frame` variable is used as multiplot index. The animation can be saved
 Gnuplot.save("assets/animation.gif", term="gif animate size 480,360 delay 5")
 ```
 ![](assets/animation.gif)
+
+
+The following examples is copied from [Makie](https://docs.makie.org/stable/#example) and uses the `webp` terminal to create an animation of the Lorenz attractor:
+```@example abc
+Base.@kwdef mutable struct Lorenz
+    dt::Float64 = 0.01
+    σ::Float64 = 10
+    ρ::Float64 = 28
+    β::Float64 = 8/3
+    x::Float64 = 1
+    y::Float64 = 1
+    z::Float64 = 1
+end
+
+function step!(l::Lorenz)
+    dx = l.σ * (l.y - l.x)
+    dy = l.x * (l.ρ - l.z) - l.y
+    dz = l.x * l.y - l.β * l.z
+    l.x += l.dt * dx
+    l.y += l.dt * dy
+    l.z += l.dt * dz
+    return (l.x, l.y, l.z)
+end
+
+Nframes = 120
+Npoints = 50
+
+attractor = Lorenz()
+@gsp  xr=30 .* [-1,1]  yr=30 .* [-1,1]  zr=[0,60] :-
+@gsp :- "set origin -0.1,-0.1" "set size 1.2,1.2" :-
+@gsp :- "set object 1 rectangle from screen 0,0 to screen 1,1 fillcolor rgb 'black' behind" :-
+@gsp :- "set border back lc rgb '#eeeeee' lt 1 lw 1.5" :-
+@gsp :- "set view equal xyz" "set xyplane at 0" :-
+@gsp :- "unset colorbox" :-
+points = Vector{NTuple{3, Float64}}()
+pcolors = Vector{Int}()
+for iframe in 1:Nframes
+    for i in 1:Npoints
+        push!(points, step!(attractor))
+        push!(pcolors, iframe)
+    end
+    (iframe == 1)  &&  continue
+    @gsp :- iframe "set view 70, $(45 + 17 * sin(2pi * iframe / Nframes))" :-
+    c = v2argb(:inferno, pcolors, alpha=0.5)
+    @gsp :- [getindex.(points, i) for i in 1:3]... c "u 1:2:3:4 w l notit lw 1 lc rgb var" :-
+end
+@gsp
+Gnuplot.save("assets/animation2.webp", term="webp enhanced size 600,400 animate delay 0.2")
+nothing # hide
+```
+![](assets/animation2.webp)
+
+
 
 
 ## Direct command execution

@@ -3,6 +3,7 @@ module Gnuplot
 using StatsBase, ColorSchemes, ColorTypes, Colors, StructC14N, DataStructures
 
 export session_names, palette_names, linetypes, palette_levels, palette,
+    tcm, v2argb,
     terminal, terminals, test_terminal,
     show_specs, stats, @gp, @gsp, gpexec,
     hist_bins, hist_weights,
@@ -13,7 +14,7 @@ export session_names, palette_names, linetypes, palette_levels, palette,
 
 Return the **Gnuplot.jl** package version.
 """
-version() = v"1.6.2"
+version() = v"1.6.3"
 
 
 # ---------------------------------------------------------------------

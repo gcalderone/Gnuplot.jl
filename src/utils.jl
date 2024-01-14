@@ -139,6 +139,82 @@ palette(s::Symbol; kwargs...) = palette(colorschemes[s]; kwargs...)
 palette(cmap::ColorScheme; kwargs...) =
     palette(palette_levels(cmap; kwargs...)...)
 
+"""
+    tcm(palette::Symbol; alpha::Union{Real, Function}=0.5, kwargs...)
+
+Defines a Transparent Color Map (TCM) based on the given palette name.  The `alpha=` keyword allows to specify a transparency level in the range 0 (opaque) to 1 (transparent), or to provide a mapping function accepting a single float number in the range 0:1, and returning a float in the same range.  Any further keyword is forwarded to `palette()`.
+
+# Example
+```julia
+x = rand(500);
+@gp "set multiplot layout 1,2"
+@gp :- 1 tcm(:hawaii, alpha=0.5)          x "u 0:1:1 notit w p pt 7 lc pal tcm"
+@gp :- 2 tcm(:hawaii, alpha=x -> sqrt(x)) x "u 0:1:1 notit w p pt 7 lc pal tcm"
+```
+"""
+function tcm(s::Symbol; alpha::Union{Real, Function}=0.5, kwargs...)
+    out = palette(s; kwargs...)
+
+    if isa(alpha, Real)
+        @assert 0 <= alpha <= 1
+        out *= "set colormap new tcm\n"
+        out *= "do for [i=1:|tcm|] { tcm[i] = tcm[i] | 0x" * string(Int(round(alpha * 255)), base=16) * "000000 }\n"
+        return out
+    end
+
+    p = palette_levels(s; kwargs...)[2]
+    out *= "set colormap new tcm\n"
+    r = range(0., 1., length(p))
+    for i in 1:length(p)
+        out *= "tcm[$i] = tcm[$i] | 0x" * string(Int(round(alpha(r[i]) * 255)), base=16) * "000000;"
+    end
+    out *= "\n"
+    return out
+end
+
+
+
+"""
+    v2argb(v::Vector{<: Real}; kwargs...)
+    v2argb(palette::Symbol, v::Vector{<: Real};
+           range=extrema(v),
+           alpha::Union{Real, Function, Nothing}=nothing,
+           kwargs...)
+
+Map a vector of numbers within the range `range` into a corresponding vector of `Ints` representing (A)RGB colors using the specified palette and transparency settings.  The latter is supposed to be used with the colorspec "lc rgb var".  Transparency can be specified via the `alpha=` keyword, either as a constant transparency level in the range 0 (opaque) to 1 (transparent), or by providing a mapping function accepting a single float number in the range 0:1, and returning a float in the same range.  Any further keyword is forwarded to `palette()`.
+
+
+# Example
+
+Plot points from a 2D Gaussian distribution using colors and transparencies depending on the distance from the origin.
+```julia
+using Random
+x = randn(500);
+y = randn(500);
+dist = sqrt.(x.^2 + y.^2)
+@gp "set size ratio -1" :-
+@gp :- x y v2argb(:brg, dist, alpha=x -> sqrt(x)) "w p notit lc rgb var"
+```
+"""
+v2argb(v::AbstractVector{<: Real}; kwargs...) = v2argb(:viridis, v; kwargs...)
+function v2argb(palette::Symbol, v::AbstractVector{<: Real};
+                range=extrema(v), alpha::Union{Real, Function, Nothing}=nothing,
+                kwargs...)
+    hex = getindex.(palette_levels(palette; kwargs...)[2], Ref(2:7))
+    if isa(alpha, Real)
+        @assert 0 <= alpha <= 1
+        hex = string(Int(round(alpha * 255)), base=16) .* hex
+    elseif isa(alpha, Function)
+        r = Base.range(0., 1., length(hex))
+        for i in 1:length(hex)
+            hex[i] = string(Int(round(alpha(r[i]) * 255)), base=16) * hex[i]
+        end
+    end
+    colors = parse.(Int, hex, base=16)
+    nv = (v .- range[1]) ./ (range[2] - range[1])
+    return colors[Int.(round.(nv * (length(colors)-1))) .+ 1]
+end
+
 
 # ---------------------------------------------------------------------
 """
