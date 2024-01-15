@@ -3,7 +3,7 @@
 
 * New functions: `tcm()` and `v2argb()`;
 
-* New examples in documentation: "
+* New examples in documentation concerning transparency and animations;
 
 
 # Version 1.6.2
