@@ -283,7 +283,7 @@ All plot in this documentation were generated with these settings.
 
 ## Transparency
 
-Gnuplot palette can't handle transparency, the only way to plot transparent symbols is via a *named colormap*.  **Gnuplot.jl** defines one such colormap dubbed a "Transparent Color Map" (TCM) based on a given palette via the [`tcm()`](@ref) function.  Copying from previous example we just need to replace a `palette()` call with a `tcm` one, and specify `lc pal tcm`, as in the following example:
+Gnuplot palette can't handle transparency, the only way to plot transparent symbols is via a *named colormap*.  **Gnuplot.jl** defines one such colormap dubbed a "Transparent Color Map" (TCM) based on a given palette via the [`tcm()`](@ref) function.  Copying from previous example we just need to replace a `palette()` call with a `tcm()` one, and specify `lc pal tcm`, as in the following example:
 ```@example abc
 x = 0:0.1:10pi
 @gsp tcm(:viridis) cbr=[-1,1].*30 :-
@@ -292,7 +292,7 @@ saveas("basic010a"); nothing # hide
 ```
 ![](assets/basic010a.png)
 
-In this plot all points have the same transparency, you can specify a custom one via the `alpha` keyword, e.g. `tcm(:viridis, alpha=0.8)` (note: `alpha=0` means completely opaque, `alpha=1` means completely transparent symbols).
+In this plot all points have the same transparency of 0.5, you can specify a custom one via the `alpha=` keyword, e.g. `tcm(:viridis, alpha=0.8)` (note: `alpha=0` means completely opaque, `alpha=1` means completely transparent symbols).
 
 You may also provide a mapping function to use different transparency levels depending on data values, e.g.:
 ```@example abc
@@ -304,22 +304,34 @@ saveas("basic010b"); nothing # hide
 ![](assets/basic010b.png)
 
 
-Only one palette, or tcm, can be used in a plot.  If you want to use multiple palettes you can provide colors (with optional transparency) as data.  The mapping from an input value to an (A)RGB color is performed via the [`v2argb()`](@ref) function, and the optional transparency is specified via the `alpha=` keyword in the same way as for the `tcm()` function:
+In principle, you may also specify the (A)RGB color for each data point by providing them as hexadecimal integers, e.g.
+```@example abc
+colors        = [  0xff0000,   0x00ff00,   0x0000ff]
+transp_colors = [0x44ff0000, 0x8800ff00, 0xcc0000ff]
+@gp xr=[0,4] yr=[0,4] key="bottom right" :-
+@gp :- 1:3   1:3          colors "w p  t 'Opaque'      pt 3 ps 5 lc rgb var"
+@gp :- 1:3 1.5:3.5 transp_colors "w lp t 'Transparent' pt 7 ps 3 lc rgb var"
+saveas("basic010c"); nothing # hide
+```
+![](assets/basic010c.png)
+
+
+To easily generate the vector of (A)RGB colors you can use the [`v2argb()`](@ref) function which maps any user value to a specific palette, with optional transparency (to be specified via the `alpha=` keyword in the same way as for the `tcm()` function).  E.g.:
 ```@example abc
 x = 1:19
 y = x .* 0
 @gp "set grid" yr=[0,9] :-
-@gp :- x y .+ 1 v2argb(x)                               "w p notit pt 5 ps 3 lw 3 lc rgb var"
-@gp :- x y .+ 2 v2argb(:grays, x)                       "w p notit pt 5 ps 3 lw 3 lc rgb var"
-@gp :- x y .+ 3 v2argb(:grays, x, rev=true)             "w p notit pt 5 ps 3 lw 3 lc rgb var"
-@gp :- x y .+ 4 v2argb(:roma , x, alpha=0.5)            "w p notit pt 5 ps 3 lw 3 lc rgb var"
-@gp :- x y .+ 5 v2argb(:roma , x, alpha=x -> x)         "w p notit pt 5 ps 3 lw 3 lc rgb var"
-@gp :- x y .+ 6 v2argb(:roma , x, alpha=x -> x^3)       "w p notit pt 5 ps 3 lw 3 lc rgb var"
-@gp :- x y .+ 7 v2argb(:roma , x, alpha=x -> x^0.3)     "w p notit pt 5 ps 3 lw 3 lc rgb var"
-@gp :- x y .+ 8 v2argb(:roma , x, alpha=x -> (1-x)^0.3) "w p notit pt 5 ps 3 lw 3 lc rgb var"
-saveas("basic010c"); nothing # hide
+@gp :- x y.+1 v2argb(x)                               "w p notit pt 5 ps 3 lw 3 lc rgb var"
+@gp :- x y.+2 v2argb(:grays, x)                       "w p notit pt 5 ps 3 lw 3 lc rgb var"
+@gp :- x y.+3 v2argb(:grays, x, rev=true)             "w p notit pt 5 ps 3 lw 3 lc rgb var"
+@gp :- x y.+4 v2argb(:roma , x, alpha=0.5)            "w p notit pt 5 ps 3 lw 3 lc rgb var"
+@gp :- x y.+5 v2argb(:roma , x, alpha=x -> x)         "w p notit pt 5 ps 3 lw 3 lc rgb var"
+@gp :- x y.+6 v2argb(:roma , x, alpha=x -> x^3)       "w p notit pt 5 ps 3 lw 3 lc rgb var"
+@gp :- x y.+7 v2argb(:roma , x, alpha=x -> x^0.3)     "w p notit pt 5 ps 3 lw 3 lc rgb var"
+@gp :- x y.+8 v2argb(:roma , x, alpha=x -> (1-x)^0.3) "w p notit pt 5 ps 3 lw 3 lc rgb var"
+saveas("basic010d"); nothing # hide
 ```
-![](assets/basic010c.png)
+![](assets/basic010d.png)
 
 In the above plot:
 - the symbols at `y=1` use the default `viridis` palette;
@@ -330,12 +342,11 @@ In the above plot:
 - the symbols at `y=6` and `y=7` use the `roma` palette with a non-linear transparency mapping stretching opacity towards higher values (`y=6`) or transparency towards lower values (`y=7`);
 - the symbols at `y=8` use the same palette but reversed transparency with respect to `y=7`.
 
+The advantages of using `v2argb()` over `tcm()` are:
+- you can use more than one palette in a single plot;
+- you can specify transparency for the `lines` plot style.
 
-
-
-!!! note
-    Note that the `lines` plot style does not support transparency, hence `tcm()` can be used only when plotting disconnected symbols.  Use [`v2argb()`](@ref) to plot transparent lines.
-	
+On the other hand, `v2argb()` does not allow to draw a color bar to represent the color mapping.
 
 
 

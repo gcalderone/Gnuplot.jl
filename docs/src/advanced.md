@@ -385,7 +385,6 @@ attractor = Lorenz()
 @gsp :- "set object 1 rectangle from screen 0,0 to screen 1,1 fillcolor rgb 'black' behind" :-
 @gsp :- "set border back lc rgb '#eeeeee' lt 1 lw 1.5" :-
 @gsp :- "set view equal xyz" "set xyplane at 0" :-
-@gsp :- "unset colorbox" :-
 points = Vector{NTuple{3, Float64}}()
 pcolors = Vector{Int}()
 for iframe in 1:Nframes
@@ -395,14 +394,14 @@ for iframe in 1:Nframes
     end
     (iframe == 1)  &&  continue
     @gsp :- iframe "set view 70, $(45 + 17 * sin(2pi * iframe / Nframes))" :-
-    c = v2argb(:inferno, pcolors, alpha=0.5)
-    @gsp :- [getindex.(points, i) for i in 1:3]... c "u 1:2:3:4 w l notit lw 1 lc rgb var" :-
+    local c = v2argb(:inferno, pcolors, alpha=0.5)
+    @gsp :- [getindex.(points, i) for i in 1:3]... c "w l notit lw 1.5 lc rgb var" :-
 end
 @gsp
-Gnuplot.save("assets/animation2.webp", term="webp enhanced size 600,400 animate delay 0.2")
+Gnuplot.save("assets/lorenz.webp", term="webp enhanced size 600,400 animate delay 0.1")
 nothing # hide
 ```
-![](assets/animation2.webp)
+![](assets/lorenz.webp)
 
 
 

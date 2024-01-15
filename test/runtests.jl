@@ -292,4 +292,18 @@ Gnuplot.options.dry = true
 @gp hist([1,2,3], bs=2)
 @gp hist([1,1,1], bs=1)
 
+
+x = rand(500);
+@gp "set multiplot layout 1,2"
+@gp :- 1 tcm(:hawaii, alpha=0.5)          x "u 0:1:1 notit w p pt 7 lc pal tcm"
+@gp :- 2 tcm(:hawaii, alpha=x -> sqrt(x)) x "u 0:1:1 notit w p pt 7 lc pal tcm"
+
+x = randn(500);
+y = randn(500);
+dist = sqrt.(x.^2 + y.^2)
+@gp "set size ratio -1" :-
+@gp :- x y v2argb(:brg, dist, alpha=x -> sqrt(x)) "w p notit lc rgb var"
+
+
+
 Gnuplot.quitall()
