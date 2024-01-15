@@ -8,7 +8,7 @@
 **Gnuplot.jl** is a simple package able to send both data and commands from Julia to an underlying [gnuplot](http://gnuplot.sourceforge.net/) process.  Its main purpose it to provide a fast and powerful data visualization framework, using an extremely concise Julia syntax. It also has automatic display of plots in Jupyter, Juno and VS Code.
 
 > [!NOTE]
-> New examples added in documentation the sections:
+> New examples added in the following sections of the documentation:
 > - Basic usage -> Transparency
 > - Advanced usage -> Animations
 
