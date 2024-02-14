@@ -354,7 +354,7 @@ Gnuplot.save("assets/animation.gif", term="gif animate size 480,360 delay 5")
 ![](assets/animation.gif)
 
 
-The following examples is copied from [Makie](https://docs.makie.org/stable/#example) and uses the `webp` terminal to create an animation of the Lorenz attractor:
+The following example is copied from [Makie](https://docs.makie.org/stable/#example) and uses the `webp` terminal to create an animation of the Lorenz attractor:
 ```@example abc
 Base.@kwdef mutable struct Lorenz
     dt::Float64 = 0.01

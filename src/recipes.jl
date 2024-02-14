@@ -25,10 +25,10 @@ line(x::AbstractVector{<: Real}, y::Real, spec::String="w l notit") = line(extre
 
 Implicit recipes to visualize 1D and 2D histograms.
 """
-recipe(h::StatsBase.Histogram{T, 1, R}) where {T, R} =
-    parseSpecs("set grid", hist_bins(h), hist_weights(h), "w step notit lw 2 lc rgb 'black'")
+recipe(h::StatsBase.Histogram{T, 1, R}) where {T <: Real, R} =
+    parseSpecs("set grid", hist_bins(h, side=:center), hist_weights(h), "w histep notit lw 2 lc rgb 'black'")
 
-recipe(h::StatsBase.Histogram{T, 2, R}) where {T, R} =
+recipe(h::StatsBase.Histogram{T, 2, R}) where {T <: Real, R} =
     parseSpecs("set autoscale fix", # , "set size ratio -1"]
                hist_bins(h, 1), hist_bins(h, 2), hist_weights(h), "w image notit")
 

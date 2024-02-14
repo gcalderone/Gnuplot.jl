@@ -25,24 +25,66 @@ end
 
 
 """
-    hist_bins(h::StatsBase.Histogram, axis=1)
+    hist_bins(h::StatsBase.Histogram{T <: Real, 1, R}; side=:left, pad=true)
 
-Returns the coordinates of each bin along the specified axis.
-Note: the returned coordinate location depends on the dimensionality of the histogram:
-- 1D: coordinates are on the left side of the bins;
-- 2D: coordinates are on the center of the bins;
+Returns the coordinates of the bins for a 1D histogram.
+
+Note: the returned coordinates depend on value of the `side` keyword:
+- `side=:left` (default): coordinates are returned for the left sides of each bin;
+- `side=:center`: coordinates are returned for the center of each bin;
+- `side=:right`: coordinates are returned for the right sides of each bin;
+
+If the `pad` keyword is `true` two extra bins are added at the beginning and at the end.
 """
-hist_bins(h::StatsBase.Histogram{T, 1, R}) where {T, R} = [h.edges[1][1]; h.edges[1]]
-hist_bins(h::StatsBase.Histogram{T, 2, R}, axis::Int) where {T, R} =
+function hist_bins(h::StatsBase.Histogram{T, 1, R}; side=:left, pad=true) where {T <: Real, R}
+    if side == :left
+        if pad
+            return [h.edges[1][1]; h.edges[1]]
+        else
+            return h.edges[1][1:end-1]
+        end
+    elseif side == :right
+        if pad
+            return [h.edges[1]; h.edges[1][end]]
+        else
+            return h.edges[1][2:end]
+        end
+    end
+    @assert side == :center "Side must be one of `left`, `right` or `center`"
+    center = collect(h.edges[1][1:end-1] .+ h.edges[1][2:end]) ./ 2
+    if pad
+        return [h.edges[1][1]; center; h.edges[1][end]]
+    else
+        return center
+    end
+end
+
+"""
+    hist_bins(h::StatsBase.Histogram{T <: Real, 2, R}, axis)
+
+Returns the coordinates of the bins for a 2D histogram along the specified axis.
+
+Note: unlike 1D case, the returned coordinate are always located in the center of the bins.
+"""
+hist_bins(h::StatsBase.Histogram{T, 2, R}, axis::Int) where {T <: Real, R} =
     collect(h.edges[axis][1:end-1] .+ h.edges[axis][2:end]) ./ 2
 
 """
-    hist_weights(h::StatsBase.Histogram)
+    hist_weights(h::StatsBase.Histogram{T <: Real, 1, R}; pad=true)
+    hist_weights(h::StatsBase.Histogram{T <: Real, 2, R})
 
 Returns the weights of each bin in a histogram.
+
+Note: in the 1D case, if the `pad` keyword is `true` two extra bins
+with zero counts are added at the beginning and at the end.
 """
-hist_weights(h::StatsBase.Histogram{T, 1, R}) where {T, R} = [zero(T); h.weights; zero(T)]
-hist_weights(h::StatsBase.Histogram{T, 2, R}) where {T, R} = h.weights
+function hist_weights(h::StatsBase.Histogram{T, 1, R}; pad=true) where {T <: Real, R}
+    if pad
+        return [zero(T); h.weights; zero(T)] .* 1.
+    end
+    return h.weights .* 1.
+end
+hist_weights(h::StatsBase.Histogram{T, 2, R}) where {T <: Real, R} = h.weights .* 1.
 
 
 
@@ -79,9 +121,11 @@ h = hist(v, range=[-3.5, 3.5], bs=0.5)
 @gp h  # preview
 
 # Custom appearence
-@gp    hist_bins(h) hist_weights(h) "w steps lw 3"
-@gp :- hist_bins(h) hist_weights(h) "w fillsteps" "set style fill transparent solid 0.5"
-@gp :- hist_bins(h) hist_weights(h) "w lp lw 3"
+@gp    hist_bins(h) hist_weights(h) "w steps t 'Histogram' lw 3"
+@gp :- hist_bins(h) hist_weights(h) "w fillsteps t 'Shaded histogram'" "set style fill transparent solid 0.5"
+@gp :- hist_bins(h) hist_weights(h) "w lp t 'side=:left' lw 3"
+@gp :- hist_bins(h, side=:center) hist_weights(h) "w lp t 'side=:center' lw 3"
+@gp :- hist_bins(h, side=:right)  hist_weights(h) "w lp t 'side=:right' lw 3"
 ```
 """
 function hist(v::Vector{T}; w=Vector{T}(), kws...) where T <: Real

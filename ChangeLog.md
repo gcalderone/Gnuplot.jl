@@ -1,3 +1,9 @@
+# Version 1.6.4
+* The `hist_bins()` now accepts the `side=` keyword (default value: `:left`) to specify whether the coordinates should be returned for the left, cetner or right sides of the bins (applies only to the 1D case);
+
+* The `hist_bins()` and `hist_weights()` now accepts the `pad=` keyword (default value: `true`) to include two further bins with zero counts at the beginning and the end.  This is usedul when using the `with step` gnuplot style to draw the vertical lines at the external edges of the histogram (applies only to the 1D case);
+
+
 # Version 1.6.3
 * Bugfix: using machine independent data size when writing binary files.  Also, avoid casting Int64 to Int32;
 
