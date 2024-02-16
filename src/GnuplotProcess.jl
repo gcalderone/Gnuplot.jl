@@ -211,8 +211,8 @@ terminals(gp::GPProcess) = string.(split(strip(gpexec(gp, "print GPVAL_TERMINALS
 
 
 # --------------------------------------------------------------------
-function gpvars(gp::GPProcess)
-    vars = string.(strip.(split(gpexec(gp, "show var all"), '\n')))
+function gpvars(gp::GPProcess, filter="all")
+    vars = string.(strip.(split(gpexec(gp, "show var $filter"), '\n')))
 
     out = Dict{Symbol, Union{String, Real}}()
     for v in vars

@@ -166,9 +166,10 @@ gpexec(s::String) = gpexec(getsession(), s)
 
 Return a `NamedTuple` with all currently defined gnuplot variables.  If the `sid` argument is not provided, the default session is considered.
 """
-gpvars(gp::GPSession{Nothing}) = nothing
-gpvars(gp::GPSession{GPProcess}) = gpvars(gp.process)
-gpvars(sid::Symbol=options.default) = gpvars(getsession(sid))
+gpvars(gp::GPSession{Nothing}, filter="all") = nothing
+gpvars(gp::GPSession{GPProcess}, filter="all") = gpvars(gp.process, filter)
+gpvars(sid::Symbol=options.default, filter="all") = gpvars(getsession(sid), filter)
+gpvars(filter::String) = gpvars(options.default, filter)
 
 
 function reset(gp::GPSession{T}) where T
