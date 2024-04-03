@@ -212,24 +212,16 @@ end
 # Allow missing values in input
 function hist(v::Vector{Union{Missing,T}}; kw...) where T <: Real
     ii = findall(.!ismissing.(v))
-    @info "Neglecting missing values ($(length(v) - length(ii)))"
+    nmissing = length(v) - length(ii)
+    (nmissing > 0)  &&  (@info "Neglecting missing values ($(nmissing))")
     hist(convert(Vector{T}, v[ii]); kw...)
 end
 
-function hist(v1::Vector{Union{Missing,T1}}, v2::Vector{T2}; kw...) where {T1 <: Real, T2 <: Real}
-    ii = findall(.!ismissing.(v1)  .&  .!ismissing.(v2)  )
-    @info "Neglecting missing values ($(length(v1) - length(ii)))"
-    hist(convert(Vector{T1}, v1[ii]), convert(Vector{T2}, v2[ii]), kw...)
-end
-
-function hist(v1::Vector{T1}, v2::Vector{Union{Missing, T2}}; kw...) where {T1 <: Real, T2 <: Real}
-    ii = findall(.!ismissing.(v1)  .&  .!ismissing.(v2)  )
-    @info "Neglecting missing values ($(length(v1) - length(ii)))"
-    hist(convert(Vector{T1}, v1[ii]), convert(Vector{T2}, v2[ii]), kw...)
-end
-
-function hist(v1::Vector{Union{Missing,T1}}, v2::Vector{Union{Missing,T2}}; kw...) where {T1 <: Real, T2 <: Real}
-    ii = findall(.!ismissing.(v1)  .&  .!ismissing.(v2)  )
-    @info "Neglecting missing values ($(length(v1) - length(ii)))"
+function hist(v1::Union{Vector{T1}, Vector{Union{Missing,T1}}},
+              v2::Union{Vector{T2}, Vector{Union{Missing,T2}}}; kw...) where {T1 <: Real, T2 <: Real}
+    @assert length(v1) == length(v2)
+    ii = findall(.!ismissing.(v1)  .&  .!ismissing.(v2))
+    nmissing = length(v1) - length(ii)
+    (nmissing > 0)  &&  (@info "Neglecting missing values ($(nmissing))")
     hist(convert(Vector{T1}, v1[ii]), convert(Vector{T2}, v2[ii]), kw...)
 end
