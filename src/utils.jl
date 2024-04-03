@@ -310,6 +310,10 @@ end
 boxxy(h::StatsBase.Histogram{T, 2, R}) where {T, R} = boxxy(hist_bins(h, 1), hist_bins(h, 2), hist_weights(h), cartesian=true)
 function boxxy(x, y, aux...; xmin=NaN, ymin=NaN, xmax=NaN, ymax=NaN, cartesian=false)
     function box(v; vmin=NaN, vmax=NaN)
+        @assert issorted(v)  ||  issorted(reverse(v))
+        if !issorted(v)
+            vmin, vmax = vmax, vmin
+        end
         vlow  = Vector{Float64}(undef, length(v))
         vhigh = Vector{Float64}(undef, length(v))
         for i in 2:length(v)-1
@@ -325,8 +329,6 @@ function boxxy(x, y, aux...; xmin=NaN, ymin=NaN, xmax=NaN, ymax=NaN, cartesian=f
         isfinite(vmax)  &&  (vhigh[end] = vmax)
         return (vlow, vhigh)
     end
-    @assert issorted(x)
-    @assert issorted(y)
     xlow, xhigh = box(x, vmin=xmin, vmax=xmax)
     ylow, yhigh = box(y, vmin=ymin, vmax=ymax)
     if !cartesian
