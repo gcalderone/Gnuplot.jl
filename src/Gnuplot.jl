@@ -14,7 +14,7 @@ export session_names, palette_names, linetypes, palette_levels, palette,
 
 Return the **Gnuplot.jl** package version.
 """
-version() = v"1.6.4"
+version() = v"1.6.5"
 
 
 # ---------------------------------------------------------------------
@@ -161,10 +161,10 @@ gpexec(s::String) = gpexec(getsession(), s)
 
 
 """
-    gpvars(sid::Symbol)
-    gpvars()
+    gpvars(sid::Symbol, filter="all")
+    gpvars(filter="all")
 
-Return a `NamedTuple` with all currently defined gnuplot variables.  If the `sid` argument is not provided, the default session is considered.
+Return a `NamedTuple` with all currently defined gnuplot variables, as returned by `show var \$filter`.  If the `sid` argument is not provided, the default session is considered.
 """
 gpvars(gp::GPSession{Nothing}, filter="all") = nothing
 gpvars(gp::GPSession{GPProcess}, filter="all") = gpvars(gp.process, filter)

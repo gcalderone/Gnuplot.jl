@@ -1,3 +1,8 @@
+# Version 1.6.5
+* Allow reverse sorted vectors in boxxy();
+
+* Added filter argument to gpvars (default: "all")
+
 # Version 1.6.4
 * The `hist_bins()` now accepts the `side=` keyword (default value: `:left`) to specify whether the coordinates should be returned for the left, cetner or right sides of the bins (applies only to the 1D case);
 

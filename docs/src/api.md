@@ -16,7 +16,7 @@ dgrid3d
 gpexec
 gpmargins
 gpranges
-gpvars
+Gnuplot.gpvars
 hist
 hist_bins
 hist_weights

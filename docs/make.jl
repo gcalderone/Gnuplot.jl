@@ -1,5 +1,6 @@
 # Run with: julia --startup-file=no make.jl
 using Documenter, Gnuplot
+using RDatasets, TestImages
 
 makedocs(sitename="Gnuplot.jl",
          authors = "Giorgio Calderone",
