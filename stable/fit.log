@@ -1,7 +1,7 @@
 
 
 *******************************************************************************
-Wed Feb 14 18:15:37 2024
+Fri Apr  5 12:14:10 2024
 
 
 FIT:    data read from $MyDataSet1
@@ -14,25 +14,25 @@ function used for fitting: f(x)
 fitted parameters initialized with current variable values
 
 iter      chisq       delta/lim  lambda   a             b             c            
-   0 2.2893182019e+01   0.00e+00  1.61e+00    1.000000e+00   1.000000e+00   1.000000e+00
-   5 2.7317219674e-01  -1.35e-01  1.61e-05    1.565787e+00   3.487870e-01   6.976461e-01
+   0 1.9195354440e+01   0.00e+00  1.61e+00    1.000000e+00   1.000000e+00   1.000000e+00
+   6 5.0916514656e-01  -3.16e-03  1.61e-06    1.485684e+00   3.900071e-01   7.174019e-01
 
-After 5 iterations the fit converged.
-final sum of squares of residuals : 0.273172
-rel. change during last iteration : -1.35216e-06
+After 6 iterations the fit converged.
+final sum of squares of residuals : 0.509165
+rel. change during last iteration : -3.16294e-08
 
 degrees of freedom    (FIT_NDF)                        : 17
-rms of residuals      (FIT_STDFIT) = sqrt(WSSR/ndf)    : 0.126763
-variance of residuals (reduced chisquare) = WSSR/ndf   : 0.016069
+rms of residuals      (FIT_STDFIT) = sqrt(WSSR/ndf)    : 0.173063
+variance of residuals (reduced chisquare) = WSSR/ndf   : 0.0299509
 
 Final set of parameters            Asymptotic Standard Error
 =======================            ==========================
-a               = 1.56579          +/- 0.04091      (2.613%)
-b               = 0.348787         +/- 0.0256       (7.34%)
-c               = 0.697646         +/- 0.006855     (0.9826%)
+a               = 1.48568          +/- 0.05511      (3.709%)
+b               = 0.390007         +/- 0.03728      (9.56%)
+c               = 0.717402         +/- 0.01016      (1.416%)
 
 correlation matrix of the fit parameters:
                 a      b      c      
 a               1.000 
-b              -0.033  1.000 
-c              -0.152  0.128  1.000 
+b              -0.014  1.000 
+c              -0.137  0.137  1.000 
