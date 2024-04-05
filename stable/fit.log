@@ -1,7 +1,7 @@
 
 
 *******************************************************************************
-Fri Apr  5 12:14:10 2024
+Fri Apr  5 12:32:13 2024
 
 
 FIT:    data read from $MyDataSet1
@@ -14,25 +14,25 @@ function used for fitting: f(x)
 fitted parameters initialized with current variable values
 
 iter      chisq       delta/lim  lambda   a             b             c            
-   0 1.9195354440e+01   0.00e+00  1.61e+00    1.000000e+00   1.000000e+00   1.000000e+00
-   6 5.0916514656e-01  -3.16e-03  1.61e-06    1.485684e+00   3.900071e-01   7.174019e-01
+   0 2.2103949445e+01   0.00e+00  1.61e+00    1.000000e+00   1.000000e+00   1.000000e+00
+   6 4.7410208481e-01  -5.15e-04  1.61e-06    1.508359e+00   2.459291e-01   6.955872e-01
 
 After 6 iterations the fit converged.
-final sum of squares of residuals : 0.509165
-rel. change during last iteration : -3.16294e-08
+final sum of squares of residuals : 0.474102
+rel. change during last iteration : -5.14599e-09
 
 degrees of freedom    (FIT_NDF)                        : 17
-rms of residuals      (FIT_STDFIT) = sqrt(WSSR/ndf)    : 0.173063
-variance of residuals (reduced chisquare) = WSSR/ndf   : 0.0299509
+rms of residuals      (FIT_STDFIT) = sqrt(WSSR/ndf)    : 0.166998
+variance of residuals (reduced chisquare) = WSSR/ndf   : 0.0278884
 
 Final set of parameters            Asymptotic Standard Error
 =======================            ==========================
-a               = 1.48568          +/- 0.05511      (3.709%)
-b               = 0.390007         +/- 0.03728      (9.56%)
-c               = 0.717402         +/- 0.01016      (1.416%)
+a               = 1.50836          +/- 0.05423      (3.595%)
+b               = 0.245929         +/- 0.03479      (14.15%)
+c               = 0.695587         +/- 0.009339     (1.343%)
 
 correlation matrix of the fit parameters:
                 a      b      c      
 a               1.000 
-b              -0.014  1.000 
-c              -0.137  0.137  1.000 
+b              -0.028  1.000 
+c              -0.174  0.094  1.000 
