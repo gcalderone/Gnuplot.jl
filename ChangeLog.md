@@ -1,3 +1,6 @@
+# Version 1.7.0
+* Updated dependencies
+
 # Version 1.6.5
 * Allow reverse sorted vectors in boxxy();
 
